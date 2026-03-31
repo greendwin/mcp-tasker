@@ -14,7 +14,7 @@ def list_tasks() -> list[TaskPreview]:
 
 @mcp.tool()
 def view_task(task_ref: str) -> TaskInfo:
-    """View a task by its reference ID."""
+    """View detailed task info by its ID."""
     repo = get_repo()
     task = repo.resolve_ref(task_ref)
     return TaskInfo.from_task(task)
