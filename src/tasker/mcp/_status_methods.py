@@ -23,10 +23,10 @@ def reset_task(task_ref: str) -> TaskInfo:
 
 
 @mcp.tool()
-def finish_task(task_ref: str) -> TaskInfo:
-    """Mark a task as done."""
+def finish_task(task_ref: str, force: bool = False) -> TaskInfo:
+    """Mark a task as done. Use force=True to close all open subtasks."""
     repo = get_repo()
     task = repo.resolve_ref(task_ref)
-    repo.finish_task(task)
+    repo.finish_task(task, force=force)
     repo.flush_to_disk()
     return TaskInfo.from_task(task)

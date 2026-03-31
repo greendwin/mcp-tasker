@@ -77,3 +77,10 @@ def test_done_task_persists_to_disk(story_id: str, leaf_ref: str) -> None:
 def test_done_task_nonleaf_raises(story_id: str, leaf_ref: str) -> None:
     with pytest.raises(TaskHasSubtasksError):
         finish_task(story_id)
+
+
+def test_done_task_force_closes_subtasks(story_id: str, leaf_ref: str) -> None:
+    result = finish_task(story_id, force=True)
+    assert result.status == TaskStatus.DONE
+    assert result.subtasks is not None
+    assert all(s.status == TaskStatus.DONE for s in result.subtasks)
