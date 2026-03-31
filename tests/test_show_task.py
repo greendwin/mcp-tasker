@@ -11,10 +11,16 @@ def test_show_task_prints_title() -> None:
     assert "My important story" in result.output
 
 
-def test_show_task_prints_pending_marker() -> None:
+def test_show_task_omits_pending_marker() -> None:
     task_id = create_task("My story").task_id
     result = assert_invoke(app, ["show", task_id])
-    assert "[ ]" in result.output
+    assert "[ ]" not in result.output
+
+
+def test_show_task_prints_task_id_in_header() -> None:
+    task_id = create_task("My story").task_id
+    result = assert_invoke(app, ["show", task_id])
+    assert task_id in result.output
 
 
 def test_show_task_prints_description() -> None:

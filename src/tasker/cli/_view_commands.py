@@ -37,8 +37,12 @@ def cmd_show_task(
 
         color = _STATUS_COLOR[task.status]
         marker = _STATUS_MARKER[task.status]
+        marker_prefix = ""
+        if task.status != TaskStatus.PENDING:
+            marker_prefix = f"[{color}]{marker}[/{color}] "
+
         console.print(
-            f"[{color}]{marker}[/{color}] [bold]{task.title}[/bold]",
+            f"[blue]{task.id}[/blue]: {marker_prefix}[bold]{task.title}[/bold]",
             json_output=_task_to_json(task),
         )
 
@@ -56,13 +60,16 @@ def cmd_show_task(
             sub_color = _STATUS_COLOR[subtask.status]
             sub_marker = _STATUS_MARKER[subtask.status]
             if subtask.status == TaskStatus.CANCELLED:
-                line = f"{sub_marker} {subtask.id}: {subtask.title}"
+                line = f"{subtask.id}: {sub_marker} {subtask.title}"
                 console.print(f"  - [{sub_color}]{line}[/{sub_color}]")
                 continue
 
+            sub_marker_prefix = ""
+            if subtask.status != TaskStatus.PENDING:
+                sub_marker_prefix = f"[{sub_color}]{sub_marker}[/{sub_color}] "
+
             console.print(
-                f"  - [{sub_color}]{sub_marker}[/{sub_color}]"
-                f" [blue]{subtask.id}[/blue]: {subtask.title}"
+                f"  - [blue]{subtask.id}[/blue]: {sub_marker_prefix}{subtask.title}"
             )
 
 
