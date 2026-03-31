@@ -235,3 +235,16 @@ def test_add_detailed_subtask_child_parses_correctly(
     assert child.title == "Write CLI spec"
     assert child.description == "Cover all commands"
     assert child.status == TaskStatus.PENDING
+
+
+def test_add_to_inline_task(tasks_root: Path, parent_id: str) -> None:
+    root = create_task("root task")
+    inline_subtask = add_subtask(root.task_ref, "subtask")
+
+    # root task should be a basic task
+    assert (tasks_root / (root.task_ref + ".md")).exists()
+
+    _ = add_subtask(inline_subtask.task_ref, "should not fail")
+
+    # root should be upgraded to directory-based
+    assert (tasks_root / root.task_ref).is_dir()
