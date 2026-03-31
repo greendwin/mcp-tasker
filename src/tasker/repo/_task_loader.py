@@ -42,7 +42,7 @@ class TaskLoader:
         return task
 
     def register_task(self, task: Task, original: OriginalState | None) -> None:
-        if task.id is self._tasks:
+        if task.id in self._tasks:
             prev = self._tasks[task.id]
             if prev.title != task.title:
                 raise TaskValidateError(
@@ -51,7 +51,9 @@ class TaskLoader:
                     f"  - {task.ref}: {task.title}",
                     task_ref=task.ref,
                 )
-            raise TaskValidateError(f"Task {task.id!r} was registered twice", task_ref=task.ref)
+            raise TaskValidateError(
+                f"Task {task.id!r} was registered twice", task_ref=task.ref
+            )
 
         if is_root_task_id(task.id):
             self._root_tasks[task.id] = task
