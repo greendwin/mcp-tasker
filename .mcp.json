@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "tasker": {
+      "command": "poetry",
+      "args": ["run", "tasker", "mcp"]
+    }
+  }
+}
