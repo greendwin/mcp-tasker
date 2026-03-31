@@ -1,6 +1,6 @@
 ---
 id: s18t07
-status: pending
+status: done
 ---
 
 # Give access to tasks as a resource
@@ -23,7 +23,7 @@ Resource desk
 
 ## Subtasks
 
-- [ ] [s18t0701](s18t0701-resource-index.md): Add resource 'task://index' to list all root tasks
-- [ ] s18t0702: Register root resources 'task://{ref}' for root tasks
-- [ ] s18t0703: Register nested resources when viewing parents
-- [ ] [s18t0704](s18t0704-nested-tasks.md): Show list of nested resources on viewing current resource
+- [x] [s18t0701](s18t0701-resource-index.md): Add resource 'task://index' to list all root tasks
+- [x] s18t0702: Register root resources 'task://{ref}' for root tasks
+- [x] s18t0703: Register nested resources when viewing parents
+- [x] [s18t0704](s18t0704-nested-tasks.md): Show list of nested resources on viewing current resource

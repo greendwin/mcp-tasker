@@ -1,6 +1,6 @@
 ---
 id: s18t0704
-status: pending
+status: done
 ---
 
 # Show list of nested resources on viewing current resource

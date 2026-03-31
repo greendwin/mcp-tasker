@@ -1,6 +1,6 @@
 ---
 id: s18t0701
-status: pending
+status: done
 ---
 
 # Add resource 'task://index' to list all root tasks

@@ -13,4 +13,5 @@ status: pending
 - [x] ~~s18t05: Add instructions on how to configure MCP server~~
 - [x] s18t06: Support view commands: `list` and `view`
 - [x] s18t08: Support status commands: `start`, `reset`, `done`
-- [ ] [s18t07](s18t07-task-as-resource/): Give access to tasks as a resource
+- [x] [s18t07](s18t07-task-as-resource/): Give access to tasks as a resource
+- [ ] s18t09: Don't load full tree in 'list' and 'index' methods - parse root resources without loading full tree
