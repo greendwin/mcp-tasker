@@ -1,9 +1,9 @@
 from ._common import get_repo, mcp
-from ._model import TaskInfo
+from ._model import TaskInfo, TaskPreview
 
 
 @mcp.tool()
-def list_tasks() -> list[TaskInfo]:
+def list_tasks() -> list[TaskPreview]:
     """List all root tasks."""
     repo = get_repo()
     root_ids = repo.list_root_tasks()
