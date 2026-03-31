@@ -4,6 +4,7 @@ import typer
 from typer_di import Depends
 
 from tasker.base_types import Task, TaskStatus
+from tasker.parse import detect_task_type
 from tasker.repo import TaskRepo
 from tasker.utils import JsonAppend, console
 
@@ -131,7 +132,11 @@ def _print_subtasks(subtasks: list[Task], *, depth: int, show_all: bool) -> None
 
 
 def _load_root_tasks(repo: TaskRepo) -> list[Task]:
-    return [repo.resolve_ref(root_id) for root_id in repo.list_root_tasks()]
+    tasks: list[Task] = []
+    for task_path in repo.list_root_tasks():
+        tp = detect_task_type(task_path)
+        tasks.append(repo.resolve_ref(tp.task_ref))
+    return tasks
 
 
 def _task_to_json(task: Task) -> dict[str, Any]:

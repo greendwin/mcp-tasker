@@ -2,7 +2,7 @@ import pytest
 
 from tasker.base_types import TaskStatus
 from tasker.exceptions import TaskHasSubtasksError
-from tasker.mcp import finish_task, reset_task, start_task
+from tasker.mcp import finish_task, reset_task, resource_task, start_task
 
 from .helpers import add_subtask, create_task
 
@@ -28,9 +28,7 @@ def test_start_task_returns_in_progress(leaf_ref: str) -> None:
 def test_start_task_persists_to_disk(story_id: str, leaf_ref: str) -> None:
     start_task(leaf_ref)
     # verify by viewing the parent — its status should update to in-progress
-    from tasker.mcp import view_task
-
-    parent = view_task(story_id)
+    parent = resource_task(story_id)
     assert parent.status == TaskStatus.IN_PROGRESS
 
 
@@ -68,9 +66,8 @@ def test_done_task_returns_done(leaf_ref: str) -> None:
 
 def test_done_task_persists_to_disk(story_id: str, leaf_ref: str) -> None:
     finish_task(leaf_ref)
-    from tasker.mcp import view_task
 
-    parent = view_task(story_id)
+    parent = resource_task(story_id)
     assert parent.status == TaskStatus.DONE
 
 

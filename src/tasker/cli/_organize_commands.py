@@ -5,6 +5,7 @@ from typer_di import Depends
 
 from tasker.base_types import Task, is_root_task_id
 from tasker.exceptions import TaskerError
+from tasker.parse import detect_task_type
 from tasker.repo import TaskRepo
 from tasker.utils import JsonAppend, console
 
@@ -36,13 +37,14 @@ def cmd_archive_task(
             task_refs = []
 
         if all_closed:
-            for id in repo.list_root_tasks():
-                if id in task_refs:
+            for task_path in repo.list_root_tasks():
+                tp = detect_task_type(task_path)
+                if tp.task_id in task_refs or tp.task_ref in task_refs:
                     continue
 
-                task = repo.resolve_ref(id)
+                task = repo.resolve_ref(tp.task_ref)
                 if task.is_closed:
-                    task_refs.append(id)
+                    task_refs.append(tp.task_ref)
 
         for task_ref in task_refs:
             task = resolve_ref(repo, task_ref)

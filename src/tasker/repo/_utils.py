@@ -23,19 +23,22 @@ def find_next_root_task_id(loader: TaskLoader) -> str:
     return f"s{max(existing, default=0) + 1:02d}"
 
 
-def list_root_tasks(root: Path) -> list[str]:
-    nums = sorted(_scan_root_task_nums(root))
-    return [f"s{n:02d}" for n in nums]
+_RE_STORY_PREFIX = re.compile(r"^s(\d+)")
 
 
-def _scan_root_task_nums(directory: Path) -> list[int]:
-    if not directory.is_dir():
+def _scan_root_task_nums(root_dir: Path) -> list[int]:
+    if not root_dir.is_dir():
         return []
+
     return [
         int(m.group(1))
-        for p in directory.iterdir()
-        if (m := re.match(r"^s(\d+)", p.name))
+        for p in root_dir.iterdir()
+        if (m := _RE_STORY_PREFIX.match(p.name))
     ]
+
+
+def list_root_tasks(root: Path) -> list[Path]:
+    return sorted(p for p in root.iterdir() if _RE_STORY_PREFIX.match(p.name))
 
 
 def get_next_subtask_id(parent: Task) -> str:

@@ -1,3 +1,5 @@
+from tasker.parse import parse_task_file
+
 from ._common import get_repo, mcp
 from ._model import TaskInfo, TaskPreview
 
@@ -6,8 +8,13 @@ from ._model import TaskInfo, TaskPreview
 def resource_task_index() -> list[TaskPreview]:
     """List all root tasks."""
     repo = get_repo()
-    root_ids = repo.list_root_tasks()
-    return [TaskPreview.from_task(repo.resolve_ref(rid)) for rid in root_ids]
+
+    r: list[TaskPreview] = []
+    for task_path in repo.list_root_tasks():
+        task = parse_task_file(task_path).task
+        r.append(TaskPreview.from_task(task))
+
+    return r
 
 
 @mcp.resource("task://{ref}", mime_type="application/json")

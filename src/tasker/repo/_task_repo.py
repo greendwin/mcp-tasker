@@ -36,7 +36,7 @@ class TaskRepo:
     def resolve_ref(self, task_ref: str) -> Task:
         return self.loader.resolve_ref(task_ref)
 
-    def list_root_tasks(self) -> list[str]:
+    def list_root_tasks(self) -> list[Path]:
         return list_root_tasks(self.root)
 
     def create_root_task(
