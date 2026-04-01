@@ -5,7 +5,7 @@ import pytest
 from tasker.base_types import Task, TaskStatus
 from tasker.exceptions import TaskValidateError
 from tasker.parse import ParsedSubtask, parse_task, parse_task_file
-from tasker.render import render_task, write_task_file
+from tasker.render import append_task_filename, render_task
 
 _DIR = Path("/tmp/tasks")
 
@@ -16,7 +16,6 @@ def _write_task(
     description: str | None = None,
     status: TaskStatus = TaskStatus.PENDING,
 ) -> Path:
-    _DIR.mkdir(exist_ok=True)
     stem = name.removesuffix(".md")
     task_id, slug = stem.split("-", 1)
     task = Task(
@@ -27,8 +26,12 @@ def _write_task(
         status=status,
         subtasks=[],
     )
-    write_task_file(_DIR, task, content=render_task(task))
-    return _DIR / name
+
+    _DIR.mkdir(exist_ok=True)
+    task_path = append_task_filename(_DIR, task.ref, task.extended)
+    task_path.write_text(render_task(task))
+
+    return task_path
 
 
 def test_parse_title() -> None:
@@ -80,14 +83,15 @@ def test_parse_simple_file_is_basic() -> None:
 
 
 def test_parse_detailed_dir() -> None:
-    _DIR.mkdir(exist_ok=True)
     task = Task(
         id="s01",
         slug="my-task",
         extended=True,
         title="My task",
     )
-    write_task_file(_DIR, task, content=render_task(task))
+    _DIR.mkdir(exist_ok=True)
+    task_path = append_task_filename(_DIR, task.ref, task.extended)
+    task_path.write_text(render_task(task))
 
     parsed = parse_task_file(_DIR / "s01-my-task").task
     assert isinstance(parsed, Task)

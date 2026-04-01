@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING
 
 from tasker.base_types import Task, TaskStatus, is_root_task_id
 from tasker.parse import make_child_ref, parse_task_ref
+from tasker.render import append_task_filename
 
 if TYPE_CHECKING:
     from ._task_loader import TaskLoader
@@ -120,3 +121,27 @@ def upgrade_to_filebased(task: Task, *, loader: TaskLoader) -> None:
 
     task.slug = generate_slug(task.title)
     update_parents_status(task, loader=loader)
+
+
+def build_task_path_from_root(task: Task, *, loader: TaskLoader) -> Path:
+    assert not task.is_inline, "inline tasks does not have path"
+
+    if is_root_task_id(task.id):
+        return append_task_filename(loader.root, task.ref, task.extended)
+
+    stack: list[Task] = []
+
+    cur_id = task.id
+    while not is_root_task_id(cur_id):
+        ref = parse_task_ref(cur_id)
+        parent = loader.resolve_ref(ref.parent_id)
+        assert parent.extended, "parent must be directory-based"
+
+        stack.append(parent)
+        cur_id = parent.id
+
+    parent_dir = loader.root
+    while stack:
+        parent_dir = parent_dir / stack.pop().ref
+
+    return append_task_filename(parent_dir, task.ref, task.extended)

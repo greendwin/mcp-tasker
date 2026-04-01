@@ -1,9 +1,13 @@
 import json
+import platform
+import subprocess
 from pathlib import Path
+from typing import Protocol
+from unittest import mock
 
 import pytest
 
-from tasker.cli import app
+from tasker.cli import _task_commands, app
 from tasker.parse import parse_task_file
 
 from .conftest import GetTaskFile
@@ -201,3 +205,136 @@ def test_edit_json_error(s1: str) -> None:
     result = assert_invoke(app, ["--json-output", "edit", s1], expect_error=True)
     data = json.loads(result.output)
     assert "error" in data
+
+
+# ---------------------------------------------------------------------------
+# Editor
+# ---------------------------------------------------------------------------
+
+
+open_in_editor_orig = _task_commands.open_in_editor
+
+
+class SetupEditors(Protocol):
+    def __call__(
+        self, *, system: str | None = None, visual: str | None, editor: str | None
+    ) -> mock.Mock: ...
+
+
+@pytest.fixture
+def setup_editors(monkeypatch: pytest.MonkeyPatch) -> SetupEditors:
+    def callback(
+        *, system: str | None = None, visual: str | None, editor: str | None
+    ) -> mock.Mock:
+        subprocess_run = mock.Mock(return_value=None)
+        monkeypatch.setattr(subprocess, "run", subprocess_run)
+
+        if system is not None:
+            monkeypatch.setattr(platform, "system", lambda: system)
+
+        if visual:
+            monkeypatch.setenv("VISUAL", visual)
+        else:
+            monkeypatch.delenv("VISUAL", raising=False)
+
+        if editor:
+            monkeypatch.setenv("EDITOR", editor)
+        else:
+            monkeypatch.delenv("EDITOR", raising=False)
+
+        return subprocess_run
+
+    return callback
+
+
+def test_edit_editor_uses_visual_env_var(s1: str, setup_editors: SetupEditors) -> None:
+    subprocess_run = setup_editors(visual="emacs", editor="vim")
+
+    open_in_editor_orig(Path(s1))
+    subprocess_run.assert_called_once_with(["emacs", s1])
+
+
+def test_edit_editor_uses_editor_env_var(s1: str, setup_editors: SetupEditors) -> None:
+    subprocess_run = setup_editors(visual=None, editor="nano")
+
+    open_in_editor_orig(Path(s1))
+    subprocess_run.assert_called_once_with(["nano", s1])
+
+
+def test_edit_editor_fallback_linux(s1: str, setup_editors: SetupEditors) -> None:
+    subprocess_run = setup_editors(system="Linux", visual=None, editor=None)
+
+    open_in_editor_orig(Path(s1))
+    subprocess_run.assert_called_once_with(["vi", s1])
+
+
+def test_edit_editor_fallback_windows(s1: str, setup_editors: SetupEditors) -> None:
+    subprocess_run = setup_editors(system="Windows", visual=None, editor=None)
+
+    open_in_editor_orig(Path(s1))
+    subprocess_run.assert_called_once_with(["notepad", s1])
+
+
+def test_edit_editor_alone_is_valid(s1: str, open_in_editor: mock.Mock) -> None:
+    assert_invoke(app, ["edit", s1, "--editor"])
+    assert open_in_editor.call_count == 1
+
+
+def test_edit_editor_short_flag(s1: str, open_in_editor: mock.Mock) -> None:
+    assert_invoke(app, ["edit", s1, "-e"])
+    assert open_in_editor.call_count == 1
+
+
+def test_edit_editor_opens_correct_file(s1: str, open_in_editor: mock.Mock) -> None:
+    assert_invoke(app, ["edit", s1, "--editor"])
+    opened_path = open_in_editor.call_args[0][0]
+    assert str(opened_path).endswith(".md")
+
+
+def test_edit_editor_upgrades_inline_task(
+    s1: str, tasks_root: Path, open_in_editor: mock.Mock
+) -> None:
+    t01 = add_subtask(s1, "Inline task").task_id
+
+    # before: s1 is a basic .md (no dir), t01 is inline
+    old_file = next(tasks_root.glob(f"{s1}-*.md"))
+    assert old_file.is_file()
+
+    assert_invoke(app, ["edit", t01, "--editor"])
+
+    # after: s1 upgraded to extended dir, t01 has its own file
+    story_dir = next(tasks_root.glob(f"{s1}-*/"))
+    assert story_dir.is_dir()
+    assert (story_dir / "README.md").exists()
+    task_filename = list(story_dir.glob(f"{t01}-*.md"))
+    assert len(task_filename) == 1
+
+    expected_path = story_dir / task_filename[0]
+    open_in_editor.assert_called_once_with(expected_path)
+
+
+def test_edit_editor_applies_changes_before_opening(
+    s1: str, open_in_editor: mock.Mock
+) -> None:
+    opened_contents: list[str] = []
+
+    def fake_open(path: Path) -> None:
+        opened_contents.append(path.read_text())
+
+    open_in_editor.side_effect = fake_open
+
+    assert_invoke(app, ["edit", s1, "--title", "Changed title", "--editor"])
+
+    assert len(opened_contents) == 1
+    assert "Changed title" in opened_contents[0]
+
+
+def test_edit_editor_combined_with_other_flags(
+    s1: str, tasks_root: Path, open_in_editor: mock.Mock
+) -> None:
+    assert_invoke(app, ["edit", s1, "--title", "New title", "--editor"])
+
+    task_file = next(tasks_root.glob(f"{s1}-*.md"))
+    content = task_file.read_text()
+    assert "New title" in content
+    assert open_in_editor.call_count == 1

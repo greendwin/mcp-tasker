@@ -3,9 +3,9 @@ from pathlib import Path
 import pytest
 
 from tasker.exceptions import TaskerError
-from tasker.render import build_task_file_path
-from tasker.repo import (
-    TaskRepo,
+from tasker.render import append_task_filename
+from tasker.repo import TaskRepo
+from tasker.repo._utils import (
     find_next_root_task_id,
     generate_slug,
     get_next_subtask_id,
@@ -300,6 +300,77 @@ def test_dont_reset_nested_tasks(tasks_root: Path) -> None:
     assert subtask_ref in task_path.read_text()
 
 
+# --- upgrade_to_filebased ---
+
+
+def test_upgrade_to_filebased_gives_inline_task_a_slug(tasks_root: Path) -> None:
+    story_id = create_task("My story").task_id
+    t01 = add_subtask(story_id, "Inline task").task_id
+    repo = make_repo(tasks_root)
+    task = repo.resolve_ref(t01)
+    assert task.is_inline
+
+    repo.upgrade_to_filebased(task)
+
+    assert not task.is_inline
+    assert task.slug is not None
+
+
+def test_upgrade_to_filebased_noop_on_file_based_task(tasks_root: Path) -> None:
+    story_id = create_task("My story").task_id
+    t01 = add_subtask(story_id, "File task", details="Has details").task_id
+    repo = make_repo(tasks_root)
+    task = repo.resolve_ref(t01)
+    assert not task.is_inline
+    original_slug = task.slug
+
+    repo.upgrade_to_filebased(task)
+
+    assert task.slug == original_slug
+
+
+def test_upgrade_to_filebased_upgrades_parent_to_extended(tasks_root: Path) -> None:
+    story_id = create_task("My story").task_id
+    t01 = add_subtask(story_id, "Inline task").task_id
+    repo = make_repo(tasks_root)
+    parent = repo.resolve_ref(story_id)
+    task = repo.resolve_ref(t01)
+    assert not parent.extended
+
+    repo.upgrade_to_filebased(task)
+    repo.flush_to_disk()
+
+    # parent upgraded to extended directory
+    story_dir = next(tasks_root.glob(f"{story_id}-*/"))
+    assert story_dir.is_dir()
+    assert (story_dir / "README.md").exists()
+
+
+def test_upgrade_to_filebased_writes_task_file_on_flush(tasks_root: Path) -> None:
+    story_id = create_task("My story").task_id
+    t01 = add_subtask(story_id, "Inline task").task_id
+    repo = make_repo(tasks_root)
+    task = repo.resolve_ref(t01)
+
+    repo.upgrade_to_filebased(task)
+    repo.flush_to_disk()
+
+    story_dir = next(tasks_root.glob(f"{story_id}-*/"))
+    task_files = list(story_dir.glob(f"{t01}-*.md"))
+    assert len(task_files) == 1
+
+
+def test_upgrade_to_filebased_generates_slug_from_title(tasks_root: Path) -> None:
+    story_id = create_task("My story").task_id
+    t01 = add_subtask(story_id, "Do the thing").task_id
+    repo = make_repo(tasks_root)
+    task = repo.resolve_ref(t01)
+
+    repo.upgrade_to_filebased(task)
+
+    assert task.slug == "do-the-thing"
+
+
 # --- task statuses ---
 
 
@@ -353,7 +424,7 @@ def test_update_statuses_on_load(tasks_root: Path) -> None:
     repo.flush_to_disk()
 
     # custom edit and mark subtask done
-    task_path = build_task_file_path(repo.root, task.ref, task.extended)
+    task_path = append_task_filename(repo.root, task.ref, task.extended)
     patched_content = task_path.read_text().replace("[ ]", "[x]")
     task_path.write_text(patched_content)
 

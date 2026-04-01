@@ -12,6 +12,7 @@ from ._archive_task import (
 from ._move_task import TaskRename, move_task_impl
 from ._task_loader import TaskLoader
 from ._utils import (
+    build_task_path_from_root,
     find_next_root_task_id,
     generate_slug,
     get_next_subtask_id,
@@ -162,6 +163,12 @@ class TaskRepo:
             loader=self.loader,
         )
 
+    def upgrade_to_filebased(self, task: Task) -> None:
+        upgrade_to_filebased(task, loader=self.loader)
+
+    def build_task_path(self, task: Task) -> Path:
+        return build_task_path_from_root(task, loader=self.loader)
+
     def edit_task(
         self,
         task: Task,
@@ -178,8 +185,10 @@ class TaskRepo:
             task.description = _capitalize(description)
 
         if slug is not None:
-            upgrade_to_filebased(task, loader=self.loader)
             task.slug = slug
+
+            # update parents in case of upgrade from inline task
+            update_parents_status(task, loader=self.loader)
 
     def flush_to_disk(self) -> None:
         self.loader.flush_to_disk()

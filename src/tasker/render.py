@@ -37,13 +37,7 @@ def render_task(task: Task) -> str:
     )
 
 
-def build_task_file_path(root: Path, task_ref: str, extended: bool) -> Path:
+def append_task_filename(parent_dir: Path, task_ref: str, extended: bool) -> Path:
     if not extended:
-        return root / f"{task_ref}.md"
-    return root / task_ref / EXTENDED_TASK_FILENAME
-
-
-def write_task_file(root: Path, task: Task, *, content: str) -> None:
-    path = build_task_file_path(root, task.ref, task.extended)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(content)
+        return parent_dir / f"{task_ref}.md"
+    return parent_dir / task_ref / EXTENDED_TASK_FILENAME

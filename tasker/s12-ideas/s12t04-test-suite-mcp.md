@@ -1,6 +1,6 @@
 ---
 id: s12t04
-status: pending
+status: cancelled
 ---
 
 # Test suite MCP

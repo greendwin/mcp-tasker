@@ -5,7 +5,7 @@ from typing import NamedTuple
 from tasker.base_types import Task, is_root_task_id
 from tasker.exceptions import TaskArchivedError, TaskValidateError
 from tasker.parse import ParsedSubtask, detect_task_type, parse_task, parse_task_ref
-from tasker.render import build_task_file_path, render_task, write_task_file
+from tasker.render import append_task_filename, render_task
 
 from ._utils import update_task_status_and_flags
 
@@ -97,7 +97,7 @@ class _PendingDirCleanup(NamedTuple):
 
 
 def _flush_task(
-    root: Path,
+    parent_dir: Path,
     task: Task,
     *,
     original_state: dict[str, OriginalState],
@@ -113,10 +113,11 @@ def _flush_task(
     rendered = render_task(task)
     orig = original_state.get(task.id)
 
-    new_filename = build_task_file_path(root, task.ref, task.extended)
+    new_filename = append_task_filename(parent_dir, task.ref, task.extended)
 
     if orig is None or new_filename != orig.filename or rendered != orig.content:
-        write_task_file(root, task, content=rendered)
+        new_filename.parent.mkdir(exist_ok=True)
+        new_filename.write_text(rendered)
 
         original_state[task.id] = OriginalState(
             filename=new_filename,
@@ -125,7 +126,7 @@ def _flush_task(
         )
 
     # recursively flush file-backed subtasks
-    subtask_root = root / task.ref
+    subtask_root = parent_dir / task.ref
     for child in task.subtasks:
         _flush_task(
             subtask_root,
@@ -220,7 +221,7 @@ def _load_task_tree(
     _invalidate_task_flags(root)
 
 
-def _load_subtask(root: Path, task_info: ParsedSubtask, *, loader: TaskLoader) -> Task:
+def _load_subtask(parent_dir: Path, task_info: ParsedSubtask, *, loader: TaskLoader) -> Task:
     if task_info.slug is None:
         # inline task cannot be extended
         assert not task_info.extended
@@ -236,7 +237,7 @@ def _load_subtask(root: Path, task_info: ParsedSubtask, *, loader: TaskLoader) -
         loader.register_task(task, original=None)  # no original source for inline tasks
         return task
 
-    original_path = build_task_file_path(root, task_info.ref, task_info.extended)
+    original_path = append_task_filename(parent_dir, task_info.ref, task_info.extended)
     content = original_path.read_text("utf-8")
 
     task, subtasks = parse_task(
@@ -254,7 +255,7 @@ def _load_subtask(root: Path, task_info: ParsedSubtask, *, loader: TaskLoader) -
     loader.register_task(task, orig_info)
 
     for child_info in subtasks:
-        child = _load_subtask(root / task.ref, child_info, loader=loader)
+        child = _load_subtask(parent_dir / task.ref, child_info, loader=loader)
         task.subtasks.append(child)
 
     return task

@@ -1,11 +1,13 @@
 import os
 from pathlib import Path
 from typing import Protocol
+from unittest import mock
 
 import pytest
 from pyfakefs.fake_filesystem import FakeFilesystem
 
 import tasker
+from tasker.cli import _task_commands
 
 
 @pytest.fixture
@@ -47,3 +49,11 @@ def get_task_file(tasks_root: Path) -> GetTaskFile:
         return path
 
     return callback
+
+
+@pytest.fixture(autouse=True)
+def open_in_editor(monkeypatch: pytest.MonkeyPatch) -> mock.Mock:
+    # always mock `open_in_editor` to avoid process spawn
+    m = mock.Mock(return_value=None)
+    monkeypatch.setattr(_task_commands, "open_in_editor", m)
+    return m

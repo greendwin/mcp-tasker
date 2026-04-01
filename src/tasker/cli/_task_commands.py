@@ -1,3 +1,7 @@
+import os
+import platform
+import subprocess
+from pathlib import Path
 from typing import Annotated
 
 import typer
@@ -270,13 +274,19 @@ def cmd_edit_task(
         str | None,
         typer.Option("--slug", "-s", help="New task slug."),
     ] = None,
+    editor: Annotated[
+        bool,
+        typer.Option(
+            "--editor", "-e", help="Open task file in editor after applying changes."
+        ),
+    ] = False,
     repo: TaskRepo = Depends(get_task_repo),
 ) -> None:
     with console.catching_output():
-        if title is None and details is None and slug is None:
+        if not editor and title is None and details is None and slug is None:
             console.print(
                 "[red]Error:[/red] At least one of"
-                " --title, --details, or --slug is required.",
+                " --title, --details, --slug, or --editor is required.",
                 json_output={"error": "No fields to edit."},
             )
             raise typer.Exit(1)
@@ -284,9 +294,25 @@ def cmd_edit_task(
         task = resolve_ref(repo, task_ref, save_recent=True)
 
         repo.edit_task(task, title=title, description=details, slug=slug)
+
+        if editor:
+            repo.upgrade_to_filebased(task)
+
         repo.flush_to_disk()
 
         console.print(
             f"[green]Task [blue]{task.ref}[/blue] updated[/green]",
             json_output={"task_ref": task.ref},
         )
+
+        if editor:
+            task_path = repo.build_task_path(task)
+            open_in_editor(task_path.resolve())
+
+
+def open_in_editor(path: Path) -> None:
+    editor = os.environ.get("VISUAL") or os.environ.get("EDITOR")
+    if not editor:
+        editor = "notepad" if platform.system() == "Windows" else "vi"
+
+    subprocess.run([editor, str(path)])
