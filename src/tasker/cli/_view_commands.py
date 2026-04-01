@@ -82,7 +82,7 @@ def cmd_list_tasks(
     ] = [],
     show_all: Annotated[
         bool,
-        typer.Option("--all", help="Show all subtasks including closed."),
+        typer.Option("--all", "-a", help="Show all subtasks including closed."),
     ] = False,
     repo: TaskRepo = Depends(get_task_repo),
 ) -> None:
