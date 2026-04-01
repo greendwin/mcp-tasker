@@ -338,3 +338,62 @@ def test_edit_editor_combined_with_other_flags(
     content = task_file.read_text()
     assert "New title" in content
     assert open_in_editor.call_count == 1
+
+
+# ---------------------------------------------------------------------------
+# Slug editing in editor
+# ---------------------------------------------------------------------------
+
+
+def test_edit_editor_file_contains_slug(s1: str, open_in_editor: mock.Mock) -> None:
+    """Task file rendered for editor includes slug in front-matter."""
+    opened_contents: list[str] = []
+
+    def fake_open(path: Path) -> None:
+        opened_contents.append(path.read_text())
+
+    open_in_editor.side_effect = fake_open
+
+    assert_invoke(app, ["edit", s1, "--editor"])
+
+    assert len(opened_contents) == 1
+    assert "slug:" in opened_contents[0]
+
+
+def test_edit_editor_slug_change_renames_file(
+    s1: str, tasks_root: Path, open_in_editor: mock.Mock
+) -> None:
+    """Changing slug in front-matter renames the task file."""
+
+    def fake_open(path: Path) -> None:
+        content = path.read_text()
+        content = content.replace("slug: story-one", "slug: renamed-story")
+        path.write_text(content)
+
+    open_in_editor.side_effect = fake_open
+
+    assert_invoke(app, ["edit", s1, "--editor"])
+
+    new_files = list(tasks_root.glob(f"{s1}-renamed-story.md"))
+    assert len(new_files) == 1
+    old_files = list(tasks_root.glob(f"{s1}-story-one.md"))
+    assert len(old_files) == 0
+
+
+def test_edit_editor_slug_change_preserves_body_edits(
+    s1: str, tasks_root: Path, open_in_editor: mock.Mock
+) -> None:
+    """When slug changes, simultaneous title edits in the file are preserved."""
+
+    def fake_open(path: Path) -> None:
+        content = path.read_text()
+        content = content.replace("slug: story-one", "slug: new-slug")
+        content = content.replace("# Story one", "# Edited title")
+        path.write_text(content)
+
+    open_in_editor.side_effect = fake_open
+
+    assert_invoke(app, ["edit", s1, "--editor"])
+
+    new_file = next(tasks_root.glob(f"{s1}-new-slug.md"))
+    assert "Edited title" in new_file.read_text()

@@ -6,6 +6,7 @@ from tasker.base_types import Task, TaskStatus
 from tasker.exceptions import TaskValidateError
 from tasker.parse import ParsedSubtask, parse_task, parse_task_file
 from tasker.render import append_task_filename, render_task
+from tasker.utils import write_text
 
 _DIR = Path("/tmp/tasks")
 
@@ -27,9 +28,8 @@ def _write_task(
         subtasks=[],
     )
 
-    _DIR.mkdir(exist_ok=True)
     task_path = append_task_filename(_DIR, task.ref, task.extended)
-    task_path.write_text(render_task(task))
+    write_text(task_path, render_task(task))
 
     return task_path
 
@@ -89,9 +89,8 @@ def test_parse_detailed_dir() -> None:
         extended=True,
         title="My task",
     )
-    _DIR.mkdir(exist_ok=True)
     task_path = append_task_filename(_DIR, task.ref, task.extended)
-    task_path.write_text(render_task(task))
+    write_text(task_path, render_task(task))
 
     parsed = parse_task_file(_DIR / "s01-my-task").task
     assert isinstance(parsed, Task)
@@ -106,9 +105,8 @@ def test_parse_returns_file_task() -> None:
 
 
 def test_parse_invalid_filename_raises() -> None:
-    _DIR.mkdir(exist_ok=True)
     bad = _DIR / "bad-name.md"
-    bad.write_text("Title\n=====\n\n## Props\n\nStatus: pending\n")
+    write_text(bad, "Title\n=====\n\n## Props\n\nStatus: pending\n")
     with pytest.raises(TaskValidateError):
         parse_task_file(bad)
 
@@ -154,25 +152,22 @@ def test_file_title_has_no_underline() -> None:
 
 
 def test_parse_raises_on_non_heading_title() -> None:
-    _DIR.mkdir(exist_ok=True)
     bad = _DIR / "s01-my-task.md"
-    bad.write_text("---\nid: s01\nstatus: pending\n---\n\nMy task\n=======\n")
+    write_text(bad, "---\nid: s01\nstatus: pending\n---\n\nMy task\n=======\n")
     with pytest.raises(TaskValidateError):
         parse_task_file(bad)
 
 
 def test_parse_raises_on_missing_front_matter() -> None:
-    _DIR.mkdir(exist_ok=True)
     bad = _DIR / "s01-my-task.md"
-    bad.write_text("My task\n=======\n\nStatus: pending\n")
+    write_text(bad, "My task\n=======\n\nStatus: pending\n")
     with pytest.raises(TaskValidateError):
         parse_task_file(bad)
 
 
 def test_parse_raises_on_unclosed_front_matter() -> None:
-    _DIR.mkdir(exist_ok=True)
     bad = _DIR / "s01-my-task.md"
-    bad.write_text("---\nid: s01\nstatus: pending\n")
+    write_text(bad, "---\nid: s01\nstatus: pending\n")
     with pytest.raises(TaskValidateError):
         parse_task_file(bad)
 
@@ -181,27 +176,24 @@ def test_parse_raises_on_unclosed_front_matter() -> None:
 
 
 def test_parse_error_has_task_ref() -> None:
-    _DIR.mkdir(exist_ok=True)
     bad = _DIR / "s01-my-task.md"
-    bad.write_text("---\nid: s01\nstatus: pending\n---\n\nMy task\n=======\n")
+    write_text(bad, "---\nid: s01\nstatus: pending\n---\n\nMy task\n=======\n")
     with pytest.raises(TaskValidateError) as exc_info:
         parse_task_file(bad)
     assert exc_info.value.task_ref is not None
 
 
 def test_parse_error_task_ref_contains_filename() -> None:
-    _DIR.mkdir(exist_ok=True)
     bad = _DIR / "s01-my-task.md"
-    bad.write_text("---\nid: s01\nstatus: pending\n---\n\nMy task\n=======\n")
+    write_text(bad, "---\nid: s01\nstatus: pending\n---\n\nMy task\n=======\n")
     with pytest.raises(TaskValidateError) as exc_info:
         parse_task_file(bad)
     assert "s01-my-task" in (exc_info.value.task_ref or "")
 
 
 def test_parse_invalid_filename_error_has_task_ref() -> None:
-    _DIR.mkdir(exist_ok=True)
     bad = _DIR / "bad-name.md"
-    bad.write_text("")
+    write_text(bad, "")
     with pytest.raises(TaskValidateError) as exc_info:
         parse_task_file(bad)
     assert exc_info.value.task_ref is not None
@@ -240,9 +232,8 @@ def test_parse_non_cancelled_subtask_no_strikethrough() -> None:
 
 
 def test_parse_raises_on_unknown_front_matter_field() -> None:
-    _DIR.mkdir(exist_ok=True)
     bad = _DIR / "s01-my-task.md"
-    bad.write_text("---\nid: s01\nstatus: pending\npriority: high\n---\n\n# My task\n")
+    write_text(bad, "---\nid: s01\nstatus: pending\npriority: high\n---\n\n# My task\n")
     with pytest.raises(TaskValidateError, match="priority"):
         parse_task_file(bad)
 

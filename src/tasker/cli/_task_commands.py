@@ -300,14 +300,21 @@ def cmd_edit_task(
 
         repo.flush_to_disk()
 
+        if editor:
+            task_path = repo.build_task_path(task)
+            open_in_editor(task_path.resolve())
+
+            # after edit many things can be changed including `slug`
+            # if so - reload full tree and flush it back
+            if repo.loader.check_task_changed(task):
+                reload = TaskRepo(repo.root)
+                _ = reload.resolve_ref(task.ref)
+                reload.flush_to_disk()
+
         console.print(
             f"[green]Task [blue]{task.ref}[/blue] updated[/green]",
             json_output={"task_ref": task.ref},
         )
-
-        if editor:
-            task_path = repo.build_task_path(task)
-            open_in_editor(task_path.resolve())
 
 
 def open_in_editor(path: Path) -> None:

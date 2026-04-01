@@ -1,6 +1,7 @@
 import traceback
 from collections.abc import Iterator
 from contextlib import contextmanager
+from pathlib import Path
 from typing import Any
 
 import typer
@@ -77,3 +78,12 @@ class OutputContext:
 
 
 console = OutputContext()
+
+
+def read_text(path: Path) -> str:
+    return path.read_text("utf-8")
+
+
+def write_text(path: Path, content: str) -> None:
+    path.parent.mkdir(exist_ok=True, parents=True)
+    path.write_text(content, encoding="utf-8")

@@ -116,6 +116,7 @@ class ParsedSubtask:
 class _ParsedContent:
     id: str
     title: str
+    slug: str | None
     description: str | None
     extra_sections: str | None
     status: TaskStatus
@@ -134,8 +135,10 @@ def parse_task(
 
     return ParseTaskResult(
         Task(
-            id=parsed.id,
-            slug=slug,
+            # note: keep original `task_id`, it cannot be changed like a slug
+            id=task_id,
+            # note: parsed slug has higher priority over filename (this allows to rename file by editing slug value)
+            slug=parsed.slug or slug,
             extended=extended,
             title=parsed.title,
             description=parsed.description,
@@ -230,11 +233,14 @@ def _parse_content(content: str, *, task_ref: str) -> _ParsedContent:
 
     id_val = ""
     status = TaskStatus.PENDING
+    slug = None
     for line in lines[1:fm_end]:
         if line.startswith("id:"):
             id_val = line.split(":", 1)[1].strip()
         elif line.startswith("status:"):
             status = TaskStatus(line.split(":", 1)[1].strip())
+        elif line.startswith("slug:"):
+            slug = line.split(":", 1)[1].strip()
         elif line.strip():
             key = line.split(":", 1)[0].strip()
             raise TaskValidateError(
@@ -300,6 +306,7 @@ def _parse_content(content: str, *, task_ref: str) -> _ParsedContent:
     return _ParsedContent(
         id=id_val,
         title=title,
+        slug=slug,
         description=description,
         extra_sections=extra_sections,
         status=status,

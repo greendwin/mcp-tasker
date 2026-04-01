@@ -9,7 +9,7 @@ from tasker.base_types import Task
 from tasker.exceptions import TaskArchivedError, TaskValidateError
 from tasker.parse import make_child_ref, parse_task_ref
 from tasker.repo import TaskRepo
-from tasker.utils import JsonAppend, console
+from tasker.utils import JsonAppend, console, read_text, write_text
 
 _RECENT_FILE = ".recent"
 _GITIGNORE_FILE = ".gitignore"
@@ -80,7 +80,7 @@ def resolve_ref(
 
 def save_recent_task(repo: TaskRepo, task_id: str) -> None:
     _ensure_gitignore(repo.root)
-    (repo.root / _RECENT_FILE).write_text(task_id + "\n")
+    write_text(repo.root / _RECENT_FILE, task_id + "\n")
 
 
 def _resolve_recent(repo: TaskRepo, task_ref: str) -> str:
@@ -126,13 +126,13 @@ def _load_recent(repo: TaskRepo, task_ref: str) -> str:
 def _ensure_gitignore(root: Path) -> None:
     gitignore = root / _GITIGNORE_FILE
     if not gitignore.exists():
-        gitignore.write_text(_GITIGNORE_FILE + "\n" + _RECENT_FILE + "\n")
+        write_text(gitignore, _GITIGNORE_FILE + "\n" + _RECENT_FILE + "\n")
         return
 
-    content = gitignore.read_text()
+    content = read_text(gitignore)
     if _RECENT_FILE in content.splitlines():
         return
     if not content.endswith("\n"):
         content += "\n"
     content += _RECENT_FILE + "\n"
-    gitignore.write_text(content)
+    write_text(gitignore, content)

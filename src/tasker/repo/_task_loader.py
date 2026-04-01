@@ -6,8 +6,9 @@ from tasker.base_types import Task, is_root_task_id
 from tasker.exceptions import TaskArchivedError, TaskValidateError
 from tasker.parse import ParsedSubtask, detect_task_type, parse_task, parse_task_ref
 from tasker.render import append_task_filename, render_task
+from tasker.utils import read_text, write_text
 
-from ._utils import update_task_status_and_flags
+from ._utils import build_task_path_from_root, update_task_status_and_flags
 
 _ARCHIVE_DIR = "archive"
 
@@ -78,6 +79,18 @@ class TaskLoader:
         if orig is not None:
             self._original_state[task.id] = orig
 
+    def check_task_changed(self, task: Task) -> bool:
+        assert task.slug, "trying to test inline task"
+
+        task_path = build_task_path_from_root(task, loader=self)
+        content = read_text(task_path)
+
+        orig = self._original_state.get(task.id)
+        if orig and orig.content == content and orig.filename == task_path:
+            return False
+
+        return True
+
     def flush_to_disk(self) -> None:
         pending_dir_cleanups: list[_PendingDirCleanup] = []
         for task in self._root_tasks.values():
@@ -116,8 +129,7 @@ def _flush_task(
     new_filename = append_task_filename(parent_dir, task.ref, task.extended)
 
     if orig is None or new_filename != orig.filename or rendered != orig.content:
-        new_filename.parent.mkdir(exist_ok=True)
-        new_filename.write_text(rendered)
+        write_text(new_filename, rendered)
 
         original_state[task.id] = OriginalState(
             filename=new_filename,
@@ -221,7 +233,9 @@ def _load_task_tree(
     _invalidate_task_flags(root)
 
 
-def _load_subtask(parent_dir: Path, task_info: ParsedSubtask, *, loader: TaskLoader) -> Task:
+def _load_subtask(
+    parent_dir: Path, task_info: ParsedSubtask, *, loader: TaskLoader
+) -> Task:
     if task_info.slug is None:
         # inline task cannot be extended
         assert not task_info.extended
@@ -238,7 +252,7 @@ def _load_subtask(parent_dir: Path, task_info: ParsedSubtask, *, loader: TaskLoa
         return task
 
     original_path = append_task_filename(parent_dir, task_info.ref, task_info.extended)
-    content = original_path.read_text("utf-8")
+    content = read_text(original_path)
 
     task, subtasks = parse_task(
         content,

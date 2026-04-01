@@ -11,4 +11,4 @@ status: pending
 - [x] s19t0602: When editing inline task -- upgrade it to file-based
 - [x] s19t0603: Invoke EDITOR
 - [x] s19t0604: Support both windows and linux
-- [ ] s19t0605: Allow to edit slug in --editor mode - add slug in front-matter, load it and flush back after edit
+- [x] s19t0605: Allow to edit slug in --editor mode - add slug in front-matter, load it and flush back after edit
