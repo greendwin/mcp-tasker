@@ -16,6 +16,6 @@ It's nice to show tasks with their bullet list with applied changes.
 - [x] s22t04: Show task title and description on 'start' task and 'reset'
 - [x] s22t05: Show parent task on 'done' command
 - [x] s22t06: Show parent task on 'move' with attach
-- [ ] s22t07: List root tasks (wihtout subtasks) on 'move --root' and 'new'
+- [x] s22t07: List root tasks (wihtout subtasks) on 'move --root' and 'new'
 - [ ] [s22t08](s22t08-bug-on-start-multiple-tasks.md): BUG: on 'start' multiple tasks bad formatting
 - [ ] s22t09: BUG: bad format on 'done' with multiple tasks

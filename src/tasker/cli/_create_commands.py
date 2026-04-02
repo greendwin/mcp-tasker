@@ -46,6 +46,8 @@ def cmd_new_task(
             json_output={"task_ref": task.ref},
         )
 
+        print_parent_preview(repo, task)
+
 
 @app.command("add", help="Add a subtask to an existing task.")
 def cmd_add_task(

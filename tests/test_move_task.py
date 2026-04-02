@@ -640,11 +640,18 @@ def test_move_parent_shows_existing_sibling(s1: str, s2: str) -> None:
     assert "Pre-existing" in result.output
 
 
-def test_move_root_no_parent_preview(s1: str) -> None:
+def test_move_root_shows_root_list(s1: str, s2: str) -> None:
     t01 = add_subtask(s1, "Task A").task_id
     result = assert_invoke(app, ["move", t01, "--root"])
-    # move to root has no new parent to show
-    assert "Story one" not in result.output
+    assert "Task A" in result.output
+
+
+def test_move_root_no_subtasks_in_list(s1: str) -> None:
+    add_subtask(s1, "Task A")
+    add_subtask(s1, "Task B")
+    result = assert_invoke(app, ["move", f"{s1}t01", "--root"])
+    # subtasks of s1 are not shown (flat root list only)
+    assert "Task B" not in result.output
 
 
 def test_move_parent_json_no_preview(s1: str, s2: str) -> None:

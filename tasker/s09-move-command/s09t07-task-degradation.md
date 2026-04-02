@@ -1,5 +1,6 @@
 ---
 id: s09t07
+slug: task-degradation
 status: done
 ---
 

@@ -79,3 +79,31 @@ def test_add_detail_readme_contains_title() -> None:
 def test_add_detail_does_not_create_md_file() -> None:
     assert_invoke(app, ["new", "My task", "--extended"])
     assert not Path("tasker/s01-my-task.md").exists()
+
+
+# ---------------------------------------------------------------------------
+# s22t07: show root task list on 'new'
+# ---------------------------------------------------------------------------
+
+
+def test_new_shows_root_list() -> None:
+    assert_invoke(app, ["new", "First task"])
+    result = assert_invoke(app, ["new", "Second task"])
+    assert "Second task" in result.output
+
+
+def test_new_root_list_no_subtasks() -> None:
+    assert_invoke(app, ["new", "Story"])
+    assert_invoke(app, ["add", "s01", "Subtask A"])
+    result = assert_invoke(app, ["new", "Another story"])
+    # subtasks of s01 are not shown (flat root list only)
+    assert "Subtask A" not in result.output
+
+
+def test_new_json_no_root_list() -> None:
+    import json as _json
+
+    result = assert_invoke(app, ["--json-output", "new", "My task"])
+    data = _json.loads(result.output)
+    assert "task_ref" in data
+    assert "First task" not in result.output

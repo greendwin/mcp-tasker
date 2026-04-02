@@ -3,8 +3,8 @@ import platform
 import subprocess
 from pathlib import Path
 
-from tasker.base_types import Task, TaskStatus
-from tasker.parse import parse_task_ref
+from tasker.base_types import Task, TaskStatus, is_root_task_id
+from tasker.parse import detect_task_type, parse_task_ref
 from tasker.repo._task_repo import TaskRepo
 from tasker.utils import console
 
@@ -38,7 +38,7 @@ def format_task_list_item(
     show_task_id: bool = True,
     show_all: bool = False,
     indent: int = 0,
-    highlight: bool = False,
+    highlight_id: str | None = None,
 ) -> str:
     r = []
 
@@ -61,7 +61,7 @@ def format_task_list_item(
     show_marker = show_all or task.status != TaskStatus.PENDING
     override_color: str | None = None
 
-    if highlight:
+    if task.id == highlight_id:
         # override marker color
         override_color = "bright_yellow"
     elif task.status == TaskStatus.CANCELLED:
@@ -97,7 +97,7 @@ def print_subtasks(
                 task,
                 indent=current_depth,
                 show_all=show_all,
-                highlight=task.id == highlight_id,
+                highlight_id=highlight_id,
             )
         )
 
@@ -111,11 +111,15 @@ def print_subtasks(
 
 
 def print_parent_preview(repo: TaskRepo, task: Task) -> None:
-    ref = parse_task_ref(task.ref)
-    parent = repo.resolve_ref(ref.parent_id)
+    if is_root_task_id(task.id):
+        # show task itself
+        parent = task
+    else:
+        ref = parse_task_ref(task.ref)
+        parent = repo.resolve_ref(ref.parent_id)
 
     console.print("")
-    console.print(format_task_list_item(parent))
+    console.print(format_task_list_item(parent, highlight_id=task.id))
 
     print_subtasks(
         parent.subtasks,

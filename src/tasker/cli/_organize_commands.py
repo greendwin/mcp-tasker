@@ -165,9 +165,7 @@ def cmd_move_task(
                     json_output={"task_refs": JsonAppend(task.ref), "already": True},
                 )
 
-                if not console.json_output and new_parent is not None:
-                    print_parent_preview(repo, task)
-
+                print_parent_preview(repo, task)
                 continue
 
             if new_parent is None:
@@ -191,5 +189,4 @@ def cmd_move_task(
                     },
                 )
 
-            if new_parent is not None:
-                print_parent_preview(repo, task)
+            print_parent_preview(repo, task)

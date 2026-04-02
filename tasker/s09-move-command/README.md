@@ -1,6 +1,7 @@
 ---
 id: s09
-status: done
+slug: move-command
+status: pending
 ---
 
 # Support move command 
@@ -17,3 +18,4 @@ Attache subtree to another task or make it a separate story
 - [x] s09t06: BUG: moving inline task to root does not create a task
 - [x] [s09t07](s09t07-task-degradation.md): Task degradation
 - [x] s09t08: Accept multiple args, move all tasks either to root or attach to a parent
+- [ ] s09t09: BUG: detach from deep nested parent fails to remove multiple ancestor directories

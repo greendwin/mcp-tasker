@@ -4,7 +4,6 @@ import typer
 from typer_di import Depends
 
 from tasker.base_types import Task, TaskStatus, is_nonleaf_task, is_root_task_id
-from tasker.parse import parse_task_ref
 from tasker.repo import TaskRepo
 from tasker.utils import JsonAppend, console
 
