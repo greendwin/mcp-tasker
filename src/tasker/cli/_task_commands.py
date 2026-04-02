@@ -284,20 +284,23 @@ def cmd_edit_task(
 ) -> None:
     with console.catching_output():
         if not editor and title is None and details is None and slug is None:
-            console.print(
-                "[red]Error:[/red] At least one of"
-                " --title, --details, --slug, or --editor is required.",
-                json_output={"error": "No fields to edit."},
-            )
-            raise typer.Exit(1)
+            if not console.json_output:
+                # open editor by default
+                editor = True
+            else:
+                # but not in json-output mode
+                console.print(
+                    "[red]Error:[/red] At least one of"
+                    " --title, --details, --slug, or --editor is required.",
+                    json_output={"error": "No fields to edit."},
+                )
+                raise typer.Exit(1)
 
         task = resolve_ref(repo, task_ref, save_recent=True)
-
         repo.edit_task(task, title=title, description=details, slug=slug)
 
         if editor:
             repo.upgrade_to_filebased(task)
-
         repo.flush_to_disk()
 
         if editor:

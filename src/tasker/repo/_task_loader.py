@@ -205,7 +205,7 @@ def _load_task_tree(
     tt = detect_task_type(candidates[0])
     assert tt.task_id == root_id
 
-    content = tt.content_path.read_text(encoding="utf-8")
+    content = read_text(tt.content_path)
 
     root, subtasks = parse_task(
         content,
@@ -224,7 +224,8 @@ def _load_task_tree(
 
     for child_info in subtasks:
         child = _load_subtask(
-            loader.root / root.ref,
+            # note: use original `tt.task_ref`, `task.ref` can be changed from file
+            loader.root / tt.task_ref,
             child_info,
             loader=loader,
         )
@@ -268,8 +269,10 @@ def _load_subtask(
     )
     loader.register_task(task, orig_info)
 
+    # note: use original `task_info.ref`, since `task.ref` could be changed already by `slug` override
+    subtasks_dir = parent_dir / task_info.ref
     for child_info in subtasks:
-        child = _load_subtask(parent_dir / task.ref, child_info, loader=loader)
+        child = _load_subtask(subtasks_dir, child_info, loader=loader)
         task.subtasks.append(child)
 
     return task

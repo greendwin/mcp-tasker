@@ -181,9 +181,9 @@ def test_edit_multiple_fields(s1: str, tasks_root: Path) -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_edit_no_flags_fails(s1: str) -> None:
-    result = assert_invoke(app, ["edit", s1], expect_error=True)
-    assert "at least one" in result.output.lower() or "error" in result.output.lower()
+def test_edit_no_flags_opens_editor(s1: str, open_in_editor: mock.Mock) -> None:
+    assert_invoke(app, ["edit", s1])
+    assert open_in_editor.call_count == 1
 
 
 def test_edit_nonexistent_task_fails() -> None:
@@ -345,34 +345,43 @@ def test_edit_editor_combined_with_other_flags(
 # ---------------------------------------------------------------------------
 
 
-def test_edit_editor_file_contains_slug(s1: str, open_in_editor: mock.Mock) -> None:
-    """Task file rendered for editor includes slug in front-matter."""
-    opened_contents: list[str] = []
+class EditTask(Protocol):
+    def __call__(self, task_ref: str, *, edits: list[tuple[str, str]]) -> str:
+        """returns original content before edits"""
+        ...
 
-    def fake_open(path: Path) -> None:
-        opened_contents.append(path.read_text())
 
-    open_in_editor.side_effect = fake_open
+@pytest.fixture
+def edit_task(open_in_editor: mock.Mock) -> EditTask:
+    def callback(task_ref: str, *, edits: list[tuple[str, str]]) -> str:
+        orig_content = ""
 
-    assert_invoke(app, ["edit", s1, "--editor"])
+        def fake_open(path: Path) -> None:
+            nonlocal orig_content
+            orig_content = content = path.read_text()
+            for old, new in edits:
+                content = content.replace(old, new)
+            path.write_text(content)
 
-    assert len(opened_contents) == 1
-    assert "slug:" in opened_contents[0]
+        open_in_editor.reset_mock()
+        open_in_editor.side_effect = fake_open
+        assert_invoke(app, ["edit", task_ref])
+        open_in_editor.assert_called_once()
+
+        return orig_content
+
+    return callback
+
+
+def test_edit_editor_file_contains_slug(s1: str, edit_task: EditTask) -> None:
+    opened_content = edit_task(s1, edits=[])
+    assert "slug:" in opened_content
 
 
 def test_edit_editor_slug_change_renames_file(
-    s1: str, tasks_root: Path, open_in_editor: mock.Mock
+    s1: str, tasks_root: Path, edit_task: EditTask
 ) -> None:
-    """Changing slug in front-matter renames the task file."""
-
-    def fake_open(path: Path) -> None:
-        content = path.read_text()
-        content = content.replace("slug: story-one", "slug: renamed-story")
-        path.write_text(content)
-
-    open_in_editor.side_effect = fake_open
-
-    assert_invoke(app, ["edit", s1, "--editor"])
+    edit_task(s1, edits=[("slug: story-one", "slug: renamed-story")])
 
     new_files = list(tasks_root.glob(f"{s1}-renamed-story.md"))
     assert len(new_files) == 1
@@ -381,19 +390,44 @@ def test_edit_editor_slug_change_renames_file(
 
 
 def test_edit_editor_slug_change_preserves_body_edits(
-    s1: str, tasks_root: Path, open_in_editor: mock.Mock
+    s1: str, tasks_root: Path, edit_task: EditTask
 ) -> None:
-    """When slug changes, simultaneous title edits in the file are preserved."""
-
-    def fake_open(path: Path) -> None:
-        content = path.read_text()
-        content = content.replace("slug: story-one", "slug: new-slug")
-        content = content.replace("# Story one", "# Edited title")
-        path.write_text(content)
-
-    open_in_editor.side_effect = fake_open
-
-    assert_invoke(app, ["edit", s1, "--editor"])
+    edit_task(
+        s1,
+        edits=[
+            ("slug: story-one", "slug: new-slug"),
+            ("# Story one", "# Edited title"),
+        ],
+    )
 
     new_file = next(tasks_root.glob(f"{s1}-new-slug.md"))
     assert "Edited title" in new_file.read_text()
+
+
+def test_editor_slug_change_in_parent(
+    s1: str, tasks_root: Path, edit_task: EditTask
+) -> None:
+    s1 = create_task("story one").task_ref
+    t01 = add_subtask(s1, "subtask", details="file-based").task_ref
+
+    assert (tasks_root / s1 / f"{t01}.md").exists()
+    edit_task(s1, edits=[("slug: story-one", "slug: new-slug")])
+    assert not (tasks_root / s1 / f"{t01}.md").exists()
+
+    s1_mod = s1.replace("story-one", "new-slug")
+    assert (tasks_root / s1_mod / f"{t01}.md").exists()
+
+
+def test_editor_slug_change_in_non_root_parent(
+    s1: str, tasks_root: Path, edit_task: EditTask
+) -> None:
+    s1 = create_task("story one").task_ref
+    t01 = add_subtask(s1, "task", details="extended").task_ref
+    t0102 = add_subtask(t01, "subtask", details="file-based").task_ref
+
+    assert (tasks_root / s1 / t01 / f"{t0102}.md").exists()
+    edit_task(s1, edits=[("slug: story-one", "slug: new-slug")])
+    assert not (tasks_root / s1 / t01 / f"{t0102}.md").exists()
+
+    t01_mod = t01.replace("task", "new-slug")
+    assert not (tasks_root / s1 / t01_mod / f"{t0102}.md").exists()

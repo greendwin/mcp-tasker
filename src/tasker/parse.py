@@ -3,6 +3,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import NamedTuple
 
+from tasker.utils import read_text
+
 from .base_types import EXTENDED_TASK_FILENAME, Task, TaskStatus, build_task_ref
 from .exceptions import TaskValidateError
 
@@ -137,7 +139,8 @@ def parse_task(
         Task(
             # note: keep original `task_id`, it cannot be changed like a slug
             id=task_id,
-            # note: parsed slug has higher priority over filename (this allows to rename file by editing slug value)
+            # note: parsed slug has higher priority over filename
+            # (allows to rename file by editing slug value)
             slug=parsed.slug or slug,
             extended=extended,
             title=parsed.title,
@@ -151,7 +154,7 @@ def parse_task(
 
 def parse_task_file(path: Path) -> ParseTaskResult:
     tt = detect_task_type(path)
-    content = tt.content_path.read_text(encoding="utf-8")
+    content = read_text(tt.content_path)
     return parse_task(content, task_id=tt.task_id, slug=tt.slug, extended=tt.extended)
 
 
