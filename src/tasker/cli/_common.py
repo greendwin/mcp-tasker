@@ -5,6 +5,7 @@ from typing import Annotated
 import typer
 from typer_di import TyperDI
 
+from tasker import __version__
 from tasker.base_types import Task
 from tasker.exceptions import TaskArchivedError, TaskValidateError
 from tasker.parse import make_child_ref, parse_task_ref
@@ -23,8 +24,24 @@ app = TyperDI(
 )
 
 
+def _version_callback(value: bool) -> None:
+    if value:
+        typer.echo(f"tasker {__version__}")
+        raise typer.Exit()
+
+
 @app.callback()
 def common_options(
+    version: Annotated[
+        bool | None,
+        typer.Option(
+            "--version",
+            "-V",
+            is_eager=True,
+            callback=_version_callback,
+            help="Show version and exit.",
+        ),
+    ] = None,
     debug: Annotated[
         bool, typer.Option("--debug", help="Show full tracebacks on errors.")
     ] = False,
