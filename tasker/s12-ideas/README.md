@@ -12,3 +12,4 @@ status: pending
 - [ ] s12t03: Allow to ommit quotes (treat extra arguments as words in created tasks)
 - [x] ~~[s12t04](s12t04-test-suite-mcp.md): Test suite MCP~~
 - [ ] [s12t05](s12t05-discover-tasker-folder-location.md): Discover 'tasker' folder location
+- [ ] s12t06: Rename README.md to smth different

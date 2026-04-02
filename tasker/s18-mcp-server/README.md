@@ -1,7 +1,7 @@
 ---
 id: s18
 slug: mcp-server
-status: done
+status: pending
 ---
 
 # Create MCP server to let agent use tasker directly
@@ -18,3 +18,5 @@ status: done
 - [x] s18t09: Don't load full tree in 'list' and 'index' methods - parse root resources without loading full tree
 - [x] s18t10: Add 'force' flag to 'finish_task'
 - [x] [s18t11](s18t11-support-task-creation.md): Support task creation
+- [ ] s18t12: Dont show titles in view_task's subtasks -- let AI invoke subsequent view to show task details, not only summary
+- [ ] s18t13: Add view_tasks command or exstend existing, allow to pass mulitple task IDs

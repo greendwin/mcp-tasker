@@ -1,6 +1,7 @@
 ---
 id: s17
-status: done
+slug: list-command
+status: pending
 ---
 
 # List command
@@ -17,3 +18,4 @@ Show currently opened tasks with their subtasks to easily overview what is next
 - [x] s17t06: Accept arguments to 'list' to show only provided subtrees
 - [x] s17t07: Show cancelled tasks full in gray same as in 'view'
 - [x] s17t08: When --all is used -- always show task status marker
+- [ ] s17t09: Support --archived option to list archived tasks
