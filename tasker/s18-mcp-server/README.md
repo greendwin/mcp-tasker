@@ -1,6 +1,7 @@
 ---
 id: s18
-status: pending
+slug: mcp-server
+status: done
 ---
 
 # Create MCP server to let agent use tasker directly
@@ -16,4 +17,4 @@ status: pending
 - [x] [s18t07](s18t07-task-as-resource/): Give access to tasks as a resource
 - [x] s18t09: Don't load full tree in 'list' and 'index' methods - parse root resources without loading full tree
 - [x] s18t10: Add 'force' flag to 'finish_task'
-- [ ] s18t11: Support task creation, support 'create_task(..., parent=...|None)'
+- [x] [s18t11](s18t11-support-task-creation.md): Support task creation

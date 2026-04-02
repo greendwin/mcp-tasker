@@ -1,5 +1,6 @@
 ---
 id: s18t07
+slug: task-as-resource
 status: done
 ---
 

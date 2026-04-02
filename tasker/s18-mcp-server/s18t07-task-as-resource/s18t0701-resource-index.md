@@ -1,5 +1,6 @@
 ---
 id: s18t0701
+slug: resource-index
 status: done
 ---
 

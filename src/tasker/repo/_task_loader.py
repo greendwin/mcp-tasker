@@ -269,7 +269,8 @@ def _load_subtask(
     )
     loader.register_task(task, orig_info)
 
-    # note: use original `task_info.ref`, since `task.ref` could be changed already by `slug` override
+    # note: use original `task_info.ref`, since `task.ref` could be changed
+    # already by `slug` override
     subtasks_dir = parent_dir / task_info.ref
     for child_info in subtasks:
         child = _load_subtask(subtasks_dir, child_info, loader=loader)
