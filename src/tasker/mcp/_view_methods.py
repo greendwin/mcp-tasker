@@ -26,10 +26,10 @@ def list_tasks() -> list[TaskPreview]:
 
 
 @mcp.tool()
-def view_task(task_ref: str) -> TaskInfo:
-    """View detailed task info by its ID."""
+def view_tasks(task_refs: list[str]) -> list[TaskInfo]:
+    """View detailed info for multiple tasks by their IDs."""
     repo = get_repo()
-    return _load_task_info(repo, task_ref)
+    return [_load_task_info(repo, ref) for ref in task_refs]
 
 
 @mcp.resource("task://index", mime_type="application/json")

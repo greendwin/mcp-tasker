@@ -2,7 +2,7 @@ import pytest
 
 from tasker.base_types import TaskStatus
 from tasker.exceptions import TaskHasSubtasksError
-from tasker.mcp import finish_task, reset_task, resource_task, start_task
+from tasker.mcp import finish_task, reset_task, resource_task, start_task, view_tasks
 
 from .helpers import add_subtask, create_task
 
@@ -79,5 +79,6 @@ def test_done_task_nonleaf_raises(story_id: str, leaf_ref: str) -> None:
 def test_done_task_force_closes_subtasks(story_id: str, leaf_ref: str) -> None:
     result = finish_task(story_id, force=True)
     assert result.status == TaskStatus.DONE
-    assert result.subtasks is not None
-    assert all(s.status == TaskStatus.DONE for s in result.subtasks)
+    assert len(result.subtasks) > 0
+    subtask_infos = view_tasks(result.subtasks)
+    assert all(s.status == TaskStatus.DONE for s in subtask_infos)

@@ -1,5 +1,5 @@
 from tasker.base_types import TaskStatus
-from tasker.mcp import create_task, list_tasks, view_task
+from tasker.mcp import create_task, list_tasks, view_tasks
 
 from .helpers import create_task as helper_create_task
 
@@ -24,7 +24,7 @@ def test_create_root_task_capitalizes_title() -> None:
 
 def test_create_root_task_with_description() -> None:
     result = create_task("My story", description="Some details")
-    full = view_task(result.id)
+    full = view_tasks([result.id])[0]
     assert full.description == "Some details"
 
 
@@ -37,13 +37,12 @@ def test_create_subtask_under_parent() -> None:
 def test_create_subtask_appears_in_parent_subtasks() -> None:
     parent_id = helper_create_task("Parent").task_id
     child = create_task("Child task", parent=parent_id)
-    parent = view_task(parent_id)
-    assert parent.subtasks is not None
-    assert any(s.id == child.id for s in parent.subtasks)
+    parent = view_tasks([parent_id])[0]
+    assert child.id in parent.subtasks
 
 
 def test_create_subtask_with_description() -> None:
     parent_id = helper_create_task("Parent").task_id
     result = create_task("Child task", parent=parent_id, description="Details here")
-    full = view_task(result.id)
+    full = view_tasks([result.id])[0]
     assert full.description == "Details here"

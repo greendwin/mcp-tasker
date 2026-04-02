@@ -45,18 +45,15 @@ def test_task_resource_includes_subtasks() -> None:
     task_id = create_task("My story").task_id
     sub_id = add_subtask(task_id, "First subtask").task_id
     result = resource_task(task_id)
-    assert result.subtasks is not None
     assert len(result.subtasks) == 1
-    assert result.subtasks[0].id == sub_id
-    assert result.subtasks[0].title == "First subtask"
+    assert result.subtasks[0] == sub_id
 
 
-def test_task_resource_subtasks_are_task_previews() -> None:
+def test_task_resource_subtasks_are_ids() -> None:
     task_id = create_task("My story").task_id
     add_subtask(task_id, "First subtask")
     result = resource_task(task_id)
-    assert result.subtasks is not None
-    assert isinstance(result.subtasks[0], TaskPreview)
+    assert isinstance(result.subtasks[0], str)
 
 
 def test_task_resource_subtask_accessible_as_resource() -> None:
@@ -64,8 +61,7 @@ def test_task_resource_subtask_accessible_as_resource() -> None:
     task_id = create_task("My story").task_id
     add_subtask(task_id, "First subtask")
     parent = resource_task(task_id)
-    assert parent.subtasks is not None
-    sub_id = parent.subtasks[0].id
+    sub_id = parent.subtasks[0]
     child = resource_task(sub_id)
     assert child.title == "First subtask"
 

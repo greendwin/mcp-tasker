@@ -22,7 +22,7 @@ class TaskPreview(BaseModel):
 class TaskInfo(TaskPreview):
     parent_id: str | None
     description: str | None
-    subtasks: list[TaskPreview] | None
+    subtasks: list[str]
 
     @classmethod
     def from_task(cls, task: Task) -> Self:
@@ -37,5 +37,5 @@ class TaskInfo(TaskPreview):
             title=task.title,
             status=task.status,
             description=task.description,
-            subtasks=[TaskPreview.from_task(child) for child in task.subtasks],
+            subtasks=[child.id for child in task.subtasks],
         )
