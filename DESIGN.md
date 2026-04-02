@@ -121,6 +121,7 @@ Root-level stories live directly under `tasker/`. Archived tasks move to `tasker
 ```
 ---
 id: s01t02
+slug: write-cli-spec
 status: pending
 ---
 
@@ -137,12 +138,13 @@ Can span multiple paragraphs.
 - [x] ~~s01t04: cancelled subtask~~
 ```
 
-**Front matter** (YAML block between `---` delimiters) — required fields:
+**Front matter** (YAML block between `---` delimiters):
 
 | Field | Required | Description |
 |---|---|---|
 | `id` | yes | Task ID (e.g. `s01`, `s01t02`) |
 | `status` | yes | One of `pending`, `in-progress`, `done`, `cancelled` |
+| `slug` | no | Filename slug (present in basic/extended tasks, absent for inline) |
 
 | Status value | Meaning |
 |---|---|
@@ -238,6 +240,23 @@ tasker cancel <task-id> --force
 tasker reset <task-id>...
 ```
 
+### View tasks
+
+```bash
+# View full task details and subtasks
+tasker view <task-id>
+
+# List all open root tasks with their pending subtasks
+tasker list
+
+# List subtasks of specific task(s)
+tasker list <task-id>...
+
+# Show all subtasks including closed (done/cancelled)
+tasker list --all
+tasker list -a
+```
+
 ### Edit tasks
 
 ```bash
@@ -249,6 +268,13 @@ tasker edit <task-id> --details <new-description>
 
 # Change slug
 tasker edit <task-id> --slug <new-slug>
+
+# Open task file in $VISUAL/$EDITOR (falls back to vi / notepad)
+tasker edit <task-id> --editor
+tasker edit <task-id> -e
+
+# With no options: opens editor by default
+tasker edit <task-id>
 ```
 
 ### Move tasks
@@ -267,15 +293,19 @@ Moving re-generates task IDs to match the new location and prints the rename map
 
 ```bash
 # Move root story to tasker/archive/
-tasker archive <task-id>     # alias: arch
+tasker archive <task-id>...    # alias: arch
+
+# Cancel open subtasks before archiving
+tasker archive <task-id> --force
+
+# Archive all closed (done/cancelled) root stories
+tasker archive --closed
 
 # Restore an archived story
-tasker unarchive <task-id>   # alias: unarch
+tasker unarchive <task-id>...  # alias: unarch
 ```
 
 Only root stories can be archived. Archiving a non-root task is an error.
-
-> **TBD:** Archiving of mid-tree tasks may be supported in the future.
 
 ### Recent task shortcuts
 
@@ -287,6 +317,8 @@ The last referenced task is saved to `tasker/.recent` (git-ignored). Shortcuts:
 | `qNN...` | Descendant of recent | `q0103` → `s01t020103` |
 | `p` | Parent of recent task | If recent is `s01t02`, `p` → `s01` |
 | `pNN...` | Sibling via parent | `p03` → `s01t03` |
+| `pp` | Grandparent of recent | If recent is `s01t0102`, `pp` → `s01` |
+| `ppNN...` | Uncle via grandparent | `pp0202` → `s01t0202` |
 
 These shortcuts work in place of any `<task-id>` argument.
 
@@ -355,3 +387,37 @@ tasker cancel s01 --force
 tasker reset s01t01
 # → s01t01 reset to pending (strikethrough removed if was cancelled)
 ```
+
+---
+
+## MCP Server
+
+`tasker mcp` starts a [Model Context Protocol](https://modelcontextprotocol.io/) server, allowing AI agents to manage tasks programmatically.
+
+### Transport
+
+```bash
+# stdio (default) — used by Claude Code, Cursor, etc.
+tasker mcp
+
+# HTTP/SSE — for network-accessible clients
+tasker mcp --port 8080
+```
+
+### Tools
+
+| Tool | Parameters | Description |
+|---|---|---|
+| `create_task` | `title`, `parent?`, `description?` | Create a root task or subtask |
+| `list_tasks` | — | List all root tasks |
+| `view_task` | `task_ref` | View task details and subtasks |
+| `start_task` | `task_ref` | Mark task in-progress |
+| `reset_task` | `task_ref` | Reset task to pending |
+| `finish_task` | `task_ref`, `force?` | Mark task done (`force` closes open subtasks) |
+
+### Resources
+
+| URI | Description |
+|---|---|
+| `task://index` | All root tasks (same as `list_tasks`) |
+| `task://{ref}` | Single task by ID (same as `view_task`) |
