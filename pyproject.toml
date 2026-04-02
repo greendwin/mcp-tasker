@@ -1,7 +1,10 @@
 [project]
-name = "tasker"
-version = "0.1.0"
+name = "mcp-tasker"
+version = "1.0.0"
 description = "Simple file-based task tracker for git repos"
+readme = "README.md"
+license = {file = "LICENSE"}
+urls = {repository = "https://github.com/greendwin/mcp-tasker"}
 authors = [
     {name = "Evgeniy A. Cymbalyuk", email = "cimbaluk@gmail.com"}
 ]

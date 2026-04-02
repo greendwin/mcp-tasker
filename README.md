@@ -1,6 +1,6 @@
 # Tasker
 
-[![tests](https://github.com/greendwin/tasker/actions/workflows/ci.yml/badge.svg)](https://github.com/greendwin/tasker/actions/workflows/ci.yml)
+[![tests](https://github.com/greendwin/mcp-tasker/actions/workflows/ci.yml/badge.svg)](https://github.com/greendwin/mcp-tasker/actions/workflows/ci.yml)
 
 A simple file-based task tracker for git repositories. Tasks are stored as plain Markdown files inside a `tasker/` directory, tracked alongside your code with git.
 
@@ -9,20 +9,20 @@ A simple file-based task tracker for git repositories. Tasks are stored as plain
 Install with [pipx](https://pipx.pypa.io/) (recommended — installs in an isolated environment):
 
 ```bash
-pipx install tasker
+pipx install mcp-tasker
 ```
 
 Or with pip:
 
 ```bash
-pip install tasker
+pip install mcp-tasker
 ```
 
 For development (requires [Poetry](https://python-poetry.org/)):
 
 ```bash
-git clone https://github.com/greendwin/tasker.git
-cd tasker
+git clone https://github.com/greendwin/mcp-tasker.git
+cd mcp-tasker
 poetry install --with dev
 ```
 
@@ -208,3 +208,8 @@ isort src tests
 ## Requirements
 
 - Python >= 3.10
+
+## Release Notes
+
+### 1.0.0
+- `pip` release

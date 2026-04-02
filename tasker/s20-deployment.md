@@ -1,7 +1,7 @@
 ---
 id: s20
 slug: deployment
-status: pending
+status: done
 ---
 
 # Deployment
@@ -9,5 +9,5 @@ status: pending
 ## Subtasks
 
 - [x] s20t01: Add nice README.md
-- [ ] s20t02: Publish 'tasker' to pip
-- [ ] s20t03: Update to version 1.0
+- [x] s20t02: Publish 'tasker' to pip
+- [x] s20t03: Update to version 1.0
