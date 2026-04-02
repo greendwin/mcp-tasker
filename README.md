@@ -1,6 +1,6 @@
 # Tasker
 
-[![CI](https://github.com/greendwin/tasker/actions/workflows/ci.yml/badge.svg)](https://github.com/greendwin/tasker/actions/workflows/ci.yml)
+[![tests](https://github.com/greendwin/tasker/actions/workflows/ci.yml/badge.svg)](https://github.com/greendwin/tasker/actions/workflows/ci.yml)
 
 A simple file-based task tracker for git repositories.
 

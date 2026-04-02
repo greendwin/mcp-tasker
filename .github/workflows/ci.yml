@@ -1,4 +1,4 @@
-name: CI
+name: tests
 
 on:
   push:
@@ -21,9 +21,16 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
+          cache: pip
 
       - name: Install tox
         run: pip install tox
+
+      - name: Cache tox environments
+        uses: actions/cache@v4
+        with:
+          path: .tox
+          key: tox-${{ matrix.python-version }}-${{ hashFiles('tox.ini', 'pyproject.toml') }}
 
       - name: Run tox
         run: tox
