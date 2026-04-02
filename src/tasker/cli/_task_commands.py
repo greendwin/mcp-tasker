@@ -8,7 +8,7 @@ from tasker.repo import TaskRepo
 from tasker.utils import JsonAppend, console
 
 from ._common import app, get_task_repo
-from ._helpers import edit_task_in_editor
+from ._helpers import edit_task_in_editor, format_task_list_item
 from ._resolve_task import resolve_ref
 
 
@@ -33,6 +33,7 @@ def cmd_start_task(
                     " was already started[/green]",
                     json_output={"task_refs": JsonAppend(task.ref)},
                 )
+                _print_task_preview(task)
                 continue
 
             if not console.json_output and is_nonleaf_task(task):
@@ -52,6 +53,7 @@ def cmd_start_task(
                 f"[green]Task [blue]{task.ref}[/blue] {action}[/green]",
                 json_output={"task_refs": JsonAppend(task.ref)},
             )
+            _print_task_preview(task)
 
 
 def _report_starting_nonleaf_task(task: Task) -> None:
@@ -99,6 +101,7 @@ def cmd_reset_task(
                     " was already pending[/green]",
                     json_output={"task_refs": JsonAppend(task.ref)},
                 )
+                _print_task_preview(task)
                 continue
 
             if not console.json_output and is_nonleaf_task(task):
@@ -112,6 +115,19 @@ def cmd_reset_task(
                 f"[green]Task [blue]{task.ref}[/blue] reset to pending[/green]",
                 json_output={"task_refs": JsonAppend(task.ref)},
             )
+            _print_task_preview(task)
+
+
+def _print_task_preview(task: Task) -> None:
+    title = format_task_list_item(
+        task,
+        show_task_id=False,
+        show_all=True,
+    )
+    console.print(f"\n{title}")
+
+    if task.description:
+        console.print(f"\n{task.description}")
 
 
 def _report_resetting_nonleaf_task(task: Task) -> None:

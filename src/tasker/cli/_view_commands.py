@@ -3,7 +3,7 @@ from typing import Annotated, Any
 import typer
 from typer_di import Depends
 
-from tasker.base_types import Task, TaskStatus
+from tasker.base_types import Task
 from tasker.parse import detect_task_type
 from tasker.repo import TaskRepo
 from tasker.utils import JsonAppend, console

@@ -182,3 +182,21 @@ def test_start_idempotent_flushes_corrected_statuses(
     # parent status must now be corrected on disk
     updated = task_file.read_text()
     assert "status: in-progress" in updated
+
+
+def test_start_shows_task_title(story_id: str) -> None:
+    task_id = add_subtask(story_id, "My leaf task").task_id
+    result = assert_invoke(app, ["start", task_id])
+    assert "My leaf task" in result.output
+
+
+def test_start_shows_description_when_present(story_id: str) -> None:
+    task_id = add_subtask(story_id, "My leaf task", "Some details here").task_id
+    result = assert_invoke(app, ["start", task_id])
+    assert "Some details here" in result.output
+
+
+def test_start_no_description_no_extra_output(story_id: str) -> None:
+    task_id = add_subtask(story_id, "My leaf task").task_id
+    result = assert_invoke(app, ["start", task_id])
+    assert "None" not in result.output

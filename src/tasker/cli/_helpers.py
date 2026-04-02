@@ -22,10 +22,6 @@ _STATUS_MARKER = {
 }
 
 
-def _task_id(task: Task) -> str:
-    return f"[blue]{task.id}[/blue]"
-
-
 def _task_marker(task: Task, *, colored: bool) -> str:
     if not colored:
         return _STATUS_MARKER[task.status]
@@ -38,36 +34,49 @@ def _task_marker(task: Task, *, colored: bool) -> str:
 def format_task_list_item(
     task: Task,
     *,
+    show_task_id: bool = True,
     show_all: bool = False,
     indent: int = 0,
     highlight: bool = False,
 ) -> str:
-    prefix = ""
+    r = []
+
     if indent > 0:
-        prefix = "  " * indent + "- "
+        r.append("  " * indent)
+        r.append("- ")
+
+    id_color = "blue"
+    if task.status in (TaskStatus.CANCELLED, TaskStatus.IN_PROGRESS):
+        # override task_id by status collor
+        id_color = _STATUS_COLOR[task.status]
+
+    if show_task_id:
+        r.append(f"[{id_color}]")
+        r.append(task.id)
+        r.append(": ")
+        r.append(f"[/{id_color}]")
 
     # note: omit `[ ]` for pending tasks unless when `--all` is used
-    omit_marker = not show_all and task.status == TaskStatus.PENDING
+    show_marker = show_all or task.status != TaskStatus.PENDING
+    override_color: str | None = None
 
     if highlight:
-        if omit_marker:
-            return (
-                f"{prefix}{_task_id(task)}: [bright_yellow]{task.title}[/bright_yellow]"
-            )
+        # override marker color
+        override_color = "bright_yellow"
+    elif task.status == TaskStatus.CANCELLED:
+        override_color = _STATUS_COLOR[task.status]
 
-        marker = _task_marker(task, colored=False)
-        return f"{prefix}{_task_id(task)}: [bright_yellow]{marker} {task.title}[/bright_yellow]"
+    if override_color:
+        r.append(f"[{override_color}]")
 
-    if omit_marker:
-        return f"{prefix}{_task_id(task)}: {task.title}"
+    if show_marker:
+        r.append(_task_marker(task, colored=not override_color))
+        r.append(" ")
 
-    if task.status == TaskStatus.CANCELLED:
-        color = _STATUS_COLOR[task.status]
-        marker = _task_marker(task, colored=False)
-        return f"{prefix}[{color}]{task.id}: {marker} {task.title}[/{color}]"
-
-    marker = _task_marker(task, colored=True)
-    return f"{prefix}{_task_id(task)}: {marker} {task.title}"
+    r.append(task.title)
+    if override_color:
+        r.append(f"[/{override_color}]")
+    return "".join(r)
 
 
 def print_subtasks(
