@@ -1,4 +1,7 @@
+import os
+import platform
 import re
+import subprocess
 from pathlib import Path
 from typing import Annotated
 
@@ -153,3 +156,27 @@ def _ensure_gitignore(root: Path) -> None:
         content += "\n"
     content += _RECENT_FILE + "\n"
     write_text(gitignore, content)
+
+
+def edit_task_in_editor(repo: TaskRepo, task: Task) -> None:
+    # make sure that task is not inline
+    if task.is_inline:
+        repo.upgrade_to_filebased(task)
+        repo.flush_to_disk()
+
+    task_path = repo.build_task_path(task)
+    run_editor(task_path.resolve())
+
+    # after edit many things can be changed including `slug`
+    # if so - reload full tree and flush it back
+    reload = TaskRepo(repo.root)
+    _ = reload.resolve_ref(task.ref)
+    reload.flush_to_disk()
+
+
+def run_editor(path: Path) -> None:
+    editor = os.environ.get("VISUAL") or os.environ.get("EDITOR")
+    if not editor:
+        editor = "notepad" if platform.system() == "Windows" else "vi"
+
+    subprocess.run([editor, str(path)])

@@ -7,7 +7,13 @@ from typer_di import Depends
 from tasker.repo import TaskRepo
 from tasker.utils import console
 
-from ._common import app, get_task_repo, resolve_ref, save_recent_task
+from ._common import (
+    app,
+    edit_task_in_editor,
+    get_task_repo,
+    resolve_ref,
+    save_recent_task,
+)
 
 
 @app.command("new", help="Create a new top-level task.")
@@ -23,6 +29,10 @@ def cmd_new_task(
     extended: Annotated[
         bool, typer.Option("--extended", help="Create task as a directory.")
     ] = False,
+    editor: Annotated[
+        bool,
+        typer.Option("--editor", "-e", help="Open task file in editor after creating."),
+    ] = False,
     repo: TaskRepo = Depends(get_task_repo),
 ) -> None:
     with console.catching_output():
@@ -31,6 +41,9 @@ def cmd_new_task(
         )
         repo.flush_to_disk()
         save_recent_task(repo, task.id)
+
+        if editor:
+            edit_task_in_editor(repo, task)
 
         console.print(
             f"[green]Task [blue]{task.ref}[/blue] created[/green]",
@@ -49,12 +62,19 @@ def cmd_add_task(
     slug: Annotated[
         Optional[str], typer.Option("--slug", help="Override auto-derived slug.")
     ] = None,
+    editor: Annotated[
+        bool,
+        typer.Option("--editor", "-e", help="Open task file in editor after creating."),
+    ] = False,
     repo: TaskRepo = Depends(get_task_repo),
 ) -> None:
     with console.catching_output():
         parent = resolve_ref(repo, parent_ref, save_recent=True, auto_unarchive=True)
         child = repo.add_subtask(parent, title=title, description=details, slug=slug)
         repo.flush_to_disk()
+
+        if editor:
+            edit_task_in_editor(repo, child)
 
         console.print(
             f"[green]Task [blue]{child.ref}[/blue]"

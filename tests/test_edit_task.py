@@ -7,11 +7,16 @@ from unittest import mock
 
 import pytest
 
-from tasker.cli import _task_commands, app
+from tasker.cli import _common, app
 from tasker.parse import parse_task_file
 
-from .conftest import GetTaskFile
-from .helpers import add_subtask, assert_invoke, create_task
+from .helpers import (
+    GetTaskFile,
+    SetupTaskEdits,
+    add_subtask,
+    assert_invoke,
+    create_task,
+)
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -181,9 +186,9 @@ def test_edit_multiple_fields(s1: str, tasks_root: Path) -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_edit_no_flags_opens_editor(s1: str, open_in_editor: mock.Mock) -> None:
+def test_edit_no_flags_opens_editor(s1: str, run_editor: mock.Mock) -> None:
     assert_invoke(app, ["edit", s1])
-    assert open_in_editor.call_count == 1
+    assert run_editor.call_count == 1
 
 
 def test_edit_nonexistent_task_fails() -> None:
@@ -212,7 +217,7 @@ def test_edit_json_error(s1: str) -> None:
 # ---------------------------------------------------------------------------
 
 
-open_in_editor_orig = _task_commands.open_in_editor
+run_editor_orig = _common.run_editor
 
 
 class SetupEditors(Protocol):
@@ -250,49 +255,49 @@ def setup_editors(monkeypatch: pytest.MonkeyPatch) -> SetupEditors:
 def test_edit_editor_uses_visual_env_var(s1: str, setup_editors: SetupEditors) -> None:
     subprocess_run = setup_editors(visual="emacs", editor="vim")
 
-    open_in_editor_orig(Path(s1))
+    run_editor_orig(Path(s1))
     subprocess_run.assert_called_once_with(["emacs", s1])
 
 
 def test_edit_editor_uses_editor_env_var(s1: str, setup_editors: SetupEditors) -> None:
     subprocess_run = setup_editors(visual=None, editor="nano")
 
-    open_in_editor_orig(Path(s1))
+    run_editor_orig(Path(s1))
     subprocess_run.assert_called_once_with(["nano", s1])
 
 
 def test_edit_editor_fallback_linux(s1: str, setup_editors: SetupEditors) -> None:
     subprocess_run = setup_editors(system="Linux", visual=None, editor=None)
 
-    open_in_editor_orig(Path(s1))
+    run_editor_orig(Path(s1))
     subprocess_run.assert_called_once_with(["vi", s1])
 
 
 def test_edit_editor_fallback_windows(s1: str, setup_editors: SetupEditors) -> None:
     subprocess_run = setup_editors(system="Windows", visual=None, editor=None)
 
-    open_in_editor_orig(Path(s1))
+    run_editor_orig(Path(s1))
     subprocess_run.assert_called_once_with(["notepad", s1])
 
 
-def test_edit_editor_alone_is_valid(s1: str, open_in_editor: mock.Mock) -> None:
+def test_edit_editor_alone_is_valid(s1: str, run_editor: mock.Mock) -> None:
     assert_invoke(app, ["edit", s1, "--editor"])
-    assert open_in_editor.call_count == 1
+    assert run_editor.call_count == 1
 
 
-def test_edit_editor_short_flag(s1: str, open_in_editor: mock.Mock) -> None:
+def test_edit_editor_short_flag(s1: str, run_editor: mock.Mock) -> None:
     assert_invoke(app, ["edit", s1, "-e"])
-    assert open_in_editor.call_count == 1
+    assert run_editor.call_count == 1
 
 
-def test_edit_editor_opens_correct_file(s1: str, open_in_editor: mock.Mock) -> None:
+def test_edit_editor_opens_correct_file(s1: str, run_editor: mock.Mock) -> None:
     assert_invoke(app, ["edit", s1, "--editor"])
-    opened_path = open_in_editor.call_args[0][0]
+    opened_path = run_editor.call_args[0][0]
     assert str(opened_path).endswith(".md")
 
 
 def test_edit_editor_upgrades_inline_task(
-    s1: str, tasks_root: Path, open_in_editor: mock.Mock
+    s1: str, tasks_root: Path, run_editor: mock.Mock
 ) -> None:
     t01 = add_subtask(s1, "Inline task").task_id
 
@@ -310,18 +315,18 @@ def test_edit_editor_upgrades_inline_task(
     assert len(task_filename) == 1
 
     expected_path = story_dir / task_filename[0]
-    open_in_editor.assert_called_once_with(expected_path)
+    run_editor.assert_called_once_with(expected_path)
 
 
 def test_edit_editor_applies_changes_before_opening(
-    s1: str, open_in_editor: mock.Mock
+    s1: str, run_editor: mock.Mock
 ) -> None:
     opened_contents: list[str] = []
 
     def fake_open(path: Path) -> None:
         opened_contents.append(path.read_text())
 
-    open_in_editor.side_effect = fake_open
+    run_editor.side_effect = fake_open
 
     assert_invoke(app, ["edit", s1, "--title", "Changed title", "--editor"])
 
@@ -330,14 +335,14 @@ def test_edit_editor_applies_changes_before_opening(
 
 
 def test_edit_editor_combined_with_other_flags(
-    s1: str, tasks_root: Path, open_in_editor: mock.Mock
+    s1: str, tasks_root: Path, run_editor: mock.Mock
 ) -> None:
     assert_invoke(app, ["edit", s1, "--title", "New title", "--editor"])
 
     task_file = next(tasks_root.glob(f"{s1}-*.md"))
     content = task_file.read_text()
     assert "New title" in content
-    assert open_in_editor.call_count == 1
+    assert run_editor.call_count == 1
 
 
 # ---------------------------------------------------------------------------
@@ -345,43 +350,21 @@ def test_edit_editor_combined_with_other_flags(
 # ---------------------------------------------------------------------------
 
 
-class EditTask(Protocol):
-    def __call__(self, task_ref: str, *, edits: list[tuple[str, str]]) -> str:
-        """returns original content before edits"""
-        ...
+def test_edit_editor_file_contains_slug(
+    s1: str, setup_task_edits: SetupTaskEdits
+) -> None:
+    opened_content = setup_task_edits()
+    assert_invoke(app, ["edit", s1])
 
-
-@pytest.fixture
-def edit_task(open_in_editor: mock.Mock) -> EditTask:
-    def callback(task_ref: str, *, edits: list[tuple[str, str]]) -> str:
-        orig_content = ""
-
-        def fake_open(path: Path) -> None:
-            nonlocal orig_content
-            orig_content = content = path.read_text()
-            for old, new in edits:
-                content = content.replace(old, new)
-            path.write_text(content)
-
-        open_in_editor.reset_mock()
-        open_in_editor.side_effect = fake_open
-        assert_invoke(app, ["edit", task_ref])
-        open_in_editor.assert_called_once()
-
-        return orig_content
-
-    return callback
-
-
-def test_edit_editor_file_contains_slug(s1: str, edit_task: EditTask) -> None:
-    opened_content = edit_task(s1, edits=[])
-    assert "slug:" in opened_content
+    assert len(opened_content) == 1
+    assert "slug:" in opened_content[0]
 
 
 def test_edit_editor_slug_change_renames_file(
-    s1: str, tasks_root: Path, edit_task: EditTask
+    s1: str, tasks_root: Path, setup_task_edits: SetupTaskEdits
 ) -> None:
-    edit_task(s1, edits=[("slug: story-one", "slug: renamed-story")])
+    setup_task_edits(("slug: story-one", "slug: renamed-story"))
+    assert_invoke(app, ["edit", s1])
 
     new_files = list(tasks_root.glob(f"{s1}-renamed-story.md"))
     assert len(new_files) == 1
@@ -390,28 +373,27 @@ def test_edit_editor_slug_change_renames_file(
 
 
 def test_edit_editor_slug_change_preserves_body_edits(
-    s1: str, tasks_root: Path, edit_task: EditTask
+    s1: str, tasks_root: Path, setup_task_edits: SetupTaskEdits
 ) -> None:
-    edit_task(
-        s1,
-        edits=[
-            ("slug: story-one", "slug: new-slug"),
-            ("# Story one", "# Edited title"),
-        ],
+    setup_task_edits(
+        ("slug: story-one", "slug: new-slug"),
+        ("# Story one", "# Edited title"),
     )
+    assert_invoke(app, ["edit", s1])
 
     new_file = next(tasks_root.glob(f"{s1}-new-slug.md"))
     assert "Edited title" in new_file.read_text()
 
 
 def test_editor_slug_change_in_parent(
-    s1: str, tasks_root: Path, edit_task: EditTask
+    s1: str, tasks_root: Path, setup_task_edits: SetupTaskEdits
 ) -> None:
     s1 = create_task("story one").task_ref
     t01 = add_subtask(s1, "subtask", details="file-based").task_ref
 
     assert (tasks_root / s1 / f"{t01}.md").exists()
-    edit_task(s1, edits=[("slug: story-one", "slug: new-slug")])
+    setup_task_edits(("slug: story-one", "slug: new-slug"))
+    assert_invoke(app, ["edit", s1])
     assert not (tasks_root / s1 / f"{t01}.md").exists()
 
     s1_mod = s1.replace("story-one", "new-slug")
@@ -419,14 +401,15 @@ def test_editor_slug_change_in_parent(
 
 
 def test_editor_slug_change_in_non_root_parent(
-    s1: str, tasks_root: Path, edit_task: EditTask
+    s1: str, tasks_root: Path, setup_task_edits: SetupTaskEdits
 ) -> None:
     s1 = create_task("story one").task_ref
     t01 = add_subtask(s1, "task", details="extended").task_ref
     t0102 = add_subtask(t01, "subtask", details="file-based").task_ref
 
     assert (tasks_root / s1 / t01 / f"{t0102}.md").exists()
-    edit_task(s1, edits=[("slug: story-one", "slug: new-slug")])
+    setup_task_edits(("slug: story-one", "slug: new-slug"))
+    assert_invoke(app, ["edit", s1])
     assert not (tasks_root / s1 / t01 / f"{t0102}.md").exists()
 
     t01_mod = t01.replace("task", "new-slug")

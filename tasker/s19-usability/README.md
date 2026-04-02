@@ -14,4 +14,4 @@ status: pending
 - [ ] s19t04: Add `--delete` option to 'move' command
 - [ ] [s19t05](s19t05-support-autocomplete.md): Support autocomplete for task ids
 - [x] [s19t06](s19t06-invoke-editor/): Invoke EDITOR in 'edit', e.g. t edit s19t06 -e|--editor
-- [ ] [s19t07](s19t07-editor-in-add.md): Support `-e` `--editor` option in `add` command, i.e. add and edit created
+- [x] [s19t07](s19t07-editor-on-add.md): Support `--editor` option on task creation

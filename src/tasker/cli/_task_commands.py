@@ -1,7 +1,3 @@
-import os
-import platform
-import subprocess
-from pathlib import Path
 from typing import Annotated
 
 import typer
@@ -11,7 +7,7 @@ from tasker.base_types import Task, TaskStatus, is_nonleaf_task
 from tasker.repo import TaskRepo
 from tasker.utils import JsonAppend, console
 
-from ._common import app, get_task_repo, resolve_ref
+from ._common import app, edit_task_in_editor, get_task_repo, resolve_ref
 
 
 @app.command("start", help="Mark task(s) as in-progress.")
@@ -297,32 +293,14 @@ def cmd_edit_task(
                 raise typer.Exit(1)
 
         task = resolve_ref(repo, task_ref, save_recent=True)
-        repo.edit_task(task, title=title, description=details, slug=slug)
+        if title is not None or details is not None or slug is not None:
+            repo.edit_task(task, title=title, description=details, slug=slug)
+            repo.flush_to_disk()
 
         if editor:
-            repo.upgrade_to_filebased(task)
-        repo.flush_to_disk()
-
-        if editor:
-            task_path = repo.build_task_path(task)
-            open_in_editor(task_path.resolve())
-
-            # after edit many things can be changed including `slug`
-            # if so - reload full tree and flush it back
-            if repo.loader.check_task_changed(task):
-                reload = TaskRepo(repo.root)
-                _ = reload.resolve_ref(task.ref)
-                reload.flush_to_disk()
+            edit_task_in_editor(repo, task)
 
         console.print(
             f"[green]Task [blue]{task.ref}[/blue] updated[/green]",
             json_output={"task_ref": task.ref},
         )
-
-
-def open_in_editor(path: Path) -> None:
-    editor = os.environ.get("VISUAL") or os.environ.get("EDITOR")
-    if not editor:
-        editor = "notepad" if platform.system() == "Windows" else "vi"
-
-    subprocess.run([editor, str(path)])

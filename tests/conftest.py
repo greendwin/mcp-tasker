@@ -1,13 +1,13 @@
 import os
 from pathlib import Path
-from typing import Protocol
-from unittest import mock
 
 import pytest
 from pyfakefs.fake_filesystem import FakeFilesystem
 
 import tasker
-from tasker.cli import _task_commands
+
+# import helper fixture to make them available to all tests
+from .helpers import get_task_file, run_editor, setup_task_edits  # noqa: F401
 
 
 @pytest.fixture
@@ -35,25 +35,3 @@ def tasks_archive_root(tasks_root: Path) -> Path:
     root_dir = tasks_root / "archive"
     root_dir.mkdir(parents=True, exist_ok=True)
     return root_dir
-
-
-class GetTaskFile(Protocol):
-    def __call__(self, task_id: str) -> Path: ...
-
-
-@pytest.fixture
-def get_task_file(tasks_root: Path) -> GetTaskFile:
-    def callback(task_id: str) -> Path:
-        path = next(tasks_root.glob(f"{task_id}-*.md"), None)
-        assert path is not None, f"No task file found for {task_id!r} in {tasks_root}"
-        return path
-
-    return callback
-
-
-@pytest.fixture(autouse=True)
-def open_in_editor(monkeypatch: pytest.MonkeyPatch) -> mock.Mock:
-    # always mock `open_in_editor` to avoid process spawn
-    m = mock.Mock(return_value=None)
-    monkeypatch.setattr(_task_commands, "open_in_editor", m)
-    return m

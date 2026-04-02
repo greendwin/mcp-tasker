@@ -7,8 +7,7 @@ from tasker.base_types import TaskStatus
 from tasker.cli import app
 from tasker.parse import parse_task_file
 
-from .conftest import GetTaskFile
-from .helpers import add_subtask, assert_invoke, create_task
+from .helpers import GetTaskFile, add_subtask, assert_invoke, create_task
 
 
 @pytest.fixture()

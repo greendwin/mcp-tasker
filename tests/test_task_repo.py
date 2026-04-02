@@ -11,8 +11,7 @@ from tasker.repo._utils import (
     get_next_subtask_id,
 )
 
-from .conftest import GetTaskFile
-from .helpers import add_subtask, create_task
+from .helpers import GetTaskFile, add_subtask, create_task
 
 
 def make_repo(tasks_root: Path) -> TaskRepo:

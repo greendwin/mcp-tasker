@@ -1,11 +1,14 @@
 import json
-from typing import Sequence
+from pathlib import Path
+from typing import Protocol, Sequence
+from unittest import mock
 
+import pytest
 from click.testing import Result
 from typer import Typer
 from typer.testing import CliRunner
 
-from tasker.cli import app
+from tasker.cli import _common, app
 from tasker.parse import ParsedRef, parse_task_ref
 
 _runner = CliRunner()
@@ -45,3 +48,51 @@ def add_subtask(parent_ref: str, title: str, details: str | None = None) -> Pars
     result = assert_invoke(app, args)
     task_ref = json.loads(result.output.strip())["task_ref"]
     return parse_task_ref(task_ref)
+
+
+class GetTaskFile(Protocol):
+    def __call__(self, task_id: str) -> Path: ...
+
+
+@pytest.fixture
+def get_task_file(tasks_root: Path) -> GetTaskFile:
+    def callback(task_id: str) -> Path:
+        path = next(tasks_root.glob(f"{task_id}-*.md"), None)
+        assert path is not None, f"No task file found for {task_id!r} in {tasks_root}"
+        return path
+
+    return callback
+
+
+@pytest.fixture(autouse=True)
+def run_editor(monkeypatch: pytest.MonkeyPatch) -> mock.Mock:
+    # always mock `open_in_editor` to avoid process spawn
+    m = mock.Mock(return_value=None)
+    monkeypatch.setattr(_common, "run_editor", m)
+    return m
+
+
+class SetupTaskEdits(Protocol):
+    def __call__(self, *args: tuple[str, str]) -> list[str]:
+        """returns original contents before edits"""
+        ...
+
+
+@pytest.fixture
+def setup_task_edits(run_editor: mock.Mock) -> SetupTaskEdits:
+    def callback(*args: tuple[str, str]) -> list[str]:
+        orig_content: list[str] = []
+
+        def fake_edit(path: Path) -> None:
+            content = path.read_text()
+            orig_content.append(content)
+            for old, new in args:
+                content = content.replace(old, new)
+            path.write_text(content)
+
+        run_editor.reset_mock()
+        run_editor.side_effect = fake_edit
+
+        return orig_content
+
+    return callback
