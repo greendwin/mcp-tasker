@@ -29,7 +29,7 @@ def resolve_ref(
         repo.unarchive_root_task(ref.root_id)
         root = repo.resolve_ref(ref.root_id)
         console.print(
-            f"[yellow]Unarchiving [blue]{root.ref}[/blue] automatically.[/yellow]",
+            f"[yellow]Unarchiving [blue]{root.ref}[/blue] automatically[/yellow]",
             json_output={"unarchived_ref": JsonAppend(ref.root_id)},
         )
 

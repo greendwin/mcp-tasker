@@ -2,7 +2,7 @@ from pathlib import Path
 
 from tasker.cli import app
 
-from .helpers import assert_invoke
+from .helpers import SetupTaskEdits, assert_invoke
 
 
 def test_add_simple_task() -> None:
@@ -107,3 +107,17 @@ def test_new_json_no_root_list() -> None:
     data = _json.loads(result.output)
     assert "task_ref" in data
     assert "First task" not in result.output
+
+
+# ---------------------------------------------------------------------------
+# s21: show actual slug after editor invoke
+# ---------------------------------------------------------------------------
+
+
+def test_new_editor_output_shows_updated_slug(
+    setup_task_edits: SetupTaskEdits,
+) -> None:
+    setup_task_edits(("slug: my-task", "slug: renamed"))
+    result = assert_invoke(app, ["new", "My task", "--editor"])
+    assert "s01-renamed" in result.output
+    assert "my-task" not in result.output

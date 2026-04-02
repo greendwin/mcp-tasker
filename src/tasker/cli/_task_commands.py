@@ -59,7 +59,7 @@ def cmd_start_task(
 def _report_starting_nonleaf_task(task: Task) -> None:
     console.print(
         f"[yellow]Task [blue]{task.ref}[/blue] has subtasks"
-        " — its status is managed automatically.[/yellow]"
+        " — its status is managed automatically[/yellow]"
     )
 
     if task.status == TaskStatus.IN_PROGRESS:
@@ -133,7 +133,7 @@ def _print_task_preview(task: Task) -> None:
 def _report_resetting_nonleaf_task(task: Task) -> None:
     console.print(
         f"[yellow]Task [blue]{task.ref}[/blue] has subtasks"
-        " — its status is managed automatically.[/yellow]"
+        " — its status is managed automatically[/yellow]"
     )
 
 
@@ -192,7 +192,7 @@ def _report_cancelling_nonleaf_task(
 
     console.print(
         f"[yellow]Task [blue]{task.ref}[/blue] has subtasks"
-        " — its status is managed automatically.[/yellow]"
+        " — its status is managed automatically[/yellow]"
     )
 
     if not open_tasks:
@@ -265,7 +265,7 @@ def _report_finishing_nonleaf_task(task: Task) -> None:
 
     console.print(
         f"[yellow]Task [blue]{task.ref}[/blue] has subtasks"
-        " — its status is managed automatically.[/yellow]"
+        " — its status is managed automatically[/yellow]"
     )
 
     if not open_tasks:
@@ -323,7 +323,7 @@ def cmd_edit_task(
             repo.flush_to_disk()
 
         if editor:
-            edit_task_in_editor(repo, task)
+            task = edit_task_in_editor(repo, task)
 
         console.print(
             f"[green]Task [blue]{task.ref}[/blue] updated[/green]",

@@ -414,3 +414,28 @@ def test_editor_slug_change_in_non_root_parent(
 
     t01_mod = t01.replace("task", "new-slug")
     assert not (tasks_root / s1 / t01_mod / f"{t0102}.md").exists()
+
+
+# ---------------------------------------------------------------------------
+# s21: show actual slug after editor invoke
+# ---------------------------------------------------------------------------
+
+
+def test_edit_output_shows_updated_slug(
+    s1: str, setup_task_edits: SetupTaskEdits
+) -> None:
+    setup_task_edits(("slug: story-one", "slug: renamed"))
+    result = assert_invoke(app, ["edit", s1])
+
+    assert f"{s1.split('-')[0]}-renamed" in result.output
+    assert "story-one" not in result.output
+
+
+def test_edit_json_output_shows_updated_slug(
+    s1: str, setup_task_edits: SetupTaskEdits
+) -> None:
+    setup_task_edits(("slug: story-one", "slug: renamed"))
+    result = assert_invoke(app, ["--json-output", "edit", s1, "--editor"])
+
+    data = json.loads(result.output)
+    assert data["task_ref"] == f"{s1.split('-')[0]}-renamed"

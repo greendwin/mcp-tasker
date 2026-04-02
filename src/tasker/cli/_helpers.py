@@ -128,7 +128,7 @@ def print_parent_preview(repo: TaskRepo, task: Task) -> None:
     )
 
 
-def edit_task_in_editor(repo: TaskRepo, task: Task) -> None:
+def edit_task_in_editor(repo: TaskRepo, task: Task) -> Task:
     # make sure that task is not inline
     if task.is_inline:
         repo.upgrade_to_filebased(task)
@@ -140,8 +140,9 @@ def edit_task_in_editor(repo: TaskRepo, task: Task) -> None:
     # after edit many things can be changed including `slug`
     # if so - reload full tree and flush it back
     reload = TaskRepo(repo.root)
-    _ = reload.resolve_ref(task.ref)
+    updated = reload.resolve_ref(task.id)
     reload.flush_to_disk()
+    return updated
 
 
 def run_editor(path: Path) -> None:

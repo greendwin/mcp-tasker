@@ -6,7 +6,13 @@ from tasker.base_types import TaskStatus
 from tasker.cli import app
 from tasker.parse import parse_task_file
 
-from .helpers import GetTaskFile, add_subtask, assert_invoke, create_task
+from .helpers import (
+    GetTaskFile,
+    SetupTaskEdits,
+    add_subtask,
+    assert_invoke,
+    create_task,
+)
 
 
 @pytest.fixture()
@@ -269,3 +275,19 @@ def test_add_to_inline_task(tasks_root: Path, parent_id: str) -> None:
 
     # root should be upgraded to directory-based
     assert (tasks_root / root.task_ref).is_dir()
+
+
+# ---------------------------------------------------------------------------
+# s21: show actual slug after editor invoke
+# ---------------------------------------------------------------------------
+
+
+def test_add_editor_output_shows_updated_slug(
+    parent_id: str, setup_task_edits: SetupTaskEdits
+) -> None:
+    setup_task_edits(("slug: my-subtask", "slug: renamed"))
+    result = assert_invoke(
+        app, ["add", parent_id, "My subtask", "--details", "d", "--editor"]
+    )
+    assert f"{parent_id}t01-renamed" in result.output
+    assert "my-subtask" not in result.output

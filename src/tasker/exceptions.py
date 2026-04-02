@@ -29,7 +29,7 @@ class TaskHasSubtasksError(TaskerError):
         assert not task.is_inline and len(task.subtasks) > 0
 
         super().__init__(
-            f"Task {task.id!r} has subtasks — its status is managed automatically.",
+            f"Task {task.id!r} has subtasks — its status is managed automatically",
             json_output={
                 "task_ref": task.id,
                 "pending_subtasks": [
