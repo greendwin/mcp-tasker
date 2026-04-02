@@ -4,6 +4,7 @@ import subprocess
 from pathlib import Path
 
 from tasker.base_types import Task, TaskStatus
+from tasker.parse import parse_task_ref
 from tasker.repo._task_repo import TaskRepo
 from tasker.utils import console
 
@@ -107,6 +108,20 @@ def print_subtasks(
                 show_all=show_all,
                 highlight_id=highlight_id,
             )
+
+
+def print_parent_preview(repo: TaskRepo, task: Task) -> None:
+    ref = parse_task_ref(task.ref)
+    parent = repo.resolve_ref(ref.parent_id)
+
+    console.print("")
+    console.print(format_task_list_item(parent))
+
+    print_subtasks(
+        parent.subtasks,
+        show_all=False,
+        highlight_id=task.id,
+    )
 
 
 def edit_task_in_editor(repo: TaskRepo, task: Task) -> None:

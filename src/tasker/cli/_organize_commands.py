@@ -10,6 +10,7 @@ from tasker.repo import TaskRepo
 from tasker.utils import JsonAppend, console
 
 from ._common import app, get_task_repo
+from ._helpers import print_parent_preview
 from ._resolve_task import resolve_ref, save_recent_task
 
 
@@ -163,6 +164,10 @@ def cmd_move_task(
                     " is already in the requested location[/green]",
                     json_output={"task_refs": JsonAppend(task.ref), "already": True},
                 )
+
+                if not console.json_output and new_parent is not None:
+                    print_parent_preview(repo, task)
+
                 continue
 
             if new_parent is None:
@@ -185,3 +190,6 @@ def cmd_move_task(
                         "renames": JsonAppend({"old_id": r.old_id, "new_id": r.new_id})
                     },
                 )
+
+            if new_parent is not None:
+                print_parent_preview(repo, task)

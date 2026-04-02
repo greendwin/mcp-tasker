@@ -614,3 +614,44 @@ def test_move_multiple_tasks_to_root(s2: str) -> None:
     t02 = add_subtask(s2, "Task B").task_id
     result = assert_invoke(app, ["move", t01, t02, "--root"])
     assert "moved" in result.output
+
+
+# ---------------------------------------------------------------------------
+# s22t06: show parent task on move --parent
+# ---------------------------------------------------------------------------
+
+
+def test_move_parent_shows_new_parent(s1: str, s2: str) -> None:
+    t01 = add_subtask(s1, "Task A").task_id
+    result = assert_invoke(app, ["move", t01, "--parent", s2])
+    assert "Story two" in result.output
+
+
+def test_move_parent_shows_moved_task_in_parent(s1: str, s2: str) -> None:
+    add_subtask(s1, "Task A")
+    result = assert_invoke(app, ["move", f"{s1}t01", "--parent", s2])
+    assert "Task A" in result.output
+
+
+def test_move_parent_shows_existing_sibling(s1: str, s2: str) -> None:
+    t01 = add_subtask(s1, "Task A").task_id
+    add_subtask(s2, "Pre-existing")
+    result = assert_invoke(app, ["move", t01, "--parent", s2])
+    assert "Pre-existing" in result.output
+
+
+def test_move_root_no_parent_preview(s1: str) -> None:
+    t01 = add_subtask(s1, "Task A").task_id
+    result = assert_invoke(app, ["move", t01, "--root"])
+    # move to root has no new parent to show
+    assert "Story one" not in result.output
+
+
+def test_move_parent_json_no_preview(s1: str, s2: str) -> None:
+    import json as _json
+
+    t01 = add_subtask(s1, "Task A").task_id
+    result = assert_invoke(app, ["--json-output", "move", t01, "--parent", s2])
+    data = _json.loads(result.output)
+    assert "task_refs" in data
+    assert "parent" not in data

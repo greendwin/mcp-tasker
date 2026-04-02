@@ -229,3 +229,38 @@ def test_done_idempotent_flushes_corrected_statuses(
     # parent status must now be corrected on disk
     updated = task_file.read_text()
     assert "status: done" in updated
+
+
+# --- s22t05: show parent task on done ---
+
+
+def test_done_shows_parent_task(story_id: str) -> None:
+    task_id = add_subtask(story_id, "My leaf task").task_id
+    result = assert_invoke(app, ["done", task_id])
+    assert "My story" in result.output
+
+
+def test_done_shows_sibling_tasks(story_id: str) -> None:
+    task_id = add_subtask(story_id, "First task").task_id
+    add_subtask(story_id, "Second task")
+    result = assert_invoke(app, ["done", task_id])
+    assert "First task" in result.output
+    assert "Second task" in result.output
+
+
+def test_done_root_task_no_parent_shown(story_id: str) -> None:
+    # Root tasks have no parent — finishing one should not crash
+    task_id = add_subtask(story_id, "Only subtask").task_id
+    assert_invoke(app, ["done", task_id])
+    assert_invoke(app, ["done", story_id])  # root task done — no parent shown
+
+
+def test_done_json_does_not_show_parent(story_id: str) -> None:
+    import json as _json
+
+    task_id = add_subtask(story_id, "My leaf task").task_id
+    result = assert_invoke(app, ["--json-output", "done", task_id])
+    data = _json.loads(result.output)
+    assert data["task_refs"] == [task_id]
+    # No parent info in JSON output
+    assert "parent" not in data

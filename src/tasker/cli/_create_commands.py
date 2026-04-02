@@ -8,7 +8,7 @@ from tasker.repo import TaskRepo
 from tasker.utils import console
 
 from ._common import app, get_task_repo
-from ._helpers import edit_task_in_editor, format_task_list_item, print_subtasks
+from ._helpers import edit_task_in_editor, print_parent_preview
 from ._resolve_task import resolve_ref, save_recent_task
 
 
@@ -77,10 +77,7 @@ def cmd_add_task(
             json_output={"task_ref": child.ref},
         )
 
-        console.print("")
-        console.print(format_task_list_item(parent))
-        if parent.subtasks:
-            print_subtasks(parent.subtasks, show_all=False, highlight_id=child.id)
+        print_parent_preview(repo, child)
 
 
 @app.command("add-many", help="Interactively add multiple subtasks.")

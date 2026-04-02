@@ -3,12 +3,13 @@ from typing import Annotated
 import typer
 from typer_di import Depends
 
-from tasker.base_types import Task, TaskStatus, is_nonleaf_task
+from tasker.base_types import Task, TaskStatus, is_nonleaf_task, is_root_task_id
+from tasker.parse import parse_task_ref
 from tasker.repo import TaskRepo
 from tasker.utils import JsonAppend, console
 
 from ._common import app, get_task_repo
-from ._helpers import edit_task_in_editor, format_task_list_item
+from ._helpers import edit_task_in_editor, format_task_list_item, print_parent_preview
 from ._resolve_task import resolve_ref
 
 
@@ -228,6 +229,10 @@ def cmd_done_task(
                     " was already finished[/green]",
                     json_output={"task_refs": JsonAppend(task.ref)},
                 )
+
+                if not console.json_output and not is_root_task_id(task.id):
+                    print_parent_preview(repo, task)
+
                 continue
 
             if not force and not console.json_output and is_nonleaf_task(task):
@@ -251,6 +256,9 @@ def cmd_done_task(
                 f"[green]Task [blue]{task.ref}[/blue] finished[/green]",
                 json_output={"task_refs": JsonAppend(task.ref)},
             )
+
+            if not console.json_output and not is_root_task_id(task.id):
+                print_parent_preview(repo, task)
 
 
 def _report_finishing_nonleaf_task(task: Task) -> None:
