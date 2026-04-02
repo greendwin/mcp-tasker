@@ -4,7 +4,7 @@ import subprocess
 from pathlib import Path
 
 from tasker.base_types import Task, TaskStatus, is_root_task_id
-from tasker.parse import detect_task_type, parse_task_ref
+from tasker.parse import parse_task_ref
 from tasker.repo._task_repo import TaskRepo
 from tasker.utils import console
 

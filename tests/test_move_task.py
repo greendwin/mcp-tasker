@@ -662,3 +662,44 @@ def test_move_parent_json_no_preview(s1: str, s2: str) -> None:
     data = _json.loads(result.output)
     assert "task_refs" in data
     assert "parent" not in data
+
+
+# ---------------------------------------------------------------------------
+# deep nested detach cleans ancestor directories
+# ---------------------------------------------------------------------------
+
+
+def test_move_deep_nested_cleans_ancestor_dirs(tasks_root: Path, s1: str) -> None:
+    t01 = add_subtask(s1, "Mid task").task_id
+    # file-based subtask makes s01t01 extended (directory-based)
+    leaf = add_subtask(t01, "Leaf task", details="Some details").task_id
+    # note: child of s01t01 is s01t0101 (digits appended directly)
+    assert_invoke(app, ["move", leaf, "--root"])
+    # all intermediate directories should be cleaned up
+    leftover = [p for p in tasks_root.rglob("*") if p.is_dir()]
+    dirs = [str(p.relative_to(tasks_root)) for p in leftover]
+    assert dirs == [], f"Leftover directories: {dirs}"
+
+
+def test_move_deep_nested_to_parent_cleans_dirs(
+    tasks_root: Path, s1: str, s2: str
+) -> None:
+    t01 = add_subtask(s1, "Mid task").task_id
+    leaf = add_subtask(t01, "Leaf task", details="Some details").task_id
+    assert_invoke(app, ["move", leaf, "--parent", s2])
+    # s01's intermediate directory should be cleaned up
+    for p in tasks_root.rglob("*"):
+        if p.is_dir():
+            assert f"{s1}t01" not in p.name, f"Leftover directory: {p}"
+
+
+def test_move_deep_nested_to_parent_keeps_dirs(
+    tasks_root: Path, s1: str, s2: str
+) -> None:
+    t01 = add_subtask(s1, "Mid task").task_id
+    leaf1 = add_subtask(t01, "Leaf task 1", details="Some details").task_id
+    add_subtask(t01, "Leaf task 2", details="Some details").task_id
+    assert_invoke(app, ["move", leaf1, "--parent", s2])
+    # s01's intermediate directory should remain
+    dirs = [p for p in tasks_root.rglob("*") if p.is_dir()]
+    assert any(t01 in p.name for p in dirs), f"Missing {t01} dir"

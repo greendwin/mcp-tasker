@@ -118,9 +118,18 @@ def _flush_task(
 ) -> None:
     if task.is_inline:
         orig = original_state.pop(task.id, None)
-        if orig and orig.filename.exists():
+        if orig is None:
+            return
+
+        if orig.filename.exists():
             # task was converted to inline
             orig.filename.unlink()
+
+        if orig.extended:
+            # queue old directory for cleanup
+            old_dir = orig.filename.parent
+            pending_dir_cleanups.append(_PendingDirCleanup(old_dir, task.id))
+
         return
 
     rendered = render_task(task)
