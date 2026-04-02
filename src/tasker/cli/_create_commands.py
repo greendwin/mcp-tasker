@@ -7,13 +7,9 @@ from typer_di import Depends
 from tasker.repo import TaskRepo
 from tasker.utils import console
 
-from ._common import (
-    app,
-    edit_task_in_editor,
-    get_task_repo,
-    resolve_ref,
-    save_recent_task,
-)
+from ._common import app, get_task_repo
+from ._helpers import edit_task_in_editor, format_task_list_item, print_subtasks
+from ._resolve_task import resolve_ref, save_recent_task
 
 
 @app.command("new", help="Create a new top-level task.")
@@ -77,10 +73,14 @@ def cmd_add_task(
             edit_task_in_editor(repo, child)
 
         console.print(
-            f"[green]Task [blue]{child.ref}[/blue]"
-            f" added to [blue]{parent.ref}[/blue][/green]",
+            f"[green]Task [blue]{child.ref}[/blue] added",
             json_output={"task_ref": child.ref},
         )
+
+        console.print("")
+        console.print(format_task_list_item(parent))
+        if parent.subtasks:
+            print_subtasks(parent.subtasks, show_all=False, highlight_id=child.id)
 
 
 @app.command("add-many", help="Interactively add multiple subtasks.")
@@ -111,7 +111,7 @@ def cmd_add_many_tasks(
 
         if not task_refs:
             console.print(
-                "[yellow]No tasks added.[/yellow]",
+                "[yellow]No tasks added[/yellow]",
                 json_output={"task_refs": []},
             )
             return

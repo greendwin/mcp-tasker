@@ -19,6 +19,28 @@ def test_add_inline_subtask_output(parent_id: str) -> None:
     assert f"{parent_id}t01" in result.output
 
 
+def test_add_shows_parent_title(parent_id: str) -> None:
+    result = assert_invoke(app, ["add", parent_id, "Define task forms"])
+    assert "My story" in result.output
+
+
+def test_add_shows_parent_id(parent_id: str) -> None:
+    result = assert_invoke(app, ["add", parent_id, "Define task forms"])
+    assert parent_id in result.output
+
+
+def test_add_shows_new_subtask_in_parent_view(parent_id: str) -> None:
+    result = assert_invoke(app, ["add", parent_id, "Define task forms"])
+    assert "Define task forms" in result.output
+
+
+def test_add_second_subtask_shows_all_siblings(parent_id: str) -> None:
+    add_subtask(parent_id, "First subtask")
+    result = assert_invoke(app, ["add", parent_id, "Second subtask"])
+    assert "First subtask" in result.output
+    assert "Second subtask" in result.output
+
+
 def test_add_subtask_file_contains_entry(
     parent_id: str, get_task_file: GetTaskFile
 ) -> None:

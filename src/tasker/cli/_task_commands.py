@@ -7,7 +7,9 @@ from tasker.base_types import Task, TaskStatus, is_nonleaf_task
 from tasker.repo import TaskRepo
 from tasker.utils import JsonAppend, console
 
-from ._common import app, edit_task_in_editor, get_task_repo, resolve_ref
+from ._common import app, get_task_repo
+from ._helpers import edit_task_in_editor
+from ._resolve_task import resolve_ref
 
 
 @app.command("start", help="Mark task(s) as in-progress.")

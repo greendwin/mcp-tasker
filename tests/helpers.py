@@ -8,7 +8,7 @@ from click.testing import Result
 from typer import Typer
 from typer.testing import CliRunner
 
-from tasker.cli import _common, app
+from tasker.cli import _helpers, app
 from tasker.parse import ParsedRef, parse_task_ref
 
 _runner = CliRunner()
@@ -68,7 +68,7 @@ def get_task_file(tasks_root: Path) -> GetTaskFile:
 def run_editor(monkeypatch: pytest.MonkeyPatch) -> mock.Mock:
     # always mock `open_in_editor` to avoid process spawn
     m = mock.Mock(return_value=None)
-    monkeypatch.setattr(_common, "run_editor", m)
+    monkeypatch.setattr(_helpers, "run_editor", m)
     return m
 
 

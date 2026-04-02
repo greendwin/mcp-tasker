@@ -9,7 +9,8 @@ from tasker.parse import detect_task_type
 from tasker.repo import TaskRepo
 from tasker.utils import JsonAppend, console
 
-from ._common import app, get_task_repo, resolve_ref, save_recent_task
+from ._common import app, get_task_repo
+from ._resolve_task import resolve_ref, save_recent_task
 
 
 @app.command("arch", hidden=True)

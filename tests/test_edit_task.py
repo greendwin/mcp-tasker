@@ -7,7 +7,7 @@ from unittest import mock
 
 import pytest
 
-from tasker.cli import _common, app
+from tasker.cli import _helpers, app
 from tasker.parse import parse_task_file
 
 from .helpers import (
@@ -217,7 +217,7 @@ def test_edit_json_error(s1: str) -> None:
 # ---------------------------------------------------------------------------
 
 
-run_editor_orig = _common.run_editor
+run_editor_orig = _helpers.run_editor
 
 
 class SetupEditors(Protocol):
