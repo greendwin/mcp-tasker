@@ -4,9 +4,9 @@ import typer
 from typer_di import Depends
 
 from tasker.base_types import Task
-from tasker.parse import detect_task_type, parse_task, parse_task_file
+from tasker.parse import detect_task_type, parse_task_file
 from tasker.repo import TaskRepo
-from tasker.utils import JsonAppend, console, read_text
+from tasker.utils import JsonAppend, console
 
 from ._common import app, get_task_repo
 from ._helpers import format_task_list_item, print_subtasks

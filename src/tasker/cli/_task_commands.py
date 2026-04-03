@@ -56,6 +56,18 @@ def cmd_start_task(
             _print_task_preview(task)
 
 
+def _print_task_preview(task: Task) -> None:
+    title = format_task_list_item(
+        task,
+        show_task_id=False,
+        show_all=True,
+    )
+    console.print(f"\n{title}")
+
+    if task.description:
+        console.print(f"\n{task.description}")
+
+
 def _report_starting_nonleaf_task(task: Task) -> None:
     console.print(
         f"[yellow]Task [blue]{task.ref}[/blue] has subtasks"
@@ -101,7 +113,8 @@ def cmd_reset_task(
                     " was already pending[/green]",
                     json_output={"task_refs": JsonAppend(task.ref)},
                 )
-                _print_task_preview(task)
+
+                print_parent_preview(repo, task)
                 continue
 
             if not console.json_output and is_nonleaf_task(task):
@@ -115,19 +128,7 @@ def cmd_reset_task(
                 f"[green]Task [blue]{task.ref}[/blue] reset to pending[/green]",
                 json_output={"task_refs": JsonAppend(task.ref)},
             )
-            _print_task_preview(task)
-
-
-def _print_task_preview(task: Task) -> None:
-    title = format_task_list_item(
-        task,
-        show_task_id=False,
-        show_all=True,
-    )
-    console.print(f"\n{title}")
-
-    if task.description:
-        console.print(f"\n{task.description}")
+            print_parent_preview(repo, task)
 
 
 def _report_resetting_nonleaf_task(task: Task) -> None:
@@ -160,6 +161,8 @@ def cmd_cancel_task(
                     " was already cancelled[/green]",
                     json_output={"task_refs": JsonAppend(task.ref)},
                 )
+
+                print_parent_preview(repo, task)
                 continue
 
             if not force and not console.json_output and is_nonleaf_task(task):
@@ -183,6 +186,8 @@ def cmd_cancel_task(
                 f"[green]Task [blue]{task.ref}[/blue] cancelled[/green]",
                 json_output={"task_refs": JsonAppend(task.ref)},
             )
+
+            print_parent_preview(repo, task)
 
 
 def _report_cancelling_nonleaf_task(
@@ -229,8 +234,7 @@ def cmd_done_task(
                     json_output={"task_refs": JsonAppend(task.ref)},
                 )
 
-                if not console.json_output and not is_root_task_id(task.id):
-                    print_parent_preview(repo, task)
+                print_parent_preview(repo, task)
 
                 continue
 
@@ -256,8 +260,7 @@ def cmd_done_task(
                 json_output={"task_refs": JsonAppend(task.ref)},
             )
 
-            if not console.json_output and not is_root_task_id(task.id):
-                print_parent_preview(repo, task)
+            print_parent_preview(repo, task)
 
 
 def _report_finishing_nonleaf_task(task: Task) -> None:

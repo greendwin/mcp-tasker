@@ -273,6 +273,37 @@ def test_cancel_already_cancelled_nonleaf_json_succeeds(
     assert data["task_refs"] == [f"{story_id}-my-story"]
 
 
+# --- parent preview ---
+
+
+def test_cancel_shows_parent_task(story_id: str) -> None:
+    task_id = add_subtask(story_id, "My leaf task").task_id
+    result = assert_invoke(app, ["cancel", task_id])
+    assert "My story" in result.output
+
+
+def test_cancel_shows_sibling_tasks(story_id: str) -> None:
+    task_id = add_subtask(story_id, "First task").task_id
+    add_subtask(story_id, "Second task")
+    result = assert_invoke(app, ["cancel", task_id])
+    assert "First task" in result.output
+    assert "Second task" in result.output
+
+
+def test_cancel_root_task_no_parent_shown(story_id: str) -> None:
+    task_id = add_subtask(story_id, "Only subtask").task_id
+    assert_invoke(app, ["cancel", task_id])
+    assert_invoke(app, ["cancel", story_id, "--force"])  # root — no parent shown
+
+
+def test_cancel_json_does_not_show_parent(story_id: str) -> None:
+    task_id = add_subtask(story_id, "My leaf task").task_id
+    result = assert_invoke(app, ["--json-output", "cancel", task_id])
+    data = json.loads(result.output)
+    assert data["task_refs"] == [task_id]
+    assert "parent" not in data
+
+
 # --- idempotent flush on manual edit ---
 
 

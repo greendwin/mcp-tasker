@@ -59,24 +59,26 @@ def format_task_list_item(
 
     # note: omit `[ ]` for pending tasks unless when `--all` is used
     show_marker = show_all or task.status != TaskStatus.PENDING
-    override_color: str | None = None
 
-    if task.id == highlight_id:
-        # override marker color
-        override_color = "bright_yellow"
-    elif task.status == TaskStatus.CANCELLED:
-        override_color = _STATUS_COLOR[task.status]
+    color_override: str | None = None
+    if task.status == TaskStatus.CANCELLED:
+        color_override = _STATUS_COLOR[task.status]
 
-    if override_color:
-        r.append(f"[{override_color}]")
+    if color_override:
+        r.append(f"[{color_override}]")
 
     if show_marker:
-        r.append(_task_marker(task, colored=not override_color))
+        r.append(_task_marker(task, colored=not color_override))
         r.append(" ")
 
     r.append(task.title)
-    if override_color:
-        r.append(f"[/{override_color}]")
+
+    if color_override:
+        r.append(f"[/{color_override}]")
+
+    if task.id == highlight_id:
+        r.append(" [bright_yellow]<<<[/bright_yellow]")
+
     return "".join(r)
 
 
