@@ -4,9 +4,9 @@ import typer
 from typer_di import Depends
 
 from tasker.base_types import Task
-from tasker.parse import detect_task_type
+from tasker.parse import detect_task_type, parse_task, parse_task_file
 from tasker.repo import TaskRepo
-from tasker.utils import JsonAppend, console
+from tasker.utils import JsonAppend, console, read_text
 
 from ._common import app, get_task_repo
 from ._helpers import format_task_list_item, print_subtasks
@@ -53,13 +53,24 @@ def cmd_list_tasks(
         bool,
         typer.Option("--all", "-a", help="Show all subtasks including closed."),
     ] = False,
+    archived: Annotated[
+        bool,
+        typer.Option(
+            "--archived", "--arch", help="List archived tasks instead of active ones."
+        ),
+    ] = False,
     repo: TaskRepo = Depends(get_task_repo),
 ) -> None:
     with console.catching_output():
-        if task_refs:
-            all_tasks = [resolve_ref(repo, ref, save_recent=True) for ref in task_refs]
-        else:
+        if archived:
+            all_tasks = _load_archived_tasks(repo, shallow=not show_all)
+        elif not task_refs:
             all_tasks = _load_root_tasks(repo)
+        else:
+            all_tasks = []
+
+        for ref in task_refs:
+            all_tasks.append(resolve_ref(repo, ref, save_recent=True))
 
         if not all_tasks:
             console.print("[dim]No tasks to show.[/dim]", json_output={"tasks": []})
@@ -79,6 +90,26 @@ def _load_root_tasks(repo: TaskRepo) -> list[Task]:
     for task_path in repo.list_root_tasks():
         tp = detect_task_type(task_path)
         tasks.append(repo.resolve_ref(tp.task_ref))
+    return tasks
+
+
+def _load_archived_tasks(repo: TaskRepo, shallow: bool) -> list[Task]:
+    if not repo.archive_root.is_dir():
+        return []
+
+    archive_repo = TaskRepo(repo.archive_root)
+    tasks: list[Task] = []
+    for task_path in archive_repo.list_root_tasks():
+        if shallow:
+            task, _ = parse_task_file(task_path)
+            tasks.append(task)
+            continue
+
+        # we need to load a tree to show full hierarchy
+        tp = detect_task_type(task_path)
+        task = archive_repo.resolve_ref(tp.task_ref)
+        tasks.append(task)
+
     return tasks
 
 

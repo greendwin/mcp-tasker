@@ -156,6 +156,53 @@ def test_list_args_multiple_tasks() -> None:
     assert task3_id in result.output
 
 
+# --- s17t09: --archived lists archived tasks ---
+
+
+def test_list_archived_shows_archived_task() -> None:
+    task_id = create_task("My story").task_id
+    assert_invoke(app, ["done", "--force", task_id])
+    assert_invoke(app, ["archive", task_id])
+    result = assert_invoke(app, ["list", "--archived"])
+    assert task_id in result.output
+    assert "My story" in result.output
+
+
+def test_list_archived_hides_active_tasks() -> None:
+    active_id = create_task("Active story").task_id
+    archived_id = create_task("Archived story").task_id
+    assert_invoke(app, ["done", "--force", archived_id])
+    assert_invoke(app, ["archive", archived_id])
+    result = assert_invoke(app, ["list", "--archived"])
+    assert archived_id in result.output
+    assert active_id not in result.output
+
+
+def test_list_archived_empty() -> None:
+    create_task("My story")
+    result = assert_invoke(app, ["list", "--archived"])
+    assert "No tasks to show" in result.output
+
+
+def test_list_archived_json_output() -> None:
+    task_id = create_task("My story").task_id
+    assert_invoke(app, ["done", "--force", task_id])
+    assert_invoke(app, ["archive", task_id])
+    result = assert_invoke(app, ["--json-output", "list", "--archived"])
+    data = json.loads(result.output)
+    assert len(data["tasks"]) == 1
+    assert data["tasks"][0]["id"] == task_id
+
+
+def test_list_archived_shows_subtasks() -> None:
+    task_id = create_task("My story").task_id
+    sub_id = add_subtask(task_id, "My subtask").task_id
+    assert_invoke(app, ["done", "--force", task_id])
+    assert_invoke(app, ["archive", task_id])
+    result = assert_invoke(app, ["list", "--archived", "--all"])
+    assert sub_id in result.output
+
+
 def test_list_all_indents_nested_subtasks() -> None:
     task_id = create_task("My story").task_id
     sub_id = add_subtask(task_id, "Sub", details="desc").task_id
