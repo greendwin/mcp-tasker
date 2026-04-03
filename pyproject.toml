@@ -1,6 +1,6 @@
 [project]
 name = "mcp-tasker"
-version = "1.0.0"
+version = "1.1.0"
 description = "Simple file-based task tracker for git repos"
 readme = "README.md"
 license = {file = "LICENSE"}

@@ -188,7 +188,7 @@ status: in-progress
 
 ## CLI Commands
 
-All commands support `--json-output` for machine-readable output and `--debug` for full tracebacks.
+All commands support `--json-output` for machine-readable output, `--debug` for full tracebacks, and `--version` for version info.
 
 ### Add tasks
 
@@ -202,6 +202,10 @@ tasker new <title> --slug <slug> --details <description>
 # Create as a directory from the start
 tasker new <title> --extended
 
+# Create and open in editor for manual adjustments
+tasker new <title> --editor
+tasker new <title> -e
+
 # Add a simple inline subtask under any parent
 tasker add <parent-id> <title>
 
@@ -210,6 +214,10 @@ tasker add <parent-id> <title> --details <description>
 
 # Add with explicit slug (e.g. when created by AI)
 tasker add <parent-id> <title> --details <description> --slug <slug>
+
+# Add and open in editor for manual adjustments
+tasker add <parent-id> <title> --editor
+tasker add <parent-id> <title> -e
 
 # Add multiple inline subtasks interactively (empty line or EOF ends input)
 # In --json-output mode: reads stdin silently, emits { "parent_ref": "s01", "task_refs": ["s01t01", ...] }
@@ -242,6 +250,8 @@ tasker reset <task-id>...
 
 ### View tasks
 
+The `list` command highlights the most recently referenced task with `>`.
+
 ```bash
 # View full task details and subtasks
 tasker view <task-id>
@@ -255,9 +265,15 @@ tasker list <task-id>...
 # Show all subtasks including closed (done/cancelled)
 tasker list --all
 tasker list -a
+
+# List archived tasks
+tasker list --archived
+tasker list --arch
 ```
 
 ### Edit tasks
+
+Editing an archived task automatically unarchives it first.
 
 ```bash
 # Change title

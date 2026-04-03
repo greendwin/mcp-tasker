@@ -58,7 +58,7 @@ def load_recent_task_id(repo: TaskRepo) -> str | None:
     path = repo.root / _RECENT_FILE
     if not path.exists():
         return None
-        
+
     text = path.read_text().strip()
     return text or None
 

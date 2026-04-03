@@ -66,8 +66,10 @@ tasker/
 ```bash
 tasker new <title>                          # new root story
 tasker new <title> --details "..." --slug <slug>  # with description and slug
+tasker new <title> --editor                 # create and open in editor
 tasker add <parent-id> <title>              # inline subtask
 tasker add <parent-id> <title> --details "..."    # subtask with description
+tasker add <parent-id> <title> --editor     # create and open in editor
 tasker add-many <parent-id>                 # add multiple subtasks interactively
 ```
 
@@ -88,6 +90,7 @@ tasker done <task-id> --force
 ```bash
 tasker list                   # all open root tasks
 tasker list -a                # include closed tasks
+tasker list --archived        # list archived tasks
 tasker list <task-id>         # subtasks of a specific task
 tasker view <task-id>         # full task details
 ```
@@ -211,6 +214,18 @@ isort src tests
 - Python >= 3.10
 
 ## Release Notes
+
+### 1.1.0
+- `--editor` (`-e`) option on `new` and `add` commands to open the task in an editor after creation
+- `list --archived` to browse archived tasks
+- `list` highlights the most recently referenced task
+- Editing an archived task auto-unarchives it
+- Task preview shown after `start`, `reset`, `done`, `cancel`, `move`, `new`, `add`, and `edit` commands
+- MCP: added `edit_task` tool for updating title, description, and slug
+- MCP: `view_tasks` accepts multiple task IDs in a single call
+- MCP: task subtasks grouped by status in response
+- `--version` flag
+- Bug fixes: editor slug path, directory cleanup on `move`, multi-task preview on `start`
 
 ### 1.0.0
 - `pip` release
