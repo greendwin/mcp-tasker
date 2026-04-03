@@ -38,7 +38,8 @@ def test_create_subtask_appears_in_parent_subtasks() -> None:
     parent_id = helper_create_task("Parent").task_id
     child = create_task("Child task", parent=parent_id)
     parent = view_tasks([parent_id])[0]
-    assert child.id in parent.subtasks
+    all_ids = [tid for ids in parent.subtasks.values() for tid in ids]
+    assert child.id in all_ids
 
 
 def test_create_subtask_with_description() -> None:

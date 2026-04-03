@@ -1,7 +1,7 @@
 ---
 id: s18
 slug: mcp-server
-status: pending
+status: done
 ---
 
 # Create MCP server to let agent use tasker directly
@@ -20,4 +20,4 @@ status: pending
 - [x] [s18t11](s18t11-support-task-creation.md): Support task creation
 - [x] s18t12: Dont show titles in view_task's subtasks -- let AI invoke subsequent view to show task details, not only summary
 - [x] s18t13: Add view_tasks command or exstend existing, allow to pass mulitple task IDs
-- [ ] s18t14: Group tasks by status in task info
+- [x] s18t14: Group tasks by status in task info

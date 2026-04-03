@@ -1,3 +1,5 @@
+from collections import defaultdict
+
 from pydantic import BaseModel
 from typing_extensions import Self
 
@@ -22,7 +24,7 @@ class TaskPreview(BaseModel):
 class TaskInfo(TaskPreview):
     parent_id: str | None
     description: str | None
-    subtasks: list[str]
+    subtasks: dict[TaskStatus, list[str]]
 
     @classmethod
     def from_task(cls, task: Task) -> Self:
@@ -31,11 +33,15 @@ class TaskInfo(TaskPreview):
         else:
             parent_id = parse_task_ref(task.ref).parent_id
 
+        grouped: dict[TaskStatus, list[str]] = defaultdict(list)
+        for child in task.subtasks:
+            grouped[child.status].append(child.id)
+
         return cls(
             id=task.id,
             parent_id=parent_id,
             title=task.title,
             status=task.status,
             description=task.description,
-            subtasks=[child.id for child in task.subtasks],
+            subtasks=grouped,
         )

@@ -38,22 +38,21 @@ def test_task_resource_returns_task_info() -> None:
     assert result.title == "My story"
     assert result.status == TaskStatus.PENDING
     assert result.description is None
-    assert result.subtasks == []
+    assert result.subtasks == {}
 
 
 def test_task_resource_includes_subtasks() -> None:
     task_id = create_task("My story").task_id
     sub_id = add_subtask(task_id, "First subtask").task_id
     result = resource_task(task_id)
-    assert len(result.subtasks) == 1
-    assert result.subtasks[0] == sub_id
+    assert result.subtasks == {"pending": [sub_id]}
 
 
 def test_task_resource_subtasks_are_ids() -> None:
     task_id = create_task("My story").task_id
     add_subtask(task_id, "First subtask")
     result = resource_task(task_id)
-    assert isinstance(result.subtasks[0], str)
+    assert isinstance(result.subtasks["pending"][0], str)
 
 
 def test_task_resource_subtask_accessible_as_resource() -> None:
@@ -61,7 +60,7 @@ def test_task_resource_subtask_accessible_as_resource() -> None:
     task_id = create_task("My story").task_id
     add_subtask(task_id, "First subtask")
     parent = resource_task(task_id)
-    sub_id = parent.subtasks[0]
+    sub_id = parent.subtasks["pending"][0]
     child = resource_task(sub_id)
     assert child.title == "First subtask"
 

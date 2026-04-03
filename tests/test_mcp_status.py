@@ -79,6 +79,7 @@ def test_done_task_nonleaf_raises(story_id: str, leaf_ref: str) -> None:
 def test_done_task_force_closes_subtasks(story_id: str, leaf_ref: str) -> None:
     result = finish_task(story_id, force=True)
     assert result.status == TaskStatus.DONE
-    assert len(result.subtasks) > 0
-    subtask_infos = view_tasks(result.subtasks)
+    all_ids = [tid for ids in result.subtasks.values() for tid in ids]
+    assert len(all_ids) > 0
+    subtask_infos = view_tasks(all_ids)
     assert all(s.status == TaskStatus.DONE for s in subtask_infos)
