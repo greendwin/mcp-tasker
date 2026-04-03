@@ -202,11 +202,12 @@ def test_reset_shows_task_title(story_id: str) -> None:
     assert "My leaf task" in result.output
 
 
-def test_reset_shows_description_when_present(story_id: str) -> None:
+def test_reset_shows_parent_preview(story_id: str) -> None:
     task_id = add_subtask(story_id, "My leaf task", "Some details here").task_id
     assert_invoke(app, ["start", task_id])
     result = assert_invoke(app, ["reset", task_id])
-    assert "Some details here" in result.output
+    assert "My story" in result.output
+    assert "My leaf task" in result.output
 
 
 def test_reset_no_description_no_extra_output(story_id: str) -> None:

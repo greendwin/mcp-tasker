@@ -1,7 +1,7 @@
 ---
 id: s22t08
 slug: bug-on-start-multiple-tasks
-status: pending
+status: done
 ---
 
 # BUG: on 'start' multiple tasks bad formatting

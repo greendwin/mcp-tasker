@@ -3,7 +3,7 @@ from typing import Annotated
 import typer
 from typer_di import Depends
 
-from tasker.base_types import Task, TaskStatus, is_nonleaf_task, is_root_task_id
+from tasker.base_types import Task, TaskStatus, is_nonleaf_task
 from tasker.repo import TaskRepo
 from tasker.utils import JsonAppend, console
 
@@ -21,30 +21,25 @@ def cmd_start_task(
     repo: TaskRepo = Depends(get_task_repo),
 ) -> None:
     with console.catching_output():
+        need_preview: list[Task] = []
         for task_ref in task_refs:
             task = resolve_ref(repo, task_ref, save_recent=True)
+            orig_status = task.status
 
-            if task.status == TaskStatus.IN_PROGRESS:
-                # resave tasks in case of outdated statuses
-                repo.flush_to_disk()
+            if is_nonleaf_task(task):
+                if task.status == TaskStatus.IN_PROGRESS:
+                    # it'ok if status was not changed
+                    pass
+                elif not console.json_output:
+                    _report_starting_nonleaf_task(task)
+                    raise typer.Exit(1)
 
-                console.print(
-                    f"[green]Task [blue]{task.ref}[/blue]"
-                    " was already started[/green]",
-                    json_output={"task_refs": JsonAppend(task.ref)},
-                )
-                _print_task_preview(task)
-                continue
-
-            if not console.json_output and is_nonleaf_task(task):
-                _report_starting_nonleaf_task(task)
-                raise typer.Exit(1)
-
-            prev_status = task.status
             repo.start_task(task)
             repo.flush_to_disk()
 
-            if prev_status == TaskStatus.DONE:
+            if orig_status == TaskStatus.IN_PROGRESS:
+                action = "was already started"
+            elif orig_status == TaskStatus.DONE:
                 action = "restarted"
             else:
                 action = "started"
@@ -53,6 +48,9 @@ def cmd_start_task(
                 f"[green]Task [blue]{task.ref}[/blue] {action}[/green]",
                 json_output={"task_refs": JsonAppend(task.ref)},
             )
+            need_preview.append(task)
+
+        for task in need_preview:
             _print_task_preview(task)
 
 
@@ -65,7 +63,7 @@ def _print_task_preview(task: Task) -> None:
     console.print(f"\n{title}")
 
     if task.description:
-        console.print(f"\n{task.description}")
+        console.print(f"{task.description}")
 
 
 def _report_starting_nonleaf_task(task: Task) -> None:

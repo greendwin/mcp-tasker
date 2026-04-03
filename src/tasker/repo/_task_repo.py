@@ -104,6 +104,9 @@ class TaskRepo:
         return subtask
 
     def start_task(self, task: Task) -> None:
+        if task.status == TaskStatus.IN_PROGRESS:
+            return
+
         if not _is_leaf_task(task):
             raise TaskHasSubtasksError(task)
 
