@@ -1,7 +1,7 @@
 ---
 id: s23t02
 slug: task-2
-status: pending
+status: cancelled
 ---
 
 # Task 2
