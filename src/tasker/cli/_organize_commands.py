@@ -16,6 +16,7 @@ from ._resolve_task import resolve_ref, save_recent_task
 
 @app.command("arch", hidden=True)
 @app.command("archive", help="Archive a completed root task.")
+@console.catching_output
 def cmd_archive_task(
     *,
     task_refs: Annotated[
@@ -31,52 +32,52 @@ def cmd_archive_task(
     ] = False,
     repo: TaskRepo = Depends(get_task_repo),
 ) -> None:
-    with console.catching_output():
-        if not task_refs and not all_closed:
-            raise TaskerError("Specify <task_ref> or --closed.", json_output={})
+    if not task_refs and not all_closed:
+        raise TaskerError("Specify <task_ref> or --closed.", json_output={})
 
-        if not task_refs:
-            task_refs = []
+    if not task_refs:
+        task_refs = []
 
-        if all_closed:
-            for task_path in repo.list_root_tasks():
-                tp = detect_task_type(task_path)
-                if tp.task_id in task_refs or tp.task_ref in task_refs:
-                    continue
+    if all_closed:
+        for task_path in repo.list_root_tasks():
+            tp = detect_task_type(task_path)
+            if tp.task_id in task_refs or tp.task_ref in task_refs:
+                continue
 
-                task = repo.resolve_ref(tp.task_ref)
-                if task.is_closed:
-                    task_refs.append(tp.task_ref)
+            task = repo.resolve_ref(tp.task_ref)
+            if task.is_closed:
+                task_refs.append(tp.task_ref)
 
-        for task_ref in task_refs:
-            task = resolve_ref(repo, task_ref)
+    for task_ref in task_refs:
+        task = resolve_ref(repo, task_ref)
 
-            if not console.json_output and not is_root_task_id(task.id):
-                _report_not_root_task(task)
-                raise typer.Exit(1)
+        if not console.json_output and not is_root_task_id(task.id):
+            _report_not_root_task(task)
+            raise typer.Exit(1)
 
-            if not force and not console.json_output and not task.is_closed:
-                _report_open_task(task)
-                raise typer.Exit(1)
+        if not force and not console.json_output and not task.is_closed:
+            _report_open_task(task)
+            raise typer.Exit(1)
 
-            forced = repo.archive_root_task(task, force=force)
+        forced = repo.archive_root_task(task, force=force)
 
-            if forced:
-                console.print("[yellow]Forcibly cancelled subtasks:[/yellow]")
-                for t in forced:
-                    console.print(
-                        f"  - [blue]{t.id}[/blue]: {t.title}",
-                        json_output={"forced_task_ids": JsonAppend(t.id)},
-                    )
+        if forced:
+            console.print("[yellow]Forcibly cancelled subtasks:[/yellow]")
+            for t in forced:
+                console.print(
+                    f"  - [blue]{t.id}[/blue]: {t.title}",
+                    json_output={"forced_task_ids": JsonAppend(t.id)},
+                )
 
-            console.print(
-                f"[green]Task [blue]{task.ref}[/blue] archived[/green]",
-                json_output={"task_refs": JsonAppend(task.ref)},
-            )
+        console.print(
+            f"[green]Task [blue]{task.ref}[/blue] archived[/green]",
+            json_output={"task_refs": JsonAppend(task.ref)},
+        )
 
 
 @app.command("unarch", hidden=True)
 @app.command("unarchive", help="Restore an archived root task.")
+@console.catching_output
 def cmd_unarchive_task(
     *,
     task_refs: Annotated[
@@ -84,22 +85,21 @@ def cmd_unarchive_task(
     ],
     repo: TaskRepo = Depends(get_task_repo),
 ) -> None:
-    with console.catching_output():
-        need_preview: list[Task] = []
-        for task_ref in task_refs:
-            ref = repo.unarchive_root_task(task_ref)
-            save_recent_task(repo, ref.task_id)
+    need_preview: list[Task] = []
+    for task_ref in task_refs:
+        ref = repo.unarchive_root_task(task_ref)
+        save_recent_task(repo, ref.task_id)
 
-            console.print(
-                f"[green]Task [blue]{ref.task_ref}[/blue] unarchived[/green]",
-                json_output={"task_refs": JsonAppend(ref.task_ref)},
-            )
+        console.print(
+            f"[green]Task [blue]{ref.task_ref}[/blue] unarchived[/green]",
+            json_output={"task_refs": JsonAppend(ref.task_ref)},
+        )
 
-            task = repo.resolve_ref(ref.task_id)
-            need_preview.append(task)
+        task = repo.resolve_ref(ref.task_id)
+        need_preview.append(task)
 
-        if need_preview:
-            print_parent_preview(repo, *need_preview)
+    if need_preview:
+        print_parent_preview(repo, *need_preview)
 
 
 def _report_not_root_task(task: Task) -> None:
@@ -123,6 +123,7 @@ def _report_open_task(task: Task) -> None:
 
 
 @app.command("move", help="Move a task under a new parent or to root level.")
+@console.catching_output
 def cmd_move_task(
     *,
     task_refs: Annotated[list[str], typer.Argument(help="Task ID(s) to move.")],
@@ -136,64 +137,61 @@ def cmd_move_task(
     ] = False,
     repo: TaskRepo = Depends(get_task_repo),
 ) -> None:
-    with console.catching_output():
-        if parent_ref is not None and root:
-            raise TaskerError(
-                "Cannot specify both --parent and --root.", json_output={}
+    if parent_ref is not None and root:
+        raise TaskerError("Cannot specify both --parent and --root.", json_output={})
+
+    if parent_ref is None and not root:
+        raise TaskerError("Specify --parent <ref> or --root.", json_output={})
+
+    new_parent = (
+        resolve_ref(repo, parent_ref, auto_unarchive=True)
+        if parent_ref is not None
+        else None
+    )
+
+    if new_parent is not None:
+        console.print("", end="", json_output={"parent_ref": new_parent.ref})
+
+    for k, task_ref in enumerate(task_refs):
+        task = resolve_ref(repo, task_ref, auto_unarchive=True)
+        renames = repo.move_task(task, new_parent=new_parent)
+
+        # save regenerated id
+        save_recent_task(repo, task.id)
+
+        if k > 0:
+            console.print("")
+
+        if not renames:
+            # idempotent — task is already at the requested location
+            console.print(
+                f"[green]Task [blue]{task.ref}[/blue]"
+                " is already in the requested location[/green]",
+                json_output={"task_refs": JsonAppend(task.ref), "already": True},
             )
 
-        if parent_ref is None and not root:
-            raise TaskerError("Specify --parent <ref> or --root.", json_output={})
-
-        new_parent = (
-            resolve_ref(repo, parent_ref, auto_unarchive=True)
-            if parent_ref is not None
-            else None
-        )
-
-        if new_parent is not None:
-            console.print("", end="", json_output={"parent_ref": new_parent.ref})
-
-        for k, task_ref in enumerate(task_refs):
-            task = resolve_ref(repo, task_ref, auto_unarchive=True)
-            renames = repo.move_task(task, new_parent=new_parent)
-
-            # save regenerated id
-            save_recent_task(repo, task.id)
-
-            if k > 0:
-                console.print("")
-
-            if not renames:
-                # idempotent — task is already at the requested location
-                console.print(
-                    f"[green]Task [blue]{task.ref}[/blue]"
-                    " is already in the requested location[/green]",
-                    json_output={"task_refs": JsonAppend(task.ref), "already": True},
-                )
-
-                print_parent_preview(repo, task)
-                continue
-
-            if new_parent is None:
-                console.print(
-                    f"[green]Task [blue]{task.ref}[/blue] moved to root[/green]",
-                    json_output={"task_refs": JsonAppend(task.ref)},
-                )
-            else:
-                console.print(
-                    f"[green]Task [blue]{task.ref}[/blue]"
-                    f" moved under [blue]{new_parent.ref}[/blue][/green]",
-                    json_output={"task_refs": JsonAppend(task.ref)},
-                )
-
-            console.print("[yellow]Renamed tasks:[/yellow]")
-            for r in renames:
-                console.print(
-                    f"  [cyan]{r.old_id}[/cyan] → [blue]{r.new_id}[/blue]",
-                    json_output={
-                        "renames": JsonAppend({"old_id": r.old_id, "new_id": r.new_id})
-                    },
-                )
-
             print_parent_preview(repo, task)
+            continue
+
+        if new_parent is None:
+            console.print(
+                f"[green]Task [blue]{task.ref}[/blue] moved to root[/green]",
+                json_output={"task_refs": JsonAppend(task.ref)},
+            )
+        else:
+            console.print(
+                f"[green]Task [blue]{task.ref}[/blue]"
+                f" moved under [blue]{new_parent.ref}[/blue][/green]",
+                json_output={"task_refs": JsonAppend(task.ref)},
+            )
+
+        console.print("[yellow]Renamed tasks:[/yellow]")
+        for r in renames:
+            console.print(
+                f"  [cyan]{r.old_id}[/cyan] → [blue]{r.new_id}[/blue]",
+                json_output={
+                    "renames": JsonAppend({"old_id": r.old_id, "new_id": r.new_id})
+                },
+            )
+
+        print_parent_preview(repo, task)

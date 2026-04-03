@@ -13,4 +13,4 @@ status: pending
 - [x] ~~[s12t04](s12t04-test-suite-mcp.md): Test suite MCP~~
 - [ ] [s12t05](s12t05-discover-tasker-folder-location.md): Discover 'tasker' folder location
 - [x] ~~s12t06: Rename README.md to smth different~~
-- [ ] s12t07: REF: rework console.catching_output to decorator
+- [x] s12t07: REF: rework console.catching_output to decorator

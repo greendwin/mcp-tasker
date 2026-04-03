@@ -15,34 +15,35 @@ from ._resolve_task import resolve_ref
 
 @app.command("show", hidden=True)
 @app.command("view", help="Print task content.")
+@console.catching_output
 def cmd_show_task(
     *,
     task_ref: Annotated[str, typer.Argument(help="Task ID to show.")],
     repo: TaskRepo = Depends(get_task_repo),
 ) -> None:
-    with console.catching_output():
-        task = resolve_ref(repo, task_ref, save_recent=True)
+    task = resolve_ref(repo, task_ref, save_recent=True)
 
-        console.print(
-            format_task_list_item(task),
-            json_output=_task_to_json(task),
-        )
+    console.print(
+        format_task_list_item(task),
+        json_output=_task_to_json(task),
+    )
 
-        if task.description:
-            console.print(f"\n{task.description}")
+    if task.description:
+        console.print(f"\n{task.description}")
 
-        if task.extra_sections:
-            console.print(f"\n{task.extra_sections}")
+    if task.extra_sections:
+        console.print(f"\n{task.extra_sections}")
 
-        if not task.subtasks:
-            return
+    if not task.subtasks:
+        return
 
-        console.print("\n[bold]Subtasks:[/bold]")
-        for subtask in task.subtasks:
-            console.print(format_task_list_item(subtask, indent=1))
+    console.print("\n[bold]Subtasks:[/bold]")
+    for subtask in task.subtasks:
+        console.print(format_task_list_item(subtask, indent=1))
 
 
 @app.command("list", help="List open tasks with their pending subtasks.")
+@console.catching_output
 def cmd_list_tasks(
     *,
     task_refs: Annotated[
@@ -61,28 +62,27 @@ def cmd_list_tasks(
     ] = False,
     repo: TaskRepo = Depends(get_task_repo),
 ) -> None:
-    with console.catching_output():
-        if archived:
-            all_tasks = _load_archived_tasks(repo, shallow=not show_all)
-        elif not task_refs:
-            all_tasks = _load_root_tasks(repo)
-        else:
-            all_tasks = []
+    if archived:
+        all_tasks = _load_archived_tasks(repo, shallow=not show_all)
+    elif not task_refs:
+        all_tasks = _load_root_tasks(repo)
+    else:
+        all_tasks = []
 
-        for ref in task_refs:
-            all_tasks.append(resolve_ref(repo, ref, save_recent=True))
+    for ref in task_refs:
+        all_tasks.append(resolve_ref(repo, ref, save_recent=True))
 
-        if not all_tasks:
-            console.print("[dim]No tasks to show.[/dim]", json_output={"tasks": []})
-            return
+    if not all_tasks:
+        console.print("[dim]No tasks to show.[/dim]", json_output={"tasks": []})
+        return
 
-        for task in all_tasks:
-            console.print(
-                format_task_list_item(task, show_all=show_all),
-                json_output={"tasks": JsonAppend(_task_to_json(task))},
-            )
+    for task in all_tasks:
+        console.print(
+            format_task_list_item(task, show_all=show_all),
+            json_output={"tasks": JsonAppend(_task_to_json(task))},
+        )
 
-            print_subtasks(task.subtasks, show_all=show_all)
+        print_subtasks(task.subtasks, show_all=show_all)
 
 
 def _load_root_tasks(repo: TaskRepo) -> list[Task]:
