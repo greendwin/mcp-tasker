@@ -439,3 +439,24 @@ def test_edit_json_output_shows_updated_slug(
 
     data = json.loads(result.output)
     assert data["task_ref"] == f"{s1.split('-')[0]}-renamed"
+
+
+# --- task preview after edit ---
+
+
+def test_edit_shows_task_title_after_update(s1: str) -> None:
+    result = assert_invoke(app, ["edit", s1, "--title", "New title"])
+    assert "New title" in result.output
+
+
+def test_edit_shows_description_after_update(s1: str) -> None:
+    result = assert_invoke(app, ["edit", s1, "--details", "Some description"])
+    assert "Some description" in result.output
+
+
+def test_edit_json_does_not_show_preview(s1: str) -> None:
+    result = assert_invoke(app, ["--json-output", "edit", s1, "--title", "New title"])
+    data = json.loads(result.output)
+    assert data["task_ref"]
+    # preview text should not leak into JSON output
+    assert "New title" not in data.get("preview", "")

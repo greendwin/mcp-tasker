@@ -330,3 +330,5 @@ def cmd_edit_task(
             f"[green]Task [blue]{task.ref}[/blue] updated[/green]",
             json_output={"task_ref": task.ref},
         )
+
+        _print_task_preview(task)
