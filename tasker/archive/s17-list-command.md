@@ -1,7 +1,7 @@
 ---
 id: s17
 slug: list-command
-status: pending
+status: done
 ---
 
 # List command

@@ -4,7 +4,7 @@ slug: move-command
 status: done
 ---
 
-# Support move command 
+# Support 'move' command 
 
 Attache subtree to another task or make it a separate story
 

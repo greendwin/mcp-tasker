@@ -1,7 +1,7 @@
 ---
 id: s20
 slug: deployment
-status: pending
+status: done
 ---
 
 # Deployment

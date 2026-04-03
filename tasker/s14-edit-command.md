@@ -4,7 +4,7 @@ slug: edit-command
 status: done
 ---
 
-# Add 'edit' command that changed
+# Support 'edit' command
 
 It should update --details and all other fields, title and etc must be editable in future, see separate story
 
