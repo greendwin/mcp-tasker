@@ -1,10 +1,10 @@
-from pathlib import Path
 from typing import Annotated
 
 import typer
 from typer_di import TyperDI
 
 from tasker import __version__
+from tasker.discover import discover_tasker_dir, init_tasker_dir
 from tasker.repo import TaskRepo
 from tasker.utils import console
 
@@ -46,6 +46,15 @@ def common_options(
 
 
 def get_task_repo() -> TaskRepo:
-    tasker_dir = Path("tasker")
-    tasker_dir.mkdir(exist_ok=True)
+    tasker_dir = discover_tasker_dir()
     return TaskRepo(tasker_dir)
+
+
+@app.command("init", help="Initialize tasker in the current directory.")
+@console.catching_output
+def cmd_init() -> None:
+    tasker_dir = init_tasker_dir()
+    console.print(
+        f"[green]Initialized tasker in [blue]{tasker_dir}[/blue][/green]",
+        json_output={"tasker_dir": str(tasker_dir)},
+    )

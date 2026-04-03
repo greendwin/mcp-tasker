@@ -98,43 +98,23 @@ def test_recent_written_to_file(tasks_root: Path) -> None:
     assert recent_file.read_text().strip() == ref.task_id
 
 
-def test_gitignore_created(tasks_root: Path) -> None:
-    create_task("Test story")
-    gitignore = tasks_root / ".gitignore"
+def test_gitignore_created_by_init(project_root: Path) -> None:
+    from tasker.discover import init_tasker_dir
+
+    init_tasker_dir(project_root)
+
+    gitignore = project_root / "tasker" / ".gitignore"
     assert gitignore.exists()
-    lines = gitignore.read_text().splitlines()
-    assert ".recent" in lines
-    assert ".gitignore" in lines
+    assert ".recent" in gitignore.read_text().splitlines()
 
 
-def test_gitignore_not_duplicated(tasks_root: Path) -> None:
-    create_task("Story one")
-    create_task("Story two")
+def test_gitignore_created_by_auto_init(project_root: Path) -> None:
+    # auto-init happens when discover finds .git but no tasker/
+    create_task("Test story")
 
-    gitignore = tasks_root / ".gitignore"
-    lines = [ln for ln in gitignore.read_text().splitlines() if ln == ".recent"]
-    assert len(lines) == 1
-
-
-def test_gitignore_does_not_add_itself_when_preexisting(tasks_root: Path) -> None:
-    gitignore = tasks_root / ".gitignore"
-    gitignore.write_text("*.tmp\n")
-
-    create_task("Story")
-
-    lines = gitignore.read_text().splitlines()
-    assert ".gitignore" not in lines
-
-
-def test_gitignore_preserves_existing_content(tasks_root: Path) -> None:
-    gitignore = tasks_root / ".gitignore"
-    gitignore.write_text("*.tmp\n")
-
-    create_task("Story")
-
-    content = gitignore.read_text()
-    assert "*.tmp" in content
-    assert ".recent" in content.splitlines()
+    gitignore = project_root / "tasker" / ".gitignore"
+    assert gitignore.exists()
+    assert ".recent" in gitignore.read_text().splitlines()
 
 
 def test_load_recent_returns_none_when_no_file(tasks_root: Path) -> None:

@@ -14,6 +14,7 @@ from .helpers import get_task_file, run_editor, setup_task_edits  # noqa: F401
 def project_root() -> Path:
     proj_root = Path("/myproj")
     proj_root.mkdir()
+    (proj_root / ".git").mkdir()
     return proj_root
 
 

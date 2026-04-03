@@ -1,5 +1,4 @@
 import re
-from pathlib import Path
 
 import typer
 
@@ -7,10 +6,9 @@ from tasker.base_types import Task
 from tasker.exceptions import TaskArchivedError, TaskValidateError
 from tasker.parse import make_child_ref, parse_task_ref
 from tasker.repo._task_repo import TaskRepo
-from tasker.utils import JsonAppend, console, read_text, write_text
+from tasker.utils import JsonAppend, console, write_text
 
 _RECENT_FILE = ".recent"
-_GITIGNORE_FILE = ".gitignore"
 
 
 def resolve_ref(
@@ -50,7 +48,6 @@ def resolve_ref(
 
 
 def save_recent_task(repo: TaskRepo, task_id: str) -> None:
-    _ensure_gitignore(repo.root)
     write_text(repo.root / _RECENT_FILE, task_id + "\n")
 
 
@@ -101,18 +98,3 @@ def _load_recent(repo: TaskRepo, task_ref: str) -> str:
         raise TaskValidateError("Recent task was not set yet", task_ref=task_ref)
 
     return text
-
-
-def _ensure_gitignore(root: Path) -> None:
-    gitignore = root / _GITIGNORE_FILE
-    if not gitignore.exists():
-        write_text(gitignore, _GITIGNORE_FILE + "\n" + _RECENT_FILE + "\n")
-        return
-
-    content = read_text(gitignore)
-    if _RECENT_FILE in content.splitlines():
-        return
-    if not content.endswith("\n"):
-        content += "\n"
-    content += _RECENT_FILE + "\n"
-    write_text(gitignore, content)
