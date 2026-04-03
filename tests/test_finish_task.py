@@ -231,7 +231,7 @@ def test_done_idempotent_flushes_corrected_statuses(
     assert "status: done" in updated
 
 
-# --- s22t05: show parent task on done ---
+# --- show parent task on done ---
 
 
 def test_done_shows_parent_task(story_id: str) -> None:

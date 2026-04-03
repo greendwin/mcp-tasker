@@ -345,7 +345,7 @@ def test_edit_editor_combined_with_other_flags(
     assert run_editor.call_count == 1
 
 
-# s14t07: editor receives correct path after --slug change
+# editor receives correct path after --slug change
 def test_edit_slug_with_editor_opens_renamed_file(
     s1: str, run_editor: mock.Mock
 ) -> None:
@@ -371,7 +371,7 @@ def test_edit_subtask_slug_with_editor_opens_renamed_file(
     assert opened_path.exists()
 
 
-# s14t07: editor receives correct path when slug was changed externally
+# editor receives correct path when slug was changed externally
 def test_edit_after_external_slug_change_opens_correct_file(
     s1: str, tasks_root: Path, run_editor: mock.Mock
 ) -> None:
@@ -504,3 +504,14 @@ def test_edit_json_does_not_show_preview(s1: str) -> None:
     assert data["task_ref"]
     # preview text should not leak into JSON output
     assert "New title" not in data.get("preview", "")
+
+
+# --- auto-unarchive on edit ---
+
+
+def test_edit_auto_unarchives_archived_task(s1: str) -> None:
+    assert_invoke(app, ["done", "--force", s1])
+    assert_invoke(app, ["archive", s1])
+    result = assert_invoke(app, ["edit", s1, "--title", "New title"])
+    assert "Unarchiving" in result.output
+    assert "New title" in result.output

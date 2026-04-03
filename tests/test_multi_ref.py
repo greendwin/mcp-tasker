@@ -163,7 +163,7 @@ def test_json_done_multiple(story_id: str) -> None:
     assert data["task_refs"] == [t01, t02]
 
 
-# --- s22t09: combined preview for multiple tasks ---
+# --- combined preview for multiple tasks ---
 
 
 def test_done_multiple_shows_single_parent_preview(story_id: str) -> None:
@@ -214,7 +214,7 @@ def test_reset_multiple_highlights_all_tasks(story_id: str) -> None:
     assert result.output.count("<<<") == 2
 
 
-# --- s22t13: common ancestor for cross-level tasks ---
+# --- common ancestor for cross-level tasks ---
 
 
 def test_done_cross_level_shows_single_tree(story_id: str) -> None:

@@ -15,4 +15,4 @@ status: pending
 - [x] [s19t06](s19t06-invoke-editor/): Invoke EDITOR in 'edit', e.g. t edit s19t06 -e|--editor
 - [x] [s19t07](s19t07-editor-on-add.md): Support `--editor` option on task creation
 - [ ] s19t08: In 'list' command show task that is pointed by 'recent' label
-- [ ] s19t09: Unarchive root task when trying to 'edit' it
+- [x] s19t09: Unarchive root task when trying to 'edit' it

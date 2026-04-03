@@ -308,7 +308,7 @@ def cmd_edit_task(
             )
             raise typer.Exit(1)
 
-    task = resolve_ref(repo, task_ref, save_recent=True)
+    task = resolve_ref(repo, task_ref, save_recent=True, auto_unarchive=True)
     if title is not None or details is not None or slug is not None:
         repo.edit_task(task, title=title, description=details, slug=slug)
         repo.flush_to_disk()

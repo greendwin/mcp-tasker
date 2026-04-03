@@ -82,7 +82,7 @@ def test_add_detail_does_not_create_md_file() -> None:
 
 
 # ---------------------------------------------------------------------------
-# s22t07: show root task list on 'new'
+# show root task list on 'new'
 # ---------------------------------------------------------------------------
 
 

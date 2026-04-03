@@ -8,3 +8,4 @@ Detailed design is described in `DESIGN.md`.
 
 * On any development iteration, the final step is to run `poetry run tox` (all environments). Always fix **all** reported issues.
 * Never use `type: ignore` if it can be fixed normally.
+* Never include ticket IDs into code comments.

@@ -111,7 +111,7 @@ def test_list_default_no_cancelled_subtask_in_output() -> None:
     assert sub_id not in result.output
 
 
-# s17t08: --all always shows status marker (even for pending)
+# --all always shows status marker (even for pending)
 
 
 def test_list_all_shows_pending_marker() -> None:
@@ -128,7 +128,7 @@ def test_list_default_no_pending_marker_for_subtask() -> None:
     assert "[ ]" not in result.output
 
 
-# s17t06: accept args to filter subtrees
+# accept args to filter subtrees
 
 
 def test_list_args_shows_only_specified_task() -> None:
@@ -156,7 +156,7 @@ def test_list_args_multiple_tasks() -> None:
     assert task3_id in result.output
 
 
-# --- s17t09: --archived lists archived tasks ---
+# --- --archived lists archived tasks ---
 
 
 def test_list_archived_shows_archived_task() -> None:

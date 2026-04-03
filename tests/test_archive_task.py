@@ -350,7 +350,7 @@ def test_json_unarchive_multiple_tasks(story_id: str) -> None:
     assert any(story2_id in r for r in data["task_refs"])
 
 
-# --- s22t12: unarchive shows preview ---
+# --- unarchive shows preview ---
 
 
 def test_unarchive_shows_task_title(story_id: str) -> None:

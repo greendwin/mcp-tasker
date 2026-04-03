@@ -617,7 +617,7 @@ def test_move_multiple_tasks_to_root(s2: str) -> None:
 
 
 # ---------------------------------------------------------------------------
-# s22t06: show parent task on move --parent
+# show parent task on move --parent
 # ---------------------------------------------------------------------------
 
 
