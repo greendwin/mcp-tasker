@@ -181,7 +181,8 @@ Once connected, the MCP server exposes:
 |---|---|
 | `create_task` | Create a root task or subtask |
 | `list_tasks` | List all root tasks |
-| `view_task` | View task details and subtasks |
+| `view_tasks` | View detailed info for multiple tasks |
+| `edit_task` | Update a task's title, description, or slug |
 | `start_task` | Mark task in-progress |
 | `reset_task` | Reset task to pending |
 | `finish_task` | Mark task done |
