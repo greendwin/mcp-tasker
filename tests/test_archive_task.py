@@ -5,6 +5,7 @@ import pytest
 
 from tasker.base_types import TaskStatus
 from tasker.cli import app
+from tasker.layout import ARCHIVE_DIR
 from tasker.parse import parse_task_file
 
 from .helpers import GetTaskFile, add_subtask, assert_invoke, create_task
@@ -276,7 +277,7 @@ def test_json_archived_task_reports_archived(story_id: str) -> None:
 
 def test_unarchive_restores_basic_file(tasks_root: Path, story_id: str) -> None:
     _archive_story(story_id)
-    task_file = next(Path("tasker/archive").glob(f"{story_id}-*.md"))
+    task_file = next((tasks_root / ARCHIVE_DIR).glob(f"{story_id}-*.md"))
     filename = task_file.name
     result = assert_invoke(app, ["unarchive", story_id])
     assert "unarchived" in result.output
@@ -288,7 +289,7 @@ def test_unarchive_restores_extended_dir(tasks_root: Path, story_id: str) -> Non
     add_subtask(story_id, "Subtask", details="Some details")
     assert_invoke(app, ["done", "--force", story_id])
     assert_invoke(app, ["archive", story_id])
-    archived_dir = next(Path("tasker/archive").glob(f"{story_id}-*/"))
+    archived_dir = next((tasks_root / ARCHIVE_DIR).glob(f"{story_id}-*/"))
     dirname = archived_dir.name
     result = assert_invoke(app, ["unarchive", story_id])
     assert "unarchived" in result.output

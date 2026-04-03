@@ -1,6 +1,6 @@
 from mcp.server.fastmcp import FastMCP
 
-from tasker.discover import discover_tasker_dir
+from tasker.layout import discover_tasker_dir
 from tasker.repo import TaskRepo
 
 mcp = FastMCP("tasker")

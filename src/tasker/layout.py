@@ -5,8 +5,8 @@ from typing import Iterator
 
 from .exceptions import TaskerError
 
-_TASKER_DIR = "tasker"
-_ARCHIVE_DIR = "archive"
+TASKER_DIR = "tasker"
+ARCHIVE_DIR = "archive"
 _GITKEEP_FILE = ".gitkeep"
 _GITIGNORE_FILE = ".gitignore"
 _RECENT_FILE = ".recent"
@@ -29,7 +29,7 @@ def discover_tasker_dir(start: Path | None = None) -> Path:
 
     # 1. search for existing tasker/ folder
     for parent in _walk_parents(start):
-        candidate = parent / _TASKER_DIR
+        candidate = parent / TASKER_DIR
         if candidate.is_dir():
             return candidate
 
@@ -46,14 +46,14 @@ def init_tasker_dir(project_root: Path | None = None) -> Path:
     if project_root is None:
         project_root = Path.cwd()
 
-    tasker_dir = project_root / _TASKER_DIR
+    tasker_dir = project_root / TASKER_DIR
     tasker_dir.mkdir(exist_ok=True)
 
     gitignore = tasker_dir / _GITIGNORE_FILE
     if not gitignore.exists():
         gitignore.write_text(_RECENT_FILE + "\n", encoding="utf-8")
 
-    archive_dir = tasker_dir / _ARCHIVE_DIR
+    archive_dir = tasker_dir / ARCHIVE_DIR
     archive_dir.mkdir(exist_ok=True)
 
     gitkeep = archive_dir / _GITKEEP_FILE

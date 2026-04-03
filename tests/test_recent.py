@@ -3,6 +3,7 @@ from pathlib import Path
 import pytest
 
 from tasker.cli import app
+from tasker.layout import TASKER_DIR, init_tasker_dir
 
 from .helpers import add_subtask, assert_invoke, create_task
 
@@ -99,11 +100,9 @@ def test_recent_written_to_file(tasks_root: Path) -> None:
 
 
 def test_gitignore_created_by_init(project_root: Path) -> None:
-    from tasker.discover import init_tasker_dir
-
     init_tasker_dir(project_root)
 
-    gitignore = project_root / "tasker" / ".gitignore"
+    gitignore = project_root / TASKER_DIR / ".gitignore"
     assert gitignore.exists()
     assert ".recent" in gitignore.read_text().splitlines()
 
@@ -112,7 +111,7 @@ def test_gitignore_created_by_auto_init(project_root: Path) -> None:
     # auto-init happens when discover finds .git but no tasker/
     create_task("Test story")
 
-    gitignore = project_root / "tasker" / ".gitignore"
+    gitignore = project_root / TASKER_DIR / ".gitignore"
     assert gitignore.exists()
     assert ".recent" in gitignore.read_text().splitlines()
 

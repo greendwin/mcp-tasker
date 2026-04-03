@@ -4,7 +4,7 @@ import typer
 from typer_di import TyperDI
 
 from tasker import __version__
-from tasker.discover import discover_tasker_dir, init_tasker_dir
+from tasker.layout import discover_tasker_dir, init_tasker_dir
 from tasker.repo import TaskRepo
 from tasker.utils import console
 

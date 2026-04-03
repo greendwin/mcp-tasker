@@ -4,13 +4,12 @@ from typing import NamedTuple
 
 from tasker.base_types import Task, is_root_task_id
 from tasker.exceptions import TaskArchivedError, TaskValidateError
+from tasker.layout import ARCHIVE_DIR
 from tasker.parse import ParsedSubtask, detect_task_type, parse_task, parse_task_ref
 from tasker.render import append_task_filename, render_task
 from tasker.utils import read_text, write_text
 
 from ._utils import build_task_path_from_root, update_task_status_and_flags
-
-_ARCHIVE_DIR = "archive"
 
 
 @dataclass
@@ -23,7 +22,7 @@ class OriginalState:
 class TaskLoader:
     def __init__(self, root: Path) -> None:
         self.root = root
-        self.archive_root = root / _ARCHIVE_DIR
+        self.archive_root = root / ARCHIVE_DIR
         self._root_tasks: dict[str, Task] = {}
         self._tasks: dict[str, Task] = {}
         self._original_state: dict[str, OriginalState] = {}
