@@ -39,8 +39,8 @@ def resolve_ref(
         if console.json_output:
             raise
 
-        console.print(f"[yellow]Task [blue]{ex.task_ref}[/blue] is archived.[/yellow]")
-        console.print("Unarchive it first before performing actions on it.")
+        console.print(f"[yellow]Task [blue]{ex.task_ref}[/blue] is archived[/yellow]")
+        console.print("Unarchive it first before performing actions on it")
         raise typer.Exit(1) from ex
 
     if save_recent and is_direct_link:

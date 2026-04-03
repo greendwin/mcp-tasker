@@ -114,12 +114,12 @@ def _report_open_task(task: Task) -> None:
 
     open_tasks = [t for t in task.subtasks if not t.is_closed]
     if open_tasks:
-        console.print("Close its open subtasks first, or use [bold]--force[/bold].")
+        console.print("Close its open subtasks first, or use [bold]--force[/bold]")
         console.print("\nOpen subtasks:")
         for t in open_tasks:
             console.print(f"  - [blue]{t.id}[/blue]: {t.title}")
     else:
-        console.print("Use [bold]--force[/bold] to cancel and archive.")
+        console.print("Use [bold]--force[/bold] to cancel and archive")
 
 
 @app.command("move", help="Move a task under a new parent or to root level.")

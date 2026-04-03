@@ -52,8 +52,15 @@ def test_reset_already_pending_task(leaf_ref: str) -> None:
 
 
 def test_reset_task_nonleaf_raises(story_id: str, leaf_ref: str) -> None:
+    start_task(leaf_ref)
+
     with pytest.raises(TaskHasSubtasksError):
         reset_task(story_id)
+
+
+def test_reset_pending_nonleaf_is_ok(story_id: str, leaf_ref: str) -> None:
+    ti = reset_task(story_id)
+    assert ti.status == "pending"
 
 
 # --- done_task ---

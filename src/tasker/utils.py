@@ -35,9 +35,7 @@ class OutputContext:
         if json_output:
             for k, v in json_output.items():
                 if isinstance(v, JsonAppend):
-                    arr = self._json_output_obj.setdefault(k, [])
-                    assert isinstance(arr, list), f"json_output key {k!r} is not a list"
-                    arr.append(v.value)
+                    self.append_json_output(k, v.value)
                     continue
 
                 assert (
@@ -47,6 +45,11 @@ class OutputContext:
 
         if not self.json_output:
             self._console.print(text, end=end)
+
+    def append_json_output(self, key: str, value: Any) -> None:
+        arr = self._json_output_obj.setdefault(key, [])
+        assert isinstance(arr, list), f"json_output key {key!r} is not a list"
+        arr.append(value)
 
     def catching_output(self, fn: Callable[_P, None]) -> Callable[_P, None]:
         @functools.wraps(fn)

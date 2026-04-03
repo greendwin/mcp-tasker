@@ -114,6 +114,9 @@ class TaskRepo:
         update_parents_status(task, loader=self.loader)
 
     def reset_task(self, task: Task) -> None:
+        if task.status == TaskStatus.PENDING:
+            return
+
         if not _is_leaf_task(task):
             raise TaskHasSubtasksError(task)
 
@@ -121,6 +124,11 @@ class TaskRepo:
         update_parents_status(task, loader=self.loader)
 
     def cancel_task(self, task: Task, *, force: bool = False) -> list[Task] | None:
+        if task.status == TaskStatus.CANCELLED:
+            # already cancelled
+            assert all(t.is_closed for t in task.subtasks)
+            return None
+
         if _is_leaf_task(task):
             task.status = TaskStatus.CANCELLED
             update_parents_status(task, loader=self.loader)
@@ -135,6 +143,9 @@ class TaskRepo:
         return closed_tasks[1:]  # don't include root task
 
     def finish_task(self, task: Task, *, force: bool = False) -> list[Task] | None:
+        if task.status == TaskStatus.DONE:
+            return None
+
         if _is_leaf_task(task):
             task.status = TaskStatus.DONE
             update_parents_status(task, loader=self.loader)
