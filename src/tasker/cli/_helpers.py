@@ -1,6 +1,7 @@
 import os
 import platform
 import subprocess
+from collections import defaultdict
 from pathlib import Path
 
 from tasker.base_types import Task, TaskStatus, is_root_task_id
@@ -38,7 +39,7 @@ def format_task_list_item(
     show_task_id: bool = True,
     show_all: bool = False,
     indent: int = 0,
-    highlight_id: str | None = None,
+    highlight_ids: set[str] | None = None,
 ) -> str:
     r = []
 
@@ -76,7 +77,7 @@ def format_task_list_item(
     if color_override:
         r.append(f"[/{color_override}]")
 
-    if task.id == highlight_id:
+    if highlight_ids and task.id in highlight_ids:
         r.append(" [bright_yellow]<<<[/bright_yellow]")
 
     return "".join(r)
@@ -87,19 +88,19 @@ def print_subtasks(
     *,
     current_depth: int = 1,
     show_all: bool,
-    highlight_id: str | None = None,
+    highlight_ids: set[str] | None = None,
 ) -> None:
     for task in subtasks:
-        if task.is_closed and not show_all and task.id != highlight_id:
-            # skip closed task unless `--all` is used or task is highlighted
-            continue
+        if task.is_closed and not show_all:
+            if not _has_highlights(task, highlight_ids):
+                continue
 
         console.print(
             format_task_list_item(
                 task,
                 indent=current_depth,
                 show_all=show_all,
-                highlight_id=highlight_id,
+                highlight_ids=highlight_ids,
             )
         )
 
@@ -108,26 +109,78 @@ def print_subtasks(
                 task.subtasks,
                 current_depth=current_depth + 1,
                 show_all=show_all,
-                highlight_id=highlight_id,
+                highlight_ids=highlight_ids,
             )
 
 
-def print_parent_preview(repo: TaskRepo, task: Task) -> None:
-    if is_root_task_id(task.id):
-        # show task itself
-        parent = task
-    else:
+def _has_highlights(task: Task, highlight_ids: set[str] | None) -> bool:
+    if not highlight_ids:
+        return False
+
+    if task.id in highlight_ids:
+        return True
+
+    for child in task.subtasks:
+        if _has_highlights(child, highlight_ids):
+            return True
+
+    return False
+
+
+def print_parent_preview(repo: TaskRepo, *tasks: Task) -> None:
+    # group tasks by root story, then find common ancestor per group
+    root_groups: dict[str, list[Task]] = defaultdict(list)
+    for task in tasks:
         ref = parse_task_ref(task.ref)
-        parent = repo.resolve_ref(ref.parent_id)
+        root_groups[ref.root_id].append(task)
 
-    console.print("")
-    console.print(format_task_list_item(parent, highlight_id=task.id))
+    for group in root_groups.values():
+        ids = {t.id for t in group}
 
-    print_subtasks(
-        parent.subtasks,
-        show_all=False,
-        highlight_id=task.id,
-    )
+        # collect parent IDs (direct parent or self for root tasks)
+        parent_ids: list[str] = []
+        for task in group:
+            if is_root_task_id(task.id):
+                parent_ids.append(task.id)
+                continue
+
+            ref = parse_task_ref(task.ref)
+            parent_ids.append(ref.parent_id)
+
+        common_id = _find_common_ancestor(parent_ids)
+        parent = repo.resolve_ref(common_id)
+
+        console.print("")
+        console.print(format_task_list_item(parent, highlight_ids=ids))
+
+        print_subtasks(
+            parent.subtasks,
+            show_all=False,
+            highlight_ids=ids,
+        )
+
+
+def _find_common_ancestor(parent_ids: list[str]) -> str:
+    chains = [_get_ancestor_chain(pid) for pid in parent_ids]
+    common = chains[0][0]  # root — always shared
+    for depth in range(min(len(c) for c in chains)):
+        if all(c[depth] == chains[0][depth] for c in chains):
+            common = chains[0][depth]
+        else:
+            break
+
+    return common
+
+
+def _get_ancestor_chain(task_id: str) -> list[str]:
+    chain = [task_id]
+    current = task_id
+    while not is_root_task_id(current):
+        ref = parse_task_ref(current)
+        current = ref.parent_id
+        chain.append(current)
+    chain.reverse()
+    return chain
 
 
 def edit_task_in_editor(repo: TaskRepo, task: Task) -> Task:

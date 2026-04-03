@@ -350,6 +350,31 @@ def test_json_unarchive_multiple_tasks(story_id: str) -> None:
     assert any(story2_id in r for r in data["task_refs"])
 
 
+# --- s22t12: unarchive shows preview ---
+
+
+def test_unarchive_shows_task_title(story_id: str) -> None:
+    _archive_story(story_id)
+    result = assert_invoke(app, ["unarchive", story_id])
+    # preview should display the task title
+    assert "My story" in result.output
+
+
+def test_unarchive_highlights_task(story_id: str) -> None:
+    _archive_story(story_id)
+    result = assert_invoke(app, ["unarchive", story_id])
+    assert "<<<" in result.output
+
+
+def test_unarchive_json_does_not_show_preview(story_id: str) -> None:
+    _archive_story(story_id)
+    result = assert_invoke(app, ["--json-output", "unarchive", story_id])
+    data = json.loads(result.output)
+    assert "task_refs" in data
+    # JSON output should not contain preview text
+    assert "<<<" not in result.output
+
+
 # --- move archived task / to archived parent ---
 
 

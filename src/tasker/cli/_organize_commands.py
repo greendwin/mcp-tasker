@@ -85,6 +85,7 @@ def cmd_unarchive_task(
     repo: TaskRepo = Depends(get_task_repo),
 ) -> None:
     with console.catching_output():
+        need_preview: list[Task] = []
         for task_ref in task_refs:
             ref = repo.unarchive_root_task(task_ref)
             save_recent_task(repo, ref.task_id)
@@ -93,6 +94,12 @@ def cmd_unarchive_task(
                 f"[green]Task [blue]{ref.task_ref}[/blue] unarchived[/green]",
                 json_output={"task_refs": JsonAppend(ref.task_ref)},
             )
+
+            task = repo.resolve_ref(ref.task_id)
+            need_preview.append(task)
+
+        if need_preview:
+            print_parent_preview(repo, *need_preview)
 
 
 def _report_not_root_task(task: Task) -> None:

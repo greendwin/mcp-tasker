@@ -99,6 +99,7 @@ def cmd_reset_task(
     repo: TaskRepo = Depends(get_task_repo),
 ) -> None:
     with console.catching_output():
+        need_preview: list[Task] = []
         for task_ref in task_refs:
             task = resolve_ref(repo, task_ref, save_recent=True)
 
@@ -112,7 +113,7 @@ def cmd_reset_task(
                     json_output={"task_refs": JsonAppend(task.ref)},
                 )
 
-                print_parent_preview(repo, task)
+                need_preview.append(task)
                 continue
 
             if not console.json_output and is_nonleaf_task(task):
@@ -126,7 +127,10 @@ def cmd_reset_task(
                 f"[green]Task [blue]{task.ref}[/blue] reset to pending[/green]",
                 json_output={"task_refs": JsonAppend(task.ref)},
             )
-            print_parent_preview(repo, task)
+            need_preview.append(task)
+
+        if need_preview:
+            print_parent_preview(repo, *need_preview)
 
 
 def _report_resetting_nonleaf_task(task: Task) -> None:
@@ -147,6 +151,7 @@ def cmd_cancel_task(
     repo: TaskRepo = Depends(get_task_repo),
 ) -> None:
     with console.catching_output():
+        need_preview: list[Task] = []
         for task_ref in task_refs:
             task = resolve_ref(repo, task_ref, save_recent=True)
 
@@ -160,7 +165,7 @@ def cmd_cancel_task(
                     json_output={"task_refs": JsonAppend(task.ref)},
                 )
 
-                print_parent_preview(repo, task)
+                need_preview.append(task)
                 continue
 
             if not force and not console.json_output and is_nonleaf_task(task):
@@ -185,7 +190,10 @@ def cmd_cancel_task(
                 json_output={"task_refs": JsonAppend(task.ref)},
             )
 
-            print_parent_preview(repo, task)
+            need_preview.append(task)
+
+        if need_preview:
+            print_parent_preview(repo, *need_preview)
 
 
 def _report_cancelling_nonleaf_task(
@@ -219,6 +227,7 @@ def cmd_done_task(
     repo: TaskRepo = Depends(get_task_repo),
 ) -> None:
     with console.catching_output():
+        need_preview: list[Task] = []
         for task_ref in task_refs:
             task = resolve_ref(repo, task_ref, save_recent=True)
 
@@ -232,8 +241,7 @@ def cmd_done_task(
                     json_output={"task_refs": JsonAppend(task.ref)},
                 )
 
-                print_parent_preview(repo, task)
-
+                need_preview.append(task)
                 continue
 
             if not force and not console.json_output and is_nonleaf_task(task):
@@ -258,7 +266,10 @@ def cmd_done_task(
                 json_output={"task_refs": JsonAppend(task.ref)},
             )
 
-            print_parent_preview(repo, task)
+            need_preview.append(task)
+
+        if need_preview:
+            print_parent_preview(repo, *need_preview)
 
 
 def _report_finishing_nonleaf_task(task: Task) -> None:

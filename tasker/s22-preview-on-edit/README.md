@@ -1,7 +1,7 @@
 ---
 id: s22
 slug: preview-on-edit
-status: pending
+status: done
 ---
 
 # Show tasks preview on any manipulation
@@ -18,8 +18,8 @@ It's nice to show tasks with their bullet list with applied changes.
 - [x] s22t06: Show parent task on 'move' with attach
 - [x] s22t07: List root tasks (wihtout subtasks) on 'move --root' and 'new'
 - [x] [s22t08](s22t08-bug-on-start-multiple-tasks.md): BUG: on 'start' multiple tasks bad formatting
-- [ ] s22t09: BUG: bad format on 'done' with multiple tasks
+- [x] s22t09: BUG: bad format on 'done' with multiple tasks
 - [x] s22t10: Show parent preview on 'cancel' action
 - [x] s22t11: Show task preview after 'edit'
-- [ ] s22t12: Show tasks preview after 'unarch'
-- [ ] s22t13: Support parents preview for multiple tasks -- highlight them all simultaneously in common tree
+- [x] s22t12: Show tasks preview after 'unarch'
+- [x] s22t13: Support parents preview for multiple tasks -- highlight them all simultaneously in common tree

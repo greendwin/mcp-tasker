@@ -1,7 +1,7 @@
 ---
 id: s23t03
 slug: task-3
-status: in-progress
+status: pending
 ---
 
 # Task 3

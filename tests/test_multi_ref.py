@@ -161,3 +161,80 @@ def test_json_done_multiple(story_id: str) -> None:
     result = assert_invoke(app, ["--json-output", "done", t01, t02])
     data = json.loads(result.output)
     assert data["task_refs"] == [t01, t02]
+
+
+# --- s22t09: combined preview for multiple tasks ---
+
+
+def test_done_multiple_shows_single_parent_preview(story_id: str) -> None:
+    t01 = add_subtask(story_id, "Task one").task_id
+    t02 = add_subtask(story_id, "Task two").task_id
+    result = assert_invoke(app, ["done", t01, t02])
+    # parent "My story" should appear only once (combined preview)
+    assert result.output.count("My story") == 1
+
+
+def test_done_multiple_highlights_all_tasks(story_id: str) -> None:
+    t01 = add_subtask(story_id, "Task one").task_id
+    t02 = add_subtask(story_id, "Task two").task_id
+    result = assert_invoke(app, ["done", t01, t02])
+    # both tasks should be highlighted with <<<
+    assert result.output.count("<<<") == 2
+
+
+def test_cancel_multiple_shows_single_parent_preview(story_id: str) -> None:
+    t01 = add_subtask(story_id, "Task one").task_id
+    t02 = add_subtask(story_id, "Task two").task_id
+    result = assert_invoke(app, ["cancel", t01, t02])
+    assert result.output.count("My story") == 1
+
+
+def test_cancel_multiple_highlights_all_tasks(story_id: str) -> None:
+    t01 = add_subtask(story_id, "Task one").task_id
+    t02 = add_subtask(story_id, "Task two").task_id
+    result = assert_invoke(app, ["cancel", t01, t02])
+    assert result.output.count("<<<") == 2
+
+
+def test_reset_multiple_shows_single_parent_preview(story_id: str) -> None:
+    t01 = add_subtask(story_id, "Task one").task_id
+    t02 = add_subtask(story_id, "Task two").task_id
+    assert_invoke(app, ["start", t01])
+    assert_invoke(app, ["start", t02])
+    result = assert_invoke(app, ["reset", t01, t02])
+    assert result.output.count("My story") == 1
+
+
+def test_reset_multiple_highlights_all_tasks(story_id: str) -> None:
+    t01 = add_subtask(story_id, "Task one").task_id
+    t02 = add_subtask(story_id, "Task two").task_id
+    assert_invoke(app, ["start", t01])
+    assert_invoke(app, ["start", t02])
+    result = assert_invoke(app, ["reset", t01, t02])
+    assert result.output.count("<<<") == 2
+
+
+# --- s22t13: common ancestor for cross-level tasks ---
+
+
+def test_done_cross_level_shows_single_tree(story_id: str) -> None:
+    """Tasks at different depths share one preview rooted at common ancestor."""
+    t01 = add_subtask(story_id, "Task one").task_id
+    t02 = add_subtask(story_id, "Task two").task_id
+    t0101 = add_subtask(t01, "Subtask A").task_id
+    result = assert_invoke(app, ["done", t0101, t02])
+    # "My story" (common ancestor) should appear only once
+    assert result.output.count("My story") == 1
+    # "Task one" should appear only once (as child of story, not as separate parent)
+    assert result.output.count("Task one") == 1
+    # both finished tasks are highlighted
+    assert result.output.count("<<<") == 2
+
+
+def test_cancel_cross_level_highlights_all(story_id: str) -> None:
+    t01 = add_subtask(story_id, "Task one").task_id
+    t0101 = add_subtask(t01, "Subtask A").task_id
+    t02 = add_subtask(story_id, "Task two").task_id
+    result = assert_invoke(app, ["cancel", t0101, t02])
+    assert result.output.count("My story") == 1
+    assert result.output.count("<<<") == 2
