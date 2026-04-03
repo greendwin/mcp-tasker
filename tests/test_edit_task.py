@@ -345,6 +345,50 @@ def test_edit_editor_combined_with_other_flags(
     assert run_editor.call_count == 1
 
 
+# s14t07: editor receives correct path after --slug change
+def test_edit_slug_with_editor_opens_renamed_file(
+    s1: str, run_editor: mock.Mock
+) -> None:
+    assert_invoke(app, ["edit", s1, "--slug", "renamed", "--editor"])
+
+    assert run_editor.call_count == 1
+    opened_path = run_editor.call_args[0][0]
+    assert "renamed" in str(opened_path)
+    assert opened_path.exists()
+
+
+def test_edit_subtask_slug_with_editor_opens_renamed_file(
+    s1: str, run_editor: mock.Mock
+) -> None:
+    t01 = add_subtask(s1, "Sub", details="Desc").task_ref
+    t01_id = t01.split("-")[0]
+
+    assert_invoke(app, ["edit", t01_id, "--slug", "renamed-sub", "--editor"])
+
+    assert run_editor.call_count == 1
+    opened_path = run_editor.call_args[0][0]
+    assert "renamed-sub" in str(opened_path)
+    assert opened_path.exists()
+
+
+# s14t07: editor receives correct path when slug was changed externally
+def test_edit_after_external_slug_change_opens_correct_file(
+    s1: str, tasks_root: Path, run_editor: mock.Mock
+) -> None:
+    # Simulate external edit: change slug in frontmatter without renaming file
+    task_file = next(tasks_root.glob(f"{s1}-*.md"))
+    content = task_file.read_text()
+    content = content.replace("slug: story-one", "slug: ext-renamed")
+    task_file.write_text(content)
+
+    assert_invoke(app, ["edit", s1])
+
+    assert run_editor.call_count == 1
+    opened_path = run_editor.call_args[0][0]
+    assert "ext-renamed" in str(opened_path)
+    assert opened_path.exists()
+
+
 # ---------------------------------------------------------------------------
 # Slug editing in editor
 # ---------------------------------------------------------------------------

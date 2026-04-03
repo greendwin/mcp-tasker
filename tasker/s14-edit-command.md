@@ -16,3 +16,4 @@ It should update --details and all other fields, title and etc must be editable 
 - [x] s14t04: Details editing would upgrade inline task
 - [x] s14t05: Make description first letter uppercase same as title
 - [x] s14t06: BUG: when editing a task - show its actual slug after editor invoke
+- [x] s14t07: BUG: when manually editing slug -- editor recievies wrong file path

@@ -134,7 +134,10 @@ def edit_task_in_editor(repo: TaskRepo, task: Task) -> Task:
     # make sure that task is not inline
     if task.is_inline:
         repo.upgrade_to_filebased(task)
-        repo.flush_to_disk()
+
+    # flush to ensure filename matches current slug
+    # (slug may have been changed externally or via --slug)
+    repo.flush_to_disk()
 
     task_path = repo.build_task_path(task)
     run_editor(task_path.resolve())

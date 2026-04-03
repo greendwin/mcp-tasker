@@ -4,7 +4,9 @@ slug: mcp-server
 status: done
 ---
 
-# Create MCP server to let agent use tasker directly
+# MCP server
+
+Let agents to use `tasker` directly
 
 ## Subtasks
 
