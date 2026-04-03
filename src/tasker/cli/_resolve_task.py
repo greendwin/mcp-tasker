@@ -54,6 +54,15 @@ def save_recent_task(repo: TaskRepo, task_id: str) -> None:
     write_text(repo.root / _RECENT_FILE, task_id + "\n")
 
 
+def load_recent_task_id(repo: TaskRepo) -> str | None:
+    path = repo.root / _RECENT_FILE
+    if not path.exists():
+        return None
+        
+    text = path.read_text().strip()
+    return text or None
+
+
 def _resolve_recent(repo: TaskRepo, task_ref: str) -> str:
     if not task_ref.startswith(("p", "q")):
         # resolve as-is, try to resolve in repo

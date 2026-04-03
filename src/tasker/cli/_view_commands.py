@@ -10,7 +10,7 @@ from tasker.utils import JsonAppend, console
 
 from ._common import app, get_task_repo
 from ._helpers import format_task_list_item, print_subtasks
-from ._resolve_task import resolve_ref
+from ._resolve_task import load_recent_task_id, resolve_ref
 
 
 @app.command("show", hidden=True)
@@ -76,13 +76,15 @@ def cmd_list_tasks(
         console.print("[dim]No tasks to show.[/dim]", json_output={"tasks": []})
         return
 
+    recent_id = load_recent_task_id(repo)
+
     for task in all_tasks:
         console.print(
-            format_task_list_item(task, show_all=show_all),
+            format_task_list_item(task, show_all=show_all, recent_id=recent_id),
             json_output={"tasks": JsonAppend(_task_to_json(task))},
         )
 
-        print_subtasks(task.subtasks, show_all=show_all)
+        print_subtasks(task.subtasks, show_all=show_all, recent_id=recent_id)
 
 
 def _load_root_tasks(repo: TaskRepo) -> list[Task]:

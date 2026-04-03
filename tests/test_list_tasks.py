@@ -215,3 +215,35 @@ def test_list_all_indents_nested_subtasks() -> None:
     sub_indent = len(sub_line) - len(sub_line.lstrip())
     nested_indent = len(nested_line) - len(nested_line.lstrip())
     assert nested_indent > sub_indent
+
+
+# recent task marker in list
+
+
+def test_list_marks_recent_root_task() -> None:
+    task_id = create_task("My story").task_id
+    assert_invoke(app, ["start", task_id])  # saves recent
+    result = assert_invoke(app, ["list"])
+    line = next(ln for ln in result.output.splitlines() if task_id in ln)
+    assert "q" in line
+
+
+def test_list_marks_recent_subtask() -> None:
+    task_id = create_task("My story").task_id
+    sub_id = add_subtask(task_id, "My subtask").task_id
+    assert_invoke(app, ["start", sub_id])  # saves recent
+    result = assert_invoke(app, ["list"])
+    line = next(ln for ln in result.output.splitlines() if sub_id in ln)
+    assert "q" in line
+
+
+def test_list_recent_marker_only_on_accessed_task() -> None:
+    task1_id = create_task("First story").task_id
+    task2_id = create_task("Second story").task_id
+    assert_invoke(app, ["start", task1_id])  # saves task1 as recent
+    result = assert_invoke(app, ["list"])
+    lines = result.output.splitlines()
+    task1_line = next(ln for ln in lines if task1_id in ln)
+    task2_line = next(ln for ln in lines if task2_id in ln)
+    assert "q" in task1_line
+    assert "q" not in task2_line

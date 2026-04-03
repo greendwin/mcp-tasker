@@ -1,7 +1,7 @@
 ---
 id: s19t03
 slug: rename-parent-to-attach
-status: pending
+status: cancelled
 ---
 
 # Rename `--parent` to `--attach` in `move` command

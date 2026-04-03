@@ -9,6 +9,8 @@ from tasker.parse import parse_task_ref
 from tasker.repo._task_repo import TaskRepo
 from tasker.utils import console
 
+from ._resolve_task import load_recent_task_id
+
 _STATUS_COLOR = {
     TaskStatus.PENDING: "white",
     TaskStatus.IN_PROGRESS: "bright_blue",
@@ -40,6 +42,7 @@ def format_task_list_item(
     show_all: bool = False,
     indent: int = 0,
     highlight_ids: set[str] | None = None,
+    recent_id: str | None = None,
 ) -> str:
     r = []
 
@@ -80,6 +83,9 @@ def format_task_list_item(
     if highlight_ids and task.id in highlight_ids:
         r.append(" [bright_yellow]<<<[/bright_yellow]")
 
+    if recent_id and task.id == recent_id:
+        r.append(" [cyan](q)[/cyan]")
+
     return "".join(r)
 
 
@@ -89,6 +95,7 @@ def print_subtasks(
     current_depth: int = 1,
     show_all: bool,
     highlight_ids: set[str] | None = None,
+    recent_id: str | None = None,
 ) -> None:
     for task in subtasks:
         if task.is_closed and not show_all:
@@ -101,6 +108,7 @@ def print_subtasks(
                 indent=current_depth,
                 show_all=show_all,
                 highlight_ids=highlight_ids,
+                recent_id=recent_id,
             )
         )
 
@@ -110,6 +118,7 @@ def print_subtasks(
                 current_depth=current_depth + 1,
                 show_all=show_all,
                 highlight_ids=highlight_ids,
+                recent_id=recent_id,
             )
 
 
@@ -128,6 +137,8 @@ def _has_highlights(task: Task, highlight_ids: set[str] | None) -> bool:
 
 
 def print_parent_preview(repo: TaskRepo, *tasks: Task) -> None:
+    recent_id = load_recent_task_id(repo)
+
     # group tasks by root story, then find common ancestor per group
     root_groups: dict[str, list[Task]] = defaultdict(list)
     for task in tasks:
@@ -151,12 +162,19 @@ def print_parent_preview(repo: TaskRepo, *tasks: Task) -> None:
         parent = repo.resolve_ref(common_id)
 
         console.print("")
-        console.print(format_task_list_item(parent, highlight_ids=ids))
+        console.print(
+            format_task_list_item(
+                parent,
+                highlight_ids=ids,
+                recent_id=recent_id,
+            )
+        )
 
         print_subtasks(
             parent.subtasks,
             show_all=False,
             highlight_ids=ids,
+            recent_id=recent_id,
         )
 
 
