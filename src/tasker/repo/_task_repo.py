@@ -113,15 +113,23 @@ class TaskRepo:
         task.status = TaskStatus.IN_PROGRESS
         update_parents_status(task, loader=self.loader)
 
-    def reset_task(self, task: Task) -> None:
+    def reset_task(self, task: Task, *, force: bool = False) -> list[Task] | None:
         if task.status == TaskStatus.PENDING:
-            return
+            assert all(t.status == TaskStatus.PENDING for t in task.subtasks)
+            return None
 
-        if not _is_leaf_task(task):
+        if _is_leaf_task(task):
+            task.status = TaskStatus.PENDING
+            update_parents_status(task, loader=self.loader)
+            return None
+
+        if not force:
             raise TaskHasSubtasksError(task)
 
-        task.status = TaskStatus.PENDING
-        update_parents_status(task, loader=self.loader)
+        reset_tasks: list[Task] = []
+        _reset_recursive(task, reset_tasks)
+        update_parents_status(task, loader=self.loader, update_itself=True)
+        return reset_tasks[1:]  # don't include root task
 
     def cancel_task(self, task: Task, *, force: bool = False) -> list[Task] | None:
         if task.status == TaskStatus.CANCELLED:
@@ -231,3 +239,14 @@ def _close_recursive(
 
     for subtask in task.subtasks:
         _close_recursive(subtask, new_status, closed_tasks)
+
+
+def _reset_recursive(task: Task, reset_tasks: list[Task]) -> None:
+    if task.status == TaskStatus.PENDING:
+        return
+
+    reset_tasks.append(task)
+    task.status = TaskStatus.PENDING
+
+    for subtask in task.subtasks:
+        _reset_recursive(subtask, reset_tasks)

@@ -28,11 +28,14 @@ def start_task(task_ref: str) -> TaskInfo:
 
 
 @mcp.tool()
-def reset_task(task_ref: str) -> TaskInfo:
-    """Reset a task back to pending."""
+def reset_task(task_ref: str, force: bool = False) -> TaskInfo:
+    """Reset a task back to pending.
+
+    Use force=True to reset all non-pending subtasks.
+    """
     repo = get_repo()
     task = repo.resolve_ref(task_ref)
-    repo.reset_task(task)
+    repo.reset_task(task, force=force)
     repo.flush_to_disk()
     return TaskInfo.from_task(task)
 

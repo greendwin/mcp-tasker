@@ -124,6 +124,97 @@ def test_reset_in_progress_nonleaf_fails(story_id: str) -> None:
     assert "managed automatically" in result.output
 
 
+def test_reset_nonleaf_hints_force(story_id: str) -> None:
+    task_id = add_subtask(story_id, "Subtask one").task_id
+    assert_invoke(app, ["start", task_id])
+    result = assert_invoke(app, ["reset", story_id], expect_error=True)
+    assert "--force" in result.output
+
+
+def test_reset_done_nonleaf_lists_non_pending_subtasks(story_id: str) -> None:
+    t01 = add_subtask(story_id, "Subtask one").task_id
+    t02 = add_subtask(story_id, "Subtask two").task_id
+    assert_invoke(app, ["done", t01])
+    assert_invoke(app, ["done", t02])
+    result = assert_invoke(app, ["reset", story_id], expect_error=True)
+    assert "--force" in result.output
+    assert t01 in result.output
+    assert t02 in result.output
+
+
+def test_reset_force_succeeds_with_non_pending_subtasks(story_id: str) -> None:
+    add_subtask(story_id, "Subtask one")
+    add_subtask(story_id, "Subtask two")
+    assert_invoke(app, ["start", f"{story_id}t01"])
+    assert_invoke(app, ["done", f"{story_id}t02"])
+    assert_invoke(app, ["reset", "--force", story_id])
+
+
+def test_reset_force_marks_all_subtasks_pending(
+    story_id: str, get_task_file: GetTaskFile
+) -> None:
+    add_subtask(story_id, "Subtask one")
+    add_subtask(story_id, "Subtask two")
+    assert_invoke(app, ["start", f"{story_id}t01"])
+    assert_invoke(app, ["done", f"{story_id}t02"])
+    assert_invoke(app, ["reset", "--force", story_id])
+    task_file = get_task_file(story_id)
+    result = parse_task_file(task_file)
+    assert all(t.status == TaskStatus.PENDING for t in result.subtasks)
+
+
+def test_reset_force_marks_parent_pending(
+    story_id: str, get_task_file: GetTaskFile
+) -> None:
+    add_subtask(story_id, "Subtask one")
+    add_subtask(story_id, "Subtask two")
+    assert_invoke(app, ["done", f"{story_id}t01"])
+    assert_invoke(app, ["done", f"{story_id}t02"])
+    assert_invoke(app, ["reset", "--force", story_id])
+    task_file = get_task_file(story_id)
+    task = parse_task_file(task_file).task
+    assert task.status == TaskStatus.PENDING
+
+
+def test_reset_force_prints_forcibly_reset_subtasks(story_id: str) -> None:
+    t01 = add_subtask(story_id, "Subtask one").task_id
+    t02 = add_subtask(story_id, "Subtask two").task_id
+    assert_invoke(app, ["start", t01])
+    assert_invoke(app, ["done", t02])
+    result = assert_invoke(app, ["reset", "--force", story_id])
+    assert t01 in result.output
+    assert t02 in result.output
+
+
+def test_reset_force_on_leaf_task_works(
+    story_id: str, get_task_file: GetTaskFile
+) -> None:
+    task_id = add_subtask(story_id, "Leaf task").task_id
+    assert_invoke(app, ["start", task_id])
+    assert_invoke(app, ["reset", "--force", task_id])
+    task_file = get_task_file(story_id)
+    result = parse_task_file(task_file)
+    assert result.subtasks[0].status == TaskStatus.PENDING
+
+
+def test_reset_force_json_includes_forced_task_ids(story_id: str) -> None:
+    t01 = add_subtask(story_id, "Subtask one").task_id
+    t02 = add_subtask(story_id, "Subtask two").task_id
+    assert_invoke(app, ["start", t01])
+    assert_invoke(app, ["done", t02])
+    result = assert_invoke(app, ["--json-output", "reset", "--force", story_id])
+    data = json.loads(result.output)
+    assert set(data["forced_task_ids"]) == {t01, t02}
+
+
+def test_reset_force_json_empty_when_nothing_forced(story_id: str) -> None:
+    add_subtask(story_id, "Subtask one")
+    add_subtask(story_id, "Subtask two")
+    result = assert_invoke(app, ["--json-output", "reset", "--force", story_id])
+    data = json.loads(result.output)
+    assert "forced_task_ids" not in data
+
+
 def test_reset_nonexistent_task_fails() -> None:
     assert_invoke(app, ["reset", "s99t01"], expect_error=True)
 

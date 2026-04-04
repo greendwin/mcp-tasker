@@ -63,6 +63,16 @@ def test_reset_pending_nonleaf_is_ok(story_id: str, leaf_ref: str) -> None:
     assert ti.status == "pending"
 
 
+def test_reset_task_force_resets_subtasks(story_id: str, leaf_ref: str) -> None:
+    start_task(leaf_ref)
+    result = reset_task(story_id, force=True)
+    assert result.status == TaskStatus.PENDING
+    all_ids = [tid for ids in result.subtasks.values() for tid in ids]
+    assert len(all_ids) > 0
+    subtask_infos = view_tasks(all_ids)
+    assert all(s.status == TaskStatus.PENDING for s in subtask_infos)
+
+
 # --- done_task ---
 
 

@@ -103,6 +103,10 @@ def cmd_reset_task(
             help="Task ID(s) to reset to pending.", autocompletion=complete_task_ref
         ),
     ],
+    force: Annotated[
+        bool,
+        typer.Option("--force", help="Force reset all non-pending subtasks."),
+    ] = False,
     repo: TaskRepo = Depends(get_task_repo),
 ) -> None:
     need_preview: list[Task] = []
@@ -111,13 +115,13 @@ def cmd_reset_task(
         already_pending = task.status == TaskStatus.PENDING
 
         if is_nonleaf_task(task):
-            if already_pending:
+            if already_pending or force:
                 pass
             elif not console.json_output:
                 _report_resetting_nonleaf_task(task)
                 raise typer.Exit(1)
 
-        repo.reset_task(task)
+        forced = repo.reset_task(task, force=force)
         repo.flush_to_disk()
 
         if already_pending:
@@ -129,17 +133,34 @@ def cmd_reset_task(
             f"[green]Task [blue]{task.ref}[/blue] {action}[/green]",
             json_output={"task_refs": JsonAppend(task.ref)},
         )
-        need_preview.append(task)
+
+        if not forced:
+            need_preview.append(task)
+        else:
+            for t in forced:
+                need_preview.append(t)
+                console.append_json_output("forced_task_ids", t.id)
 
     if need_preview:
         print_parent_preview(repo, *need_preview)
 
 
 def _report_resetting_nonleaf_task(task: Task) -> None:
+    non_pending = [t for t in task.subtasks if t.status != TaskStatus.PENDING]
+
     console.print(
         f"[yellow]Task [blue]{task.ref}[/blue] has subtasks"
         " — its status is managed automatically[/yellow]"
     )
+
+    console.print("Reset its subtasks first, or use [bold]--force[/bold]")
+
+    if not non_pending:
+        return
+
+    console.print("\nNon-pending subtasks:")
+    for t in non_pending:
+        console.print(f"  - [blue]{t.id}[/blue]: {t.title}")
 
 
 @app.command("cancel", help="Cancel task(s).")
