@@ -8,7 +8,7 @@ def create_task(
     parent: str | None = None,
     description: str | None = None,
 ) -> TaskInfo:
-    """Create a new task. If parent is given, creates a subtask under it."""
+    """Create a root task or subtask (when parent is given)."""
     repo = get_repo()
 
     if parent is None:

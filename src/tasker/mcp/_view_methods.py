@@ -20,14 +20,17 @@ def _load_task_info(repo: TaskRepo, ref: str) -> TaskInfo:
 
 @mcp.tool()
 def list_tasks() -> list[TaskPreview]:
-    """List all root tasks."""
+    """List all root tasks (id, title, status)."""
     repo = get_repo()
     return _list_root_previews(repo)
 
 
 @mcp.tool()
 def view_tasks(task_refs: list[str]) -> list[TaskInfo]:
-    """View detailed info for multiple tasks by their IDs."""
+    """View tasks by IDs: title, status, description, and subtask IDs.
+
+    Use this instead of reading task files from disk.
+    """
     repo = get_repo()
     return [_load_task_info(repo, ref) for ref in task_refs]
 

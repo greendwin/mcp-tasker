@@ -426,10 +426,10 @@ tasker mcp --port 8080
 |---|---|---|
 | `create_task` | `title`, `parent?`, `description?` | Create a root task or subtask |
 | `list_tasks` | — | List all root tasks |
-| `view_tasks` | `task_refs` | View detailed info for multiple tasks by their IDs |
+| `view_tasks` | `task_refs` | View tasks by IDs: title, status, description, and subtask IDs |
 | `edit_task` | `task_ref`, `title?`, `description?`, `slug?` | Update a task's title, description, or slug |
 | `start_task` | `task_ref` | Mark task in-progress |
-| `reset_task` | `task_ref` | Reset task to pending |
+| `reset_task` | `task_ref`, `force?` | Reset task to pending (`force` resets non-pending subtasks) |
 | `finish_task` | `task_ref`, `force?` | Mark task done (`force` closes open subtasks) |
 
 ### Resources
