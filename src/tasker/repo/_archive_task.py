@@ -31,7 +31,7 @@ def archive_root_task_impl(
         if not force:
             raise TaskValidateError(
                 f"Task {task.id!r} is not closed. "
-                "Use --force to cancel open subtasks and archive.",
+                "Use --force to cancel open subtasks and archive",
                 task_ref=task.id,
             )
         forced = repo.cancel_task(task, force=True)
@@ -66,7 +66,7 @@ def unarchive_root_task_impl(repo: TaskRepo, task_ref: str) -> ParsedRef:
     candidates = list(repo.archive_root.glob(f"{ti.root_id}-*"))
     if not candidates:
         raise TaskValidateError(
-            f"Task {ti.root_id!r} not found in archive.",
+            f"Task {ti.root_id!r} not found in archive",
             task_ref=ti.root_id,
         )
 

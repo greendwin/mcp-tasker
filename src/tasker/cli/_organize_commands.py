@@ -179,11 +179,8 @@ def cmd_move_task(
     for k, task_ref in enumerate(task_refs):
         task = resolve_ref(repo, task_ref, auto_unarchive=True)
 
-        if k > 0:
-            console.print("")
-
         if delete:
-            deleted = repo.delete_task(task)
+            repo.delete_task(task)
             repo.flush_to_disk()
 
             console.print(
@@ -191,14 +188,7 @@ def cmd_move_task(
                 json_output={"task_refs": JsonAppend(task.ref)},
             )
 
-            if deleted:
-                console.print("[yellow]Deleted subtasks:[/yellow]")
-                for d in deleted:
-                    console.print(
-                        f"  - [cyan]{d.id}[/cyan]",
-                        json_output={"task_refs": JsonAppend(d.id)},
-                    )
-
+            need_preview.append(task)
             continue
 
         renames = repo.move_task(task, new_parent=new_parent)

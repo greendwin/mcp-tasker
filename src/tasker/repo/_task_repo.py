@@ -177,9 +177,8 @@ class TaskRepo:
             loader=self.loader,
         )
 
-    def delete_task(self, task: Task) -> list[Task]:
-        # return nested deleted tasks
-        return delete_task_impl(task, loader=self.loader)
+    def delete_task(self, task: Task) -> None:
+        delete_task_impl(task, loader=self.loader)
 
     def upgrade_to_filebased(self, task: Task) -> None:
         upgrade_to_filebased(task, loader=self.loader)

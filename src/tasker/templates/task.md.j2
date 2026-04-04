@@ -20,7 +20,8 @@ status: {{ status }}
 ## Subtasks
 
 {% for subtask in subtasks %}
-{% if subtask.is_inline %}
+{% if subtask.deleted %}
+{% elif subtask.is_inline %}
 {% if subtask.status.value == "cancelled" %}
 - [{{ subtask.status | checkbox }}] ~~{{ subtask.id }}: {{ subtask.title }}~~
 {% else %}

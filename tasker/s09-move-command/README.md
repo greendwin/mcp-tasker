@@ -22,3 +22,4 @@ Attache subtree to another task or make it a separate story
 - [x] [s09t10](s09t10-add-delete-option-to-move.md): Add `--delete` option to 'move' command
 - [x] [s09t11](s09t11-merge-previewed-tasks-on-multiple.md): Merge previewed tasks on multiple move ops
 - [ ] [s09t12](s09t12-bug-recent-is-reset-even.md): BUG: recent is reset even on qNN reference
+- [x] [s09t13](s09t13-show-deleted-tasks-on-preview.md): Show deleted tasks on preview

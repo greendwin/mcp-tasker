@@ -92,15 +92,10 @@ class TaskLoader:
 
     def flush_to_disk(self) -> None:
         pending_dir_cleanups: list[_PendingDirCleanup] = []
-
-        flushed: set[str] = set()
-        for task in self._tasks.values():
-            if task.id in flushed:
-                continue
-
+        for task in self._root_tasks.values():
             _flush_task(
+                self.root,
                 task,
-                loader=self,
                 original_state=self._original_state,
                 pending_dir_cleanups=pending_dir_cleanups,
             )
@@ -114,9 +109,9 @@ class _PendingDirCleanup(NamedTuple):
 
 
 def _flush_task(
+    parent_dir: Path,
     task: Task,
     *,
-    loader: TaskLoader,
     original_state: dict[str, OriginalState],
     pending_dir_cleanups: list[_PendingDirCleanup],
 ) -> None:
@@ -125,7 +120,7 @@ def _flush_task(
     new_filename: Path | None = None
     if not task.is_inline and not task.deleted:
         rendered = render_task(task)
-        new_filename = build_task_path_from_root(task, loader=loader)
+        new_filename = append_task_filename(parent_dir, task.ref, task.extended)
 
         if orig is None or new_filename != orig.filename or rendered != orig.content:
             write_text(new_filename, rendered)
@@ -135,6 +130,16 @@ def _flush_task(
                 content=rendered,
                 extended=task.extended,
             )
+
+    # recursively flush file-backed subtasks
+    subtask_root = parent_dir / task.ref
+    for child in task.subtasks:
+        _flush_task(
+            subtask_root,
+            child,
+            original_state=original_state,
+            pending_dir_cleanups=pending_dir_cleanups,
+        )
 
     if orig is None:
         # new file, nothing to delete

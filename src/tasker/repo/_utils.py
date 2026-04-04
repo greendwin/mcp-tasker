@@ -53,16 +53,19 @@ def get_next_subtask_id(parent: Task) -> str:
 
 
 def get_status_from_subtasks(task: Task) -> TaskStatus:
-    if not task.subtasks:
+    subtasks = [t for t in task.subtasks if not t.deleted]
+    if not subtasks:
         # no subtasks -- keep status unchanged
         return task.status
 
-    if all(t.is_closed for t in task.subtasks):
-        if all(t.status == TaskStatus.CANCELLED for t in task.subtasks):
+    if all(t.is_closed for t in subtasks):
+        if all(t.status == TaskStatus.CANCELLED for t in subtasks):
             return TaskStatus.CANCELLED
         return TaskStatus.DONE
-    if any(t.status == TaskStatus.IN_PROGRESS for t in task.subtasks):
+
+    if any(t.status == TaskStatus.IN_PROGRESS for t in subtasks):
         return TaskStatus.IN_PROGRESS
+
     return TaskStatus.PENDING
 
 
@@ -90,7 +93,9 @@ def update_parents_status(
 def update_task_status_and_flags(task: Task, *, allow_downgrade: bool) -> None:
     task.status = get_status_from_subtasks(task)
 
-    if any(not s.is_inline for s in task.subtasks):
+    subtasks = [s for s in task.subtasks if not s.deleted]
+
+    if any(not s.is_inline for s in subtasks):
         # upgrade to extended (or noop if was extended already)
         task.extended = True
         return
@@ -107,11 +112,10 @@ def update_task_status_and_flags(task: Task, *, allow_downgrade: bool) -> None:
 
     if task.description or task.extra_sections:
         return
-    if task.subtasks:
-        return
 
-    # convert to inline
-    task.slug = None
+    if not subtasks:
+        # convert to inline
+        task.slug = None
 
 
 def upgrade_to_filebased(task: Task, *, loader: TaskLoader) -> None:

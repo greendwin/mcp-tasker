@@ -66,21 +66,19 @@ def move_task_impl(
     return renames
 
 
-def delete_task_impl(task: Task, *, loader: TaskLoader) -> list[Task]:
-    _detach_from_parent(task, loader=loader)
+def delete_task_impl(task: Task, *, loader: TaskLoader) -> None:
+    _mark_deleted(task)
 
-    deleted = []
+    # update parent status (deleted tasks are filtered out)
+    update_parents_status(
+        task, loader=loader, update_itself=False, allow_downgrade=True
+    )
 
-    def walk_tree(cur: Task) -> None:
-        cur.deleted = True
-        deleted.append(cur)
 
-        for child in cur.subtasks:
-            walk_tree(child)
-
-    walk_tree(task)
-
-    return deleted
+def _mark_deleted(task: Task) -> None:
+    task.deleted = True
+    for child in task.subtasks:
+        _mark_deleted(child)
 
 
 def _is_descendant_of(child_id: str, *, ancestor_id: str) -> bool:

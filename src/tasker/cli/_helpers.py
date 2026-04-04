@@ -51,15 +51,17 @@ def format_task_list_item(
         r.append("- ")
 
     id_color = "blue"
-    if task.status in (TaskStatus.CANCELLED, TaskStatus.IN_PROGRESS):
+    if task.deleted:
+        id_color = "red"
+    elif task.status in (TaskStatus.CANCELLED, TaskStatus.IN_PROGRESS):
         # override task_id by status collor
         id_color = _STATUS_COLOR[task.status]
 
     if show_task_id:
         r.append(f"[{id_color}]")
         r.append(task.id)
-        r.append(": ")
         r.append(f"[/{id_color}]")
+        r.append(": ")
 
     # note: omit `[ ]` for pending tasks unless when `--all` is used
     show_marker = show_all or task.status != TaskStatus.PENDING

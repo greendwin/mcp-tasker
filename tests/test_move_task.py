@@ -806,3 +806,21 @@ def test_delete_rejects_with_root_flag(s1: str) -> None:
     t01 = add_subtask(s1, "Task").task_id
     result = assert_invoke(app, ["move", t01, "--delete", "--root"], expect_error=True)
     assert "only one" in result.output.lower()
+
+
+def test_delete_shows_preview_with_parent(s1: str) -> None:
+    """Deleting a subtask should show the parent preview with deleted task."""
+    add_subtask(s1, "Task A")
+    add_subtask(s1, "Task B")
+    result = assert_invoke(app, ["move", f"{s1}t01", "--delete"])
+    # preview should show parent with remaining and deleted tasks
+    assert "Story one" in result.output
+    assert "Task A" in result.output
+    assert "Task B" in result.output
+
+
+def test_delete_preview_not_listed_as_subtask_text(s1: str) -> None:
+    """No 'Deleted subtasks:' section — preview handles it."""
+    add_subtask(s1, "Task A")
+    result = assert_invoke(app, ["move", f"{s1}t01", "--delete"])
+    assert "Deleted subtasks:" not in result.output
