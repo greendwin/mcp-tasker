@@ -145,6 +145,8 @@ def print_parent_preview(repo: TaskRepo, *tasks: Task) -> None:
         ref = parse_task_ref(task.ref)
         root_groups[ref.root_id].append(task)
 
+    console.print("")
+
     for group in root_groups.values():
         ids = {t.id for t in group}
 
@@ -161,7 +163,6 @@ def print_parent_preview(repo: TaskRepo, *tasks: Task) -> None:
         common_id = _find_common_ancestor(parent_ids)
         parent = repo.resolve_ref(common_id)
 
-        console.print("")
         console.print(
             format_task_list_item(
                 parent,

@@ -93,7 +93,7 @@ class TaskLoader:
     def flush_to_disk(self) -> None:
         pending_dir_cleanups: list[_PendingDirCleanup] = []
 
-        flushed = set()
+        flushed: set[str] = set()
         for task in self._tasks.values():
             if task.id in flushed:
                 continue
@@ -166,7 +166,8 @@ def _cleanup_old_dirs(dirs: list[_PendingDirCleanup]) -> None:
         if dir_content is not None:
             raise TaskValidateError(
                 f"Old task directory {old_dir.name!r} contains "
-                f"non-task files (e.g. {dir_content.name!r}) and cannot be removed automatically",
+                f"non-task files (e.g. {dir_content.name!r}) "
+                f"and cannot be removed automatically",
                 task_ref=task_id,
             )
 

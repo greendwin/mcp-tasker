@@ -91,7 +91,7 @@ def cmd_unarchive_task(
     ],
     repo: TaskRepo = Depends(get_task_repo),
 ) -> None:
-    need_preview: list[Task] = []
+    need_preview = []
     for task_ref in task_refs:
         ref = repo.unarchive_root_task(task_ref)
         save_recent_task(repo, ref.task_id)
@@ -175,6 +175,7 @@ def cmd_move_task(
     if new_parent is not None:
         console.print("", end="", json_output={"parent_ref": new_parent.ref})
 
+    need_preview = []
     for k, task_ref in enumerate(task_refs):
         task = resolve_ref(repo, task_ref, auto_unarchive=True)
 
@@ -214,7 +215,7 @@ def cmd_move_task(
                 json_output={"task_refs": JsonAppend(task.ref), "already": True},
             )
 
-            print_parent_preview(repo, task)
+            need_preview.append(task)
             continue
 
         if new_parent is None:
@@ -230,12 +231,15 @@ def cmd_move_task(
             )
 
         console.print("[yellow]Renamed tasks:[/yellow]")
-        for d in renames:
+        for r in renames:
             console.print(
-                f"  [cyan]{d.old_id}[/cyan] → [blue]{d.new_id}[/blue]",
+                f"  [cyan]{r.old_id}[/cyan] → [blue]{r.new_id}[/blue]",
                 json_output={
-                    "renames": JsonAppend({"old_id": d.old_id, "new_id": d.new_id})
+                    "renames": JsonAppend({"old_id": r.old_id, "new_id": r.new_id})
                 },
             )
 
-        print_parent_preview(repo, task)
+        need_preview.append(task)
+
+    if need_preview:
+        print_parent_preview(repo, *need_preview)

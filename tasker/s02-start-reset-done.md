@@ -1,9 +1,10 @@
 ---
 id: s02
-status: done
+slug: start-reset-done
+status: pending
 ---
 
-# Tasks workflow start-stop-done
+# Tasks operations 'start', 'reset', 'done'
 
 ## Subtasks
 
@@ -27,3 +28,4 @@ status: done
 - [x] s02t38: BUG: when cancelling story with done tasks it overrides them - don't cancell already finished tasks, only pending
 - [x] s02t39: Strikethrough whole line including task id
 - [x] s02t40: Support multiple task refs in all status commands
+- [ ] s02t41: Support --froce option on 'reset'

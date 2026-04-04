@@ -616,6 +616,18 @@ def test_move_multiple_tasks_to_root(s2: str) -> None:
     assert "moved" in result.output
 
 
+def test_move_multiple_shows_single_preview(s1: str, s2: str) -> None:
+    """Preview block should appear only once at the end, not per task."""
+    add_subtask(s1, "Task A")
+    add_subtask(s1, "Task B")
+    add_subtask(s1, "Task C")
+    result = assert_invoke(
+        app, ["move", f"{s1}t01", f"{s1}t02", f"{s1}t03", "--parent", s2]
+    )
+    # The parent header (Story two) should appear exactly once in the preview
+    assert result.output.count("Story two") == 1
+
+
 # ---------------------------------------------------------------------------
 # show parent task on move --parent
 # ---------------------------------------------------------------------------
