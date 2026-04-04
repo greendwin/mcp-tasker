@@ -1,7 +1,7 @@
 ---
 id: s09
 slug: move-command
-status: done
+status: pending
 ---
 
 # Support 'move' command 
@@ -19,3 +19,4 @@ Attache subtree to another task or make it a separate story
 - [x] [s09t07](s09t07-task-degradation.md): Task degradation
 - [x] s09t08: Accept multiple args, move all tasks either to root or attach to a parent
 - [x] s09t09: BUG: detach from deep nested parent fails to remove multiple ancestor directories
+- [ ] [s09t10](s09t10-add-delete-option-to-move.md): Add `--delete` option to 'move' command
