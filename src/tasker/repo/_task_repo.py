@@ -9,7 +9,7 @@ from ._archive_task import (
     is_archived_task_impl,
     unarchive_root_task_impl,
 )
-from ._move_task import TaskRename, move_task_impl
+from ._move_task import TaskRename, delete_task_impl, move_task_impl
 from ._task_loader import TaskLoader
 from ._utils import (
     build_task_path_from_root,
@@ -176,6 +176,10 @@ class TaskRepo:
             new_parent=new_parent,
             loader=self.loader,
         )
+
+    def delete_task(self, task: Task) -> list[Task]:
+        # return nested deleted tasks
+        return delete_task_impl(task, loader=self.loader)
 
     def upgrade_to_filebased(self, task: Task) -> None:
         upgrade_to_filebased(task, loader=self.loader)

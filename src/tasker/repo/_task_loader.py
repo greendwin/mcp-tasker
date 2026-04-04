@@ -92,10 +92,15 @@ class TaskLoader:
 
     def flush_to_disk(self) -> None:
         pending_dir_cleanups: list[_PendingDirCleanup] = []
-        for task in self._root_tasks.values():
+
+        flushed = set()
+        for task in self._tasks.values():
+            if task.id in flushed:
+                continue
+
             _flush_task(
-                self.root,
                 task,
+                loader=self,
                 original_state=self._original_state,
                 pending_dir_cleanups=pending_dir_cleanups,
             )
@@ -109,54 +114,33 @@ class _PendingDirCleanup(NamedTuple):
 
 
 def _flush_task(
-    parent_dir: Path,
     task: Task,
     *,
+    loader: TaskLoader,
     original_state: dict[str, OriginalState],
     pending_dir_cleanups: list[_PendingDirCleanup],
 ) -> None:
-    if task.is_inline:
-        orig = original_state.pop(task.id, None)
-        if orig is None:
-            return
-
-        if orig.filename.exists():
-            # task was converted to inline
-            orig.filename.unlink()
-
-        if orig.extended:
-            # queue old directory for cleanup
-            old_dir = orig.filename.parent
-            pending_dir_cleanups.append(_PendingDirCleanup(old_dir, task.id))
-
-        return
-
-    rendered = render_task(task)
     orig = original_state.get(task.id)
 
-    new_filename = append_task_filename(parent_dir, task.ref, task.extended)
+    new_filename: Path | None = None
+    if not task.is_inline and not task.deleted:
+        rendered = render_task(task)
+        new_filename = build_task_path_from_root(task, loader=loader)
 
-    if orig is None or new_filename != orig.filename or rendered != orig.content:
-        write_text(new_filename, rendered)
+        if orig is None or new_filename != orig.filename or rendered != orig.content:
+            write_text(new_filename, rendered)
 
-        original_state[task.id] = OriginalState(
-            filename=new_filename,
-            content=rendered,
-            extended=task.extended,
-        )
+            original_state[task.id] = OriginalState(
+                filename=new_filename,
+                content=rendered,
+                extended=task.extended,
+            )
 
-    # recursively flush file-backed subtasks
-    subtask_root = parent_dir / task.ref
-    for child in task.subtasks:
-        _flush_task(
-            subtask_root,
-            child,
-            original_state=original_state,
-            pending_dir_cleanups=pending_dir_cleanups,
-        )
+    if orig is None:
+        # new file, nothing to delete
+        return
 
-    if orig is None or new_filename == orig.filename:
-        # if new or same file - don't need to delete anything
+    if not task.deleted and new_filename == orig.filename:
         return
 
     # remove old filename
@@ -178,18 +162,15 @@ def _cleanup_old_dirs(dirs: list[_PendingDirCleanup]) -> None:
         if not old_dir.exists():
             continue
 
-        if not _is_empty_dir(old_dir):
+        dir_content = next(old_dir.iterdir(), None)
+        if dir_content is not None:
             raise TaskValidateError(
-                f"Old task directory {old_dir.name!r} contains"
-                f" non-task files and cannot be removed automatically",
+                f"Old task directory {old_dir.name!r} contains "
+                f"non-task files (e.g. {dir_content.name!r}) and cannot be removed automatically",
                 task_ref=task_id,
             )
 
         old_dir.rmdir()
-
-
-def _is_empty_dir(path: Path) -> bool:
-    return next(path.iterdir(), None) is None
 
 
 def _load_task_tree(

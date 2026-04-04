@@ -63,9 +63,24 @@ def move_task_impl(
         allow_downgrade=True,
     )
 
-    loader.flush_to_disk()
-
     return renames
+
+
+def delete_task_impl(task: Task, *, loader: TaskLoader) -> list[Task]:
+    _detach_from_parent(task, loader=loader)
+
+    deleted = []
+
+    def walk_tree(cur: Task) -> None:
+        cur.deleted = True
+        deleted.append(cur)
+
+        for child in cur.subtasks:
+            walk_tree(child)
+
+    walk_tree(task)
+
+    return deleted
 
 
 def _is_descendant_of(child_id: str, *, ancestor_id: str) -> bool:
@@ -90,8 +105,6 @@ def _convert_to_root(task: Task, *, loader: TaskLoader) -> list[TaskRename]:
 
     # root tasks must be file-based
     upgrade_to_filebased(task, loader=loader)
-
-    loader.flush_to_disk()
 
     return renames
 

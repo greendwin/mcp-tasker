@@ -16,3 +16,4 @@ status: pending
 - [x] s19t08: In 'list' command show task that is pointed by 'recent' label
 - [x] s19t09: Unarchive root task when trying to 'edit' it
 - [ ] s19t10: Always show recent task in 'list' command even if it filtered out by status
+- [ ] s19t11: Show (p) marker if (q) is hidden by filters, TBD: show (pp..) if (q) is deeper

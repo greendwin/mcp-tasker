@@ -1,7 +1,7 @@
 ---
 id: s09t10
 slug: add-delete-option-to-move
-status: pending
+status: done
 ---
 
 # Add `--delete` option to 'move' command

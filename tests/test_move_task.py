@@ -314,7 +314,7 @@ def test_move_rejects_both_flags(s1: str, s2: str) -> None:
     result = assert_invoke(
         app, ["move", t01, "--parent", s2, "--root"], expect_error=True
     )
-    assert "both" in result.output.lower()
+    assert "only one" in result.output.lower()
 
 
 def test_move_root_to_root_is_idempotent(s1: str) -> None:
@@ -703,3 +703,94 @@ def test_move_deep_nested_to_parent_keeps_dirs(
     # s01's intermediate directory should remain
     dirs = [p for p in tasks_root.rglob("*") if p.is_dir()]
     assert any(t01 in p.name for p in dirs), f"Missing {t01} dir"
+
+
+# ---------------------------------------------------------------------------
+# move --delete
+# ---------------------------------------------------------------------------
+
+
+def test_delete_inline_subtask(s1: str, get_task_file: GetTaskFile) -> None:
+    add_subtask(s1, "Task A")
+    add_subtask(s1, "Task B")
+    result = assert_invoke(app, ["move", f"{s1}t01", "--delete"])
+    assert "deleted" in result.output
+
+    content = get_task_file(s1).read_text()
+    assert "Task A" not in content
+    assert "Task B" in content
+
+
+def test_delete_file_subtask(s1: str, tasks_root: Path) -> None:
+    t01 = add_subtask(s1, "Task A", details="Has details").task_id
+    story_dir = next(tasks_root.glob(f"{s1}-*/"))
+    old_file = next(story_dir.glob(f"{t01}-*.md"))
+    assert old_file.exists()
+
+    result = assert_invoke(app, ["move", t01, "--delete"])
+    assert "deleted" in result.output
+    assert not old_file.exists()
+
+
+def test_delete_extended_subtask(s1: str, tasks_root: Path) -> None:
+    t01 = add_subtask(s1, "Container", details="Details").task_id
+    add_subtask(t01, "Child", details="Child details")
+    story_dir = next(tasks_root.glob(f"{s1}-*/"))
+    old_dir = next(story_dir.glob(f"{t01}-*/"))
+    assert old_dir.is_dir()
+
+    assert_invoke(app, ["move", t01, "--delete"])
+    assert not old_dir.exists()
+
+
+def test_delete_root_task(s1: str, tasks_root: Path) -> None:
+    old_file = next(tasks_root.glob(f"{s1}-*.md"))
+    assert old_file.exists()
+
+    result = assert_invoke(app, ["move", s1, "--delete"])
+    assert "deleted" in result.output
+    assert not old_file.exists()
+
+
+def test_delete_multiple_tasks(s1: str) -> None:
+    add_subtask(s1, "Task A")
+    add_subtask(s1, "Task B")
+    result = assert_invoke(app, ["move", f"{s1}t01", f"{s1}t02", "--delete"])
+    assert "deleted" in result.output
+
+
+def test_delete_json_output(s1: str) -> None:
+    add_subtask(s1, "Task A")
+    result = assert_invoke(app, ["--json-output", "move", f"{s1}t01", "--delete"])
+    data = json.loads(result.output)
+    assert "task_refs" in data
+
+
+def test_delete_parent_downgrades(s1: str, tasks_root: Path) -> None:
+    """Deleting the only file-based subtask should downgrade parent."""
+    t01 = add_subtask(s1, "File task", details="Has details").task_id
+
+    src_dirs = list(tasks_root.glob(f"{s1}-*/"))
+    assert len(src_dirs) == 1
+    assert src_dirs[0].is_dir()
+
+    assert_invoke(app, ["move", t01, "--delete"])
+
+    # source should downgrade to basic file
+    src_files = list(tasks_root.glob(f"{s1}-*.md"))
+    assert len(src_files) == 1
+    assert src_files[0].is_file()
+
+
+def test_delete_rejects_with_parent_flag(s1: str, s2: str) -> None:
+    t01 = add_subtask(s1, "Task").task_id
+    result = assert_invoke(
+        app, ["move", t01, "--delete", "--parent", s2], expect_error=True
+    )
+    assert "only one" in result.output.lower()
+
+
+def test_delete_rejects_with_root_flag(s1: str) -> None:
+    t01 = add_subtask(s1, "Task").task_id
+    result = assert_invoke(app, ["move", t01, "--delete", "--root"], expect_error=True)
+    assert "only one" in result.output.lower()

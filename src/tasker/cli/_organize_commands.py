@@ -149,13 +149,22 @@ def cmd_move_task(
         bool,
         typer.Option("--root", help="Move task to root level (make it a story)."),
     ] = False,
+    delete: Annotated[
+        bool,
+        typer.Option("--delete", help="Delete the task instead of moving it."),
+    ] = False,
     repo: TaskRepo = Depends(get_task_repo),
 ) -> None:
-    if parent_ref is not None and root:
-        raise TaskerError("Cannot specify both --parent and --root.", json_output={})
+    flags = sum([parent_ref is not None, root, delete])
+    if flags > 1:
+        raise TaskerError(
+            "Specify only one of --parent, --root, or --delete.", json_output={}
+        )
 
-    if parent_ref is None and not root:
-        raise TaskerError("Specify --parent <ref> or --root.", json_output={})
+    if flags == 0:
+        raise TaskerError(
+            "Specify --parent <ref>, --root, or --delete.", json_output={}
+        )
 
     new_parent = (
         resolve_ref(repo, parent_ref, auto_unarchive=True)
@@ -168,13 +177,34 @@ def cmd_move_task(
 
     for k, task_ref in enumerate(task_refs):
         task = resolve_ref(repo, task_ref, auto_unarchive=True)
-        renames = repo.move_task(task, new_parent=new_parent)
-
-        # save regenerated id
-        save_recent_task(repo, task.id)
 
         if k > 0:
             console.print("")
+
+        if delete:
+            deleted = repo.delete_task(task)
+            repo.flush_to_disk()
+
+            console.print(
+                f"[green]Task [blue]{task.ref}[/blue] deleted[/green]",
+                json_output={"task_refs": JsonAppend(task.ref)},
+            )
+
+            if deleted:
+                console.print("[yellow]Deleted subtasks:[/yellow]")
+                for d in deleted:
+                    console.print(
+                        f"  - [cyan]{d.id}[/cyan]",
+                        json_output={"task_refs": JsonAppend(d.id)},
+                    )
+
+            continue
+
+        renames = repo.move_task(task, new_parent=new_parent)
+        repo.flush_to_disk()
+
+        # save regenerated id
+        save_recent_task(repo, task.id)
 
         if not renames:
             # idempotent — task is already at the requested location
@@ -200,11 +230,11 @@ def cmd_move_task(
             )
 
         console.print("[yellow]Renamed tasks:[/yellow]")
-        for r in renames:
+        for d in renames:
             console.print(
-                f"  [cyan]{r.old_id}[/cyan] → [blue]{r.new_id}[/blue]",
+                f"  [cyan]{d.old_id}[/cyan] → [blue]{d.new_id}[/blue]",
                 json_output={
-                    "renames": JsonAppend({"old_id": r.old_id, "new_id": r.new_id})
+                    "renames": JsonAppend({"old_id": d.old_id, "new_id": d.new_id})
                 },
             )
 
