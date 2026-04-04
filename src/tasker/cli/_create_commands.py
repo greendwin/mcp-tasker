@@ -7,7 +7,7 @@ from typer_di import Depends
 from tasker.repo import TaskRepo
 from tasker.utils import console
 
-from ._common import app, get_task_repo
+from ._common import app, complete_task_ref, get_task_repo
 from ._helpers import edit_task_in_editor, print_parent_preview
 from ._resolve_task import resolve_ref, save_recent_task
 
@@ -53,7 +53,9 @@ def cmd_new_task(
 @console.catching_output
 def cmd_add_task(
     *,
-    parent_ref: Annotated[str, typer.Argument(help="Parent task ID.")],
+    parent_ref: Annotated[
+        str, typer.Argument(help="Parent task ID.", autocompletion=complete_task_ref)
+    ],
     title: Annotated[str, typer.Argument(help="Subtask title.")],
     details: Annotated[
         Optional[str], typer.Option("--details", "-d", help="Task description.")
@@ -86,7 +88,9 @@ def cmd_add_task(
 @console.catching_output
 def cmd_add_many_tasks(
     *,
-    parent_ref: Annotated[str, typer.Argument(help="Parent task ID.")],
+    parent_ref: Annotated[
+        str, typer.Argument(help="Parent task ID.", autocompletion=complete_task_ref)
+    ],
     repo: TaskRepo = Depends(get_task_repo),
 ) -> None:
     parent = resolve_ref(repo, parent_ref, save_recent=True)

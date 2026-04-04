@@ -7,7 +7,7 @@ from tasker.base_types import Task, TaskStatus, is_nonleaf_task
 from tasker.repo import TaskRepo
 from tasker.utils import JsonAppend, console
 
-from ._common import app, get_task_repo
+from ._common import app, complete_task_ref, get_task_repo
 from ._helpers import edit_task_in_editor, format_task_list_item, print_parent_preview
 from ._resolve_task import resolve_ref
 
@@ -17,7 +17,10 @@ from ._resolve_task import resolve_ref
 def cmd_start_task(
     *,
     task_refs: Annotated[
-        list[str], typer.Argument(help="Task ID(s) to mark in-progress.")
+        list[str],
+        typer.Argument(
+            help="Task ID(s) to mark in-progress.", autocompletion=complete_task_ref
+        ),
     ],
     repo: TaskRepo = Depends(get_task_repo),
 ) -> None:
@@ -95,7 +98,10 @@ def _report_starting_nonleaf_task(task: Task) -> None:
 def cmd_reset_task(
     *,
     task_refs: Annotated[
-        list[str], typer.Argument(help="Task ID(s) to reset to pending.")
+        list[str],
+        typer.Argument(
+            help="Task ID(s) to reset to pending.", autocompletion=complete_task_ref
+        ),
     ],
     repo: TaskRepo = Depends(get_task_repo),
 ) -> None:
@@ -140,7 +146,10 @@ def _report_resetting_nonleaf_task(task: Task) -> None:
 @console.catching_output
 def cmd_cancel_task(
     *,
-    task_refs: Annotated[list[str], typer.Argument(help="Task ID(s) to cancel.")],
+    task_refs: Annotated[
+        list[str],
+        typer.Argument(help="Task ID(s) to cancel.", autocompletion=complete_task_ref),
+    ],
     force: Annotated[
         bool,
         typer.Option("--force", help="Force cancel all open subtasks."),
@@ -207,7 +216,12 @@ def _report_cancelling_nonleaf_task(
 @console.catching_output
 def cmd_done_task(
     *,
-    task_refs: Annotated[list[str], typer.Argument(help="Task ID(s) to mark done.")],
+    task_refs: Annotated[
+        list[str],
+        typer.Argument(
+            help="Task ID(s) to mark done.", autocompletion=complete_task_ref
+        ),
+    ],
     force: Annotated[
         bool,
         typer.Option("--force", help="Force close all open subtasks."),
@@ -274,7 +288,9 @@ def _report_finishing_nonleaf_task(task: Task) -> None:
 @console.catching_output
 def cmd_edit_task(
     *,
-    task_ref: Annotated[str, typer.Argument(help="Task ID to edit.")],
+    task_ref: Annotated[
+        str, typer.Argument(help="Task ID to edit.", autocompletion=complete_task_ref)
+    ],
     title: Annotated[
         str | None,
         typer.Option("--title", "-t", help="New task title."),

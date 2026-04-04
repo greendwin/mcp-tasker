@@ -9,7 +9,7 @@ from tasker.parse import detect_task_type
 from tasker.repo import TaskRepo
 from tasker.utils import JsonAppend, console
 
-from ._common import app, get_task_repo
+from ._common import app, complete_task_ref, get_task_repo
 from ._helpers import print_parent_preview
 from ._resolve_task import resolve_ref, save_recent_task
 
@@ -20,7 +20,10 @@ from ._resolve_task import resolve_ref, save_recent_task
 def cmd_archive_task(
     *,
     task_refs: Annotated[
-        Optional[list[str]], typer.Argument(help="Root task ID(s) to archive.")
+        Optional[list[str]],
+        typer.Argument(
+            help="Root task ID(s) to archive.", autocompletion=complete_task_ref
+        ),
     ] = None,
     force: Annotated[
         bool,
@@ -81,7 +84,10 @@ def cmd_archive_task(
 def cmd_unarchive_task(
     *,
     task_refs: Annotated[
-        list[str], typer.Argument(help="Root task ID(s) to unarchive.")
+        list[str],
+        typer.Argument(
+            help="Root task ID(s) to unarchive.", autocompletion=complete_task_ref
+        ),
     ],
     repo: TaskRepo = Depends(get_task_repo),
 ) -> None:
@@ -126,10 +132,18 @@ def _report_open_task(task: Task) -> None:
 @console.catching_output
 def cmd_move_task(
     *,
-    task_refs: Annotated[list[str], typer.Argument(help="Task ID(s) to move.")],
+    task_refs: Annotated[
+        list[str],
+        typer.Argument(help="Task ID(s) to move.", autocompletion=complete_task_ref),
+    ],
     parent_ref: Annotated[
         Optional[str],
-        typer.Option("--parent", "-p", help="New parent task ID."),
+        typer.Option(
+            "--parent",
+            "-p",
+            help="New parent task ID.",
+            autocompletion=complete_task_ref,
+        ),
     ] = None,
     root: Annotated[
         bool,

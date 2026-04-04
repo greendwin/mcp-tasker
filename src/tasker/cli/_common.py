@@ -1,10 +1,12 @@
 from typing import Annotated
 
+import click
 import typer
 from typer_di import TyperDI
 
 from tasker import __version__
 from tasker.layout import discover_tasker_dir, init_tasker_dir
+from tasker.parse import parse_task_file
 from tasker.repo import TaskRepo
 from tasker.utils import console
 
@@ -43,6 +45,32 @@ def common_options(
 ) -> None:
     console.debug = debug
     console.json_output = json_output
+
+
+def complete_task_ref(
+    ctx: click.Context, args: list[str], incomplete: str
+) -> list[tuple[str, str]]:
+    try:
+        tasker_dir = discover_tasker_dir()
+    except Exception:
+        return []
+
+    items: list[tuple[str, str]] = []
+    repo = TaskRepo(tasker_dir)
+    for task_path in repo.list_root_tasks():
+        try:
+            result = parse_task_file(task_path)
+        except Exception:
+            continue
+
+        if result.task.ref.startswith(incomplete):
+            items.append((result.task.ref, result.task.title))
+
+        for subtask in result.subtasks:
+            if subtask.ref.startswith(incomplete):
+                items.append((subtask.ref, subtask.title))
+
+    return items
 
 
 def get_task_repo() -> TaskRepo:

@@ -8,7 +8,7 @@ from tasker.parse import detect_task_type, parse_task_file
 from tasker.repo import TaskRepo
 from tasker.utils import JsonAppend, console
 
-from ._common import app, get_task_repo
+from ._common import app, complete_task_ref, get_task_repo
 from ._helpers import format_task_list_item, print_subtasks
 from ._resolve_task import load_recent_task_id, resolve_ref
 
@@ -18,7 +18,9 @@ from ._resolve_task import load_recent_task_id, resolve_ref
 @console.catching_output
 def cmd_show_task(
     *,
-    task_ref: Annotated[str, typer.Argument(help="Task ID to show.")],
+    task_ref: Annotated[
+        str, typer.Argument(help="Task ID to show.", autocompletion=complete_task_ref)
+    ],
     repo: TaskRepo = Depends(get_task_repo),
 ) -> None:
     task = resolve_ref(repo, task_ref, save_recent=True)
@@ -48,7 +50,10 @@ def cmd_list_tasks(
     *,
     task_refs: Annotated[
         list[str],
-        typer.Argument(help="Task IDs to show (defaults to all root tasks)."),
+        typer.Argument(
+            help="Task IDs to show (defaults to all root tasks).",
+            autocompletion=complete_task_ref,
+        ),
     ] = [],
     show_all: Annotated[
         bool,
