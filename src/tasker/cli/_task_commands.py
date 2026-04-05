@@ -53,7 +53,7 @@ def cmd_start_task(
 
         console.print(
             f"[green]Task [blue]{task.ref}[/blue] {action}[/green]",
-            json_output={"task_refs": JsonAppend(task.ref)},
+            context={"task_refs": JsonAppend(task.ref)},
         )
         need_preview.append(task)
 
@@ -127,7 +127,7 @@ def cmd_reset_task(
 
         console.print(
             f"[green]Task [blue]{task.ref}[/blue] {action}[/green]",
-            json_output={"task_refs": JsonAppend(task.ref)},
+            context={"task_refs": JsonAppend(task.ref)},
         )
 
         if not forced:
@@ -196,7 +196,7 @@ def cmd_cancel_task(
 
         console.print(
             f"[green]Task [blue]{task.ref}[/blue] {action}[/green]",
-            json_output={"task_refs": JsonAppend(task.ref)},
+            context={"task_refs": JsonAppend(task.ref)},
         )
 
         if not forced:
@@ -268,7 +268,7 @@ def cmd_done_task(
 
         console.print(
             f"[green]Task [blue]{task.ref}[/blue] {action}[/green]",
-            json_output={"task_refs": JsonAppend(task.ref)},
+            context={"task_refs": JsonAppend(task.ref)},
         )
 
         if not forced:
@@ -343,7 +343,7 @@ def cmd_edit_task(
             console.print(
                 "[red]Error:[/red] At least one of"
                 " --title, --details, --slug, or --editor is required.",
-                json_output={"error": "No fields to edit."},
+                context={"error": "No fields to edit."},
             )
             raise typer.Exit(1)
 
@@ -359,7 +359,7 @@ def cmd_edit_task(
 
     console.print(
         f"[green]Task [blue]{resolved.task.ref}[/blue] updated[/green]",
-        json_output={"task_ref": resolved.task.ref},
+        context={"task_ref": resolved.task.ref},
     )
 
     save_recent_for_refs(repo, resolved)

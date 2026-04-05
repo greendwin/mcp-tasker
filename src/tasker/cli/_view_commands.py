@@ -75,7 +75,7 @@ def cmd_list_tasks(
     save_recent_for_refs(repo, *resolved)
 
     if not all_tasks:
-        console.print("[dim]No tasks to show.[/dim]", json_output={"tasks": []})
+        console.print("[dim]No tasks to show.[/dim]", context={"tasks": []})
         return
 
     print_tree(

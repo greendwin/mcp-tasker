@@ -63,7 +63,7 @@ def cmd_archive_task(
             console.print(
                 f"[green]Task [blue]{ref.task_ref}[/blue]"
                 " was already archived[/green]",
-                json_output={"task_refs": JsonAppend(ref.task_ref), "already": True},
+                context={"task_refs": JsonAppend(ref.task_ref), "already": True},
             )
             continue
 
@@ -78,7 +78,7 @@ def cmd_archive_task(
 
         console.print(
             f"[green]Task [blue]{ref.task_ref}[/blue] archived[/green]",
-            json_output={"task_refs": JsonAppend(ref.task_ref)},
+            context={"task_refs": JsonAppend(ref.task_ref)},
         )
 
         if forced:
@@ -86,7 +86,7 @@ def cmd_archive_task(
             for t in forced:
                 console.print(
                     format_task_list_item(t, indent=1),
-                    json_output={"forced_task_ids": JsonAppend(t.id)},
+                    context={"forced_task_ids": JsonAppend(t.id)},
                 )
 
 
@@ -117,7 +117,7 @@ def cmd_unarchive_task(
             console.print(
                 f"[green]Task [blue]{ref.task_ref}[/blue]"
                 " was already unarchived[/green]",
-                json_output={"task_refs": JsonAppend(ref.task_ref), "already": True},
+                context={"task_refs": JsonAppend(ref.task_ref), "already": True},
             )
             unarchived.append(ref.task)
             continue
@@ -126,7 +126,7 @@ def cmd_unarchive_task(
 
         console.print(
             f"[green]Task [blue]{ref.task_ref}[/blue] unarchived[/green]",
-            json_output={"task_refs": JsonAppend(ref.task_ref)},
+            context={"task_refs": JsonAppend(ref.task_ref)},
         )
 
         task = repo.resolve_ref(ref.task.id)
@@ -197,7 +197,7 @@ def cmd_move_task(
 
             console.print(
                 f"[green]Task [blue]{r.task_ref}[/blue] deleted[/green]",
-                json_output={"task_refs": JsonAppend(r.task_ref)},
+                context={"task_refs": JsonAppend(r.task_ref)},
             )
 
             need_preview.append(r.task)
@@ -214,7 +214,7 @@ def cmd_move_task(
             console.print(
                 f"[green]Task [blue]{r.task_ref}[/blue]"
                 " is already in the requested location[/green]",
-                json_output={"task_refs": JsonAppend(r.task_ref), "already": True},
+                context={"task_refs": JsonAppend(r.task_ref), "already": True},
             )
 
             need_preview.append(r.task)
@@ -223,20 +223,20 @@ def cmd_move_task(
         if new_parent is None:
             console.print(
                 f"[green]Task [blue]{r.task_ref}[/blue] moved to root[/green]",
-                json_output={"task_refs": JsonAppend(r.task_ref)},
+                context={"task_refs": JsonAppend(r.task_ref)},
             )
         else:
             console.print(
                 f"[green]Task [blue]{r.task_ref}[/blue]"
                 f" moved under [blue]{new_parent.task_ref}[/blue][/green]",
-                json_output={"task_refs": JsonAppend(r.task_ref)},
+                context={"task_refs": JsonAppend(r.task_ref)},
             )
 
         console.print("[yellow]Renamed tasks:[/yellow]")
         for rn in renames:
             console.print(
                 f"  [cyan]{rn.old_id}[/cyan] → [blue]{rn.new_id}[/blue]",
-                json_output={
+                context={
                     "renames": JsonAppend({"old_id": rn.old_id, "new_id": rn.new_id})
                 },
             )

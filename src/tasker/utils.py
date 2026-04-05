@@ -30,10 +30,10 @@ class OutputContext:
         self._json_output_obj: dict[str, Any] = {}
 
     def print(
-        self, text: str, *, end: str = "\n", json_output: dict[str, Any] | None = None
+        self, text: str, *, end: str = "\n", context: dict[str, Any] | None = None
     ) -> None:
-        if json_output:
-            for k, v in json_output.items():
+        if context:
+            for k, v in context.items():
                 self.set_context(k, v)
 
         if not self.json_output:

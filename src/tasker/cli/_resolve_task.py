@@ -42,7 +42,7 @@ def unarchive_task(repo: TaskRepo, task: Task) -> bool:
 
     console.print(
         f"[yellow]Unarchiving [blue]{root_task.ref}[/blue] automatically[/yellow]",
-        json_output={"unarchived_ref": JsonAppend(ref.root_id)},
+        context={"unarchived_ref": JsonAppend(ref.root_id)},
     )
     return True
 

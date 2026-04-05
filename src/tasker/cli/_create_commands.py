@@ -43,7 +43,7 @@ def cmd_new_task(
 
     console.print(
         f"[green]Task [blue]{task.ref}[/blue] created[/green]",
-        json_output={"task_ref": task.ref},
+        context={"task_ref": task.ref},
     )
 
     save_recent_for_refs(repo, task)
@@ -81,7 +81,7 @@ def cmd_add_task(
 
     console.print(
         f"[green]Task [blue]{child.ref}[/blue] added",
-        json_output={"task_ref": child.ref},
+        context={"task_ref": child.ref},
     )
 
     save_recent_for_refs(repo, parent)
@@ -103,7 +103,7 @@ def cmd_add_many_tasks(
     console.print(
         f"[cyan]Adding tasks to [blue]{parent.task_ref}[/blue][/cyan]"
         " (empty line to finish):",
-        json_output={"parent_ref": parent_ref},
+        context={"parent_ref": parent_ref},
     )
 
     task_refs: list[str] = []
@@ -120,12 +120,12 @@ def cmd_add_many_tasks(
     if not task_refs:
         console.print(
             "[yellow]No tasks added[/yellow]",
-            json_output={"task_refs": []},
+            context={"task_refs": []},
         )
         return
 
     console.print(
         f"[green]Done:[/green] {len(task_refs)} task(s) added"
         f" to [blue]{parent.task.id}[/blue]",
-        json_output={"task_refs": task_refs},
+        context={"task_refs": task_refs},
     )

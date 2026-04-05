@@ -84,5 +84,5 @@ def cmd_init() -> None:
     tasker_dir = init_tasker_dir()
     console.print(
         f"[green]Initialized tasker in [blue]{tasker_dir}[/blue][/green]",
-        json_output={"tasker_dir": str(tasker_dir)},
+        context={"tasker_dir": str(tasker_dir)},
     )
