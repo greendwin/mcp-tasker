@@ -9,7 +9,8 @@ from tasker.repo import TaskRepo
 from tasker.utils import JsonAppend, console
 
 from ._common import app, complete_task_ref, get_task_repo
-from ._helpers import edit_task_in_editor, format_task_list_item, print_parent_preview
+from ._helpers import edit_task_in_editor
+from ._print_utils import format_task_list_item, print_parent_preview
 from ._resolve_task import ResolvedRef, resolve_ref, save_recent_for_refs
 
 

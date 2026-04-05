@@ -247,3 +247,75 @@ def test_list_recent_marker_only_on_accessed_task() -> None:
     task2_line = next(ln for ln in lines if task2_id in ln)
     assert "q" in task1_line
     assert "q" not in task2_line
+
+
+# (p) marker when (q) is hidden by filters
+
+
+def test_list_shows_p_marker_when_recent_subtask_is_done() -> None:
+    task_id = create_task("My story").task_id
+    sub_id = add_subtask(task_id, "Done subtask").task_id
+    assert_invoke(app, ["start", sub_id])
+    assert_invoke(app, ["done", sub_id])  # recent = sub_id, now closed
+    result = assert_invoke(app, ["list"])
+    # sub_id is hidden (closed), parent should show (p)
+    assert sub_id not in result.output
+    task_line = next(ln for ln in result.output.splitlines() if task_id in ln)
+    assert "(p)" in task_line
+
+
+def test_list_shows_pp_marker_when_recent_is_two_levels_deep() -> None:
+    task_id = create_task("My story").task_id
+    sub_id = add_subtask(task_id, "Middle task", details="d").task_id
+    nested_id = add_subtask(sub_id, "Nested task").task_id
+    assert_invoke(app, ["done", "--force", sub_id])  # closes sub + nested
+    assert_invoke(app, ["start", nested_id])  # recent = nested_id
+    assert_invoke(app, ["done", nested_id])  # recent = nested_id, closed again
+    result = assert_invoke(app, ["list"])
+    # both hidden; root should show (pp) — depth 2
+    task_line = next(ln for ln in result.output.splitlines() if task_id in ln)
+    assert "(pp)" in task_line
+
+
+def test_list_shows_p_marker_on_visible_parent_not_root() -> None:
+    task_id = create_task("My story").task_id
+    sub_id = add_subtask(task_id, "Open parent", details="d").task_id
+    nested_id = add_subtask(sub_id, "Done child").task_id
+    add_subtask(sub_id, "Still open")  # keep sub_id open after done
+    assert_invoke(app, ["start", nested_id])
+    assert_invoke(app, ["done", nested_id])  # nested closed, parent stays open
+    result = assert_invoke(app, ["list"])
+    # sub_id is visible (open), nested_id hidden -> sub_id shows (p)
+    lines = result.output.splitlines()
+    sub_line = next(
+        (ln for ln in lines if sub_id in ln),
+        None,
+    )
+    assert sub_line is not None, f"sub_id={sub_id} not in output:\n{result.output}"
+    assert "(p)" in sub_line
+    # root should NOT show (p) since visible child handles it
+    task_line = next(ln for ln in lines if task_id in ln)
+    assert "(p)" not in task_line
+
+
+def test_list_no_p_marker_with_show_all() -> None:
+    task_id = create_task("My story").task_id
+    sub_id = add_subtask(task_id, "Done subtask").task_id
+    assert_invoke(app, ["start", sub_id])
+    assert_invoke(app, ["done", sub_id])
+    result = assert_invoke(app, ["list", "--all"])
+    # with --all, subtask is visible and shows (q), no (p) needed
+    sub_line = next(ln for ln in result.output.splitlines() if sub_id in ln)
+    assert "(q)" in sub_line
+    task_line = next(ln for ln in result.output.splitlines() if task_id in ln)
+    assert "(p)" not in task_line
+
+
+def test_list_p_marker_on_cancelled_recent() -> None:
+    task_id = create_task("My story").task_id
+    sub_id = add_subtask(task_id, "Cancelled subtask").task_id
+    assert_invoke(app, ["start", sub_id])
+    assert_invoke(app, ["cancel", sub_id])  # recent = sub_id, cancelled
+    result = assert_invoke(app, ["list"])
+    task_line = next(ln for ln in result.output.splitlines() if task_id in ln)
+    assert "(p)" in task_line

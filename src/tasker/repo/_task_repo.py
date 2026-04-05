@@ -1,8 +1,8 @@
 from pathlib import Path
 
-from tasker.base_types import Task, TaskStatus, walk_tasks
+from tasker.base_types import Task, TaskStatus, is_root_task_id, walk_tasks
 from tasker.exceptions import TaskHasSubtasksError
-from tasker.parse import ParsedRef
+from tasker.parse import ParsedRef, parse_task_ref
 
 from ._move_task import (
     TaskRename,
@@ -33,6 +33,13 @@ class TaskRepo:
 
     def resolve_ref(self, task_ref: str) -> Task:
         return self.loader.resolve_ref(task_ref)
+
+    def get_parent(self, task: Task) -> Task | None:
+        if is_root_task_id(task.id):
+            return None
+        
+        ref = parse_task_ref(task.ref)
+        return self.resolve_ref(ref.parent_id)
 
     def list_root_tasks(self, *, archived: bool = False) -> list[Path]:
         root = self.loader.get_tasks_root(archived=archived)

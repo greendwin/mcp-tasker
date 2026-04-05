@@ -6,16 +6,11 @@ from typer_di import Depends
 from tasker.base_types import Task
 from tasker.parse import detect_task_type, parse_task_file
 from tasker.repo import TaskRepo
-from tasker.utils import JsonAppend, console
+from tasker.utils import console
 
 from ._common import app, complete_task_ref, get_task_repo
-from ._helpers import format_task_list_item, print_subtasks
-from ._resolve_task import (
-    ResolvedRef,
-    load_recent_task_id,
-    resolve_ref,
-    save_recent_for_refs,
-)
+from ._print_utils import format_task_list_item, print_tree
+from ._resolve_task import ResolvedRef, resolve_ref, save_recent_for_refs
 
 
 @app.command("show", hidden=True)
@@ -94,15 +89,15 @@ def cmd_list_tasks(
         console.print("[dim]No tasks to show.[/dim]", json_output={"tasks": []})
         return
 
-    recent_id = load_recent_task_id(repo)
+    print_tree(
+        repo,
+        roots=all_tasks,
+        highlight=(),
+        show_all=show_all,
+    )
 
     for task in all_tasks:
-        console.print(
-            format_task_list_item(task, show_all=show_all, recent_id=recent_id),
-            json_output={"tasks": JsonAppend(_task_to_json(task))},
-        )
-
-        print_subtasks(task.subtasks, show_all=show_all, recent_id=recent_id)
+        console.append_context("tasks", _task_to_json(task))
 
 
 def _load_root_tasks(repo: TaskRepo, *, shallow: bool, archived: bool) -> list[Task]:
