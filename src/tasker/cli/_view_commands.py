@@ -9,7 +9,7 @@ from tasker.repo import TaskRepo
 from tasker.utils import console
 
 from ._common import app, complete_task_ref, get_task_repo
-from ._print_utils import format_task_list_item, print_tree
+from ._print_utils import compute_markers, print_task, print_tree
 from ._resolve_task import ResolvedRef, resolve_ref, save_recent_for_refs
 
 
@@ -24,27 +24,16 @@ def cmd_show_task(
     repo: TaskRepo = Depends(get_task_repo),
 ) -> None:
     resolved = resolve_ref(repo, task_ref)
-    save_recent_for_refs(repo, resolved)
 
     _, task = resolved
 
-    console.print(
-        format_task_list_item(task),
-        json_output=_task_to_json(task),
-    )
+    save_recent_for_refs(repo, resolved)
 
-    if task.description:
-        console.print(f"\n{task.description}")
+    # note compute markers *after* recent was updated to show actual info
+    markers = compute_markers(repo, task, *task.subtasks)
 
-    if task.extra_sections:
-        console.print(f"\n{task.extra_sections}")
-
-    if not task.subtasks:
-        return
-
-    console.print("\n[bold]Subtasks:[/bold]")
-    for subtask in task.subtasks:
-        console.print(format_task_list_item(subtask, indent=1, show_subtask_count=True))
+    print_task(task, markers=markers, preview=False)
+    console.set_context("task", _task_to_json(task))
 
 
 @app.command("list", help="List open tasks with their pending subtasks.")

@@ -39,8 +39,6 @@ def build_print_entries(
     highlight_tasks: Sequence[Task],
     # whether to show closed tasks
     show_closed: bool,
-    # recent task ref
-    recent_id: str | None,
 ) -> list[PrintEntry]:
     # list of roots provided by highlights
     highlight_roots: list[Task] = []
@@ -61,7 +59,7 @@ def build_print_entries(
             highlight_roots.append(task)
 
         # mark whole parents chain
-        cur = task
+        cur: Task | None = task
         while cur:
             has_highlight.add(cur.id)
             cur = repo.get_parent(cur)
@@ -86,13 +84,20 @@ def build_print_entries(
 
             cur = parent
 
-    if recent_id:
-        _setup_markers(ctx, repo, recent_id)
+    ctx.markers = compute_markers(repo, *ctx.visible.values())
 
     for root in sorted(visible_roots.values(), key=lambda p: p.id):
         _collect_print_entries(ctx, root, indent=0)
 
     return ctx.entries
+
+
+@dataclass
+class _CollectContext:
+    entries: list[PrintEntry] = field(default_factory=list)
+    visible: dict[str, Task] = field(default_factory=dict)
+    highlighted: set[str] = field(default_factory=set)
+    markers: dict[str, str] = field(default_factory=dict)
 
 
 def _collect_visible_tasks(
@@ -116,29 +121,27 @@ def _collect_visible_tasks(
         )
 
 
-@dataclass
-class _CollectContext:
-    entries: list[PrintEntry] = field(default_factory=list)
-    visible: dict[str, Task] = field(default_factory=dict)
-    highlighted: set[str] = field(default_factory=set)
-    markers: dict[str, str] = field(default_factory=dict)
+def compute_markers(repo: TaskRepo, *visible: Task) -> dict[str, str]:
+    recent_id = load_recent_task_id(repo)
+    if not recent_id:
+        return {}
 
+    visible_ids = {t.id for t in visible}
 
-def _setup_markers(ctx: _CollectContext, repo: TaskRepo, recent_id: str) -> None:
     recent = repo.resolve_ref(recent_id)
-    if recent.id in ctx.visible:
-        ctx.markers[recent.id] = "(q)"
-        return
+    if recent.id in visible_ids:
+        return {recent.id: "(q)"}
 
     parent = repo.get_parent(recent)
     depth = 1
     while parent:
-        if parent.id in ctx.visible:
-            ctx.markers[parent.id] = f"({'p' * depth})"
-            return
+        if parent.id in visible_ids:
+            return {parent.id: f"({'p' * depth})"}
 
         parent = repo.get_parent(parent)
         depth += 1
+
+    return {}
 
 
 def _collect_print_entries(
@@ -257,6 +260,43 @@ def _count_subtasks(task: Task) -> int:
     return count
 
 
+def print_task(task: Task, *, markers: dict[str, str], preview: bool) -> None:
+    item = format_task_list_item(
+        task,
+        show_task_id=not preview,
+        show_all=preview,
+        marker=markers.get(task.id),
+    )
+
+    if preview:
+        console.print("")
+    console.print(f"{item}")
+
+    # note: show description and extra section in compact way
+    if task.description:
+        if not preview:
+            console.print("")
+        console.print(f"{task.description}")
+
+    if task.extra_sections:
+        if task.description or not preview:
+            console.print("")
+        console.print(f"{task.extra_sections}")
+
+    if preview or not task.subtasks:
+        return
+
+    console.print("\n[bold]Subtasks:[/bold]")
+    for subtask in task.subtasks:
+        item = format_task_list_item(
+            subtask,
+            indent=1,
+            show_subtask_count=True,
+            marker=markers.get(subtask.id),
+        )
+        console.print(item)
+
+
 def print_tree(
     repo: TaskRepo,
     *,
@@ -264,14 +304,11 @@ def print_tree(
     highlight: Sequence[Task],
     show_all: bool,
 ) -> None:
-    recent_id = load_recent_task_id(repo)
-
     entries = build_print_entries(
         repo,
         root_tasks=roots,
         highlight_tasks=highlight,
         show_closed=show_all,
-        recent_id=recent_id,
     )
 
     print_tree_entries(entries, show_all=show_all)

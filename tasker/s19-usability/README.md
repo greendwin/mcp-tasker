@@ -1,10 +1,12 @@
 ---
 id: s19
 slug: usability
-status: pending
+status: done
 ---
 
 # Usability
+
+Improve user experience
 
 ## Subtasks
 
@@ -17,5 +19,5 @@ status: pending
 - [x] s19t09: Unarchive root task when trying to 'edit' it
 - [x] ~~s19t10: Always show recent task in 'list' command even if it filtered out by status~~
 - [x] s19t11: Show (p) marker if (q) is hidden by filters, TBD: show (pp..) if (q) is deeper
-- [ ] [s19t12](s19t12-show-q-marker-in-view.md): Show (q) marker in 'view' and 'edit' commands
+- [x] [s19t12](s19t12-show-q-marker-in-view.md): Show (q) marker in 'view' and 'edit' commands
 - [x] [s19t13](s19t13-show-subtasks-subtasks-count.md): Show subtasks subtasks count

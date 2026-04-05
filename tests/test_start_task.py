@@ -200,3 +200,12 @@ def test_start_no_description_no_extra_output(story_id: str) -> None:
     task_id = add_subtask(story_id, "My leaf task").task_id
     result = assert_invoke(app, ["start", task_id])
     assert "None" not in result.output
+
+
+def test_start_shows_extra_sections(get_task_file: GetTaskFile) -> None:
+    task_id = create_task("Leaf story").task_id
+    task_file = get_task_file(task_id)
+    content = task_file.read_text()
+    task_file.write_text(content + "\n## Notes\n\nImportant note here.\n")
+    result = assert_invoke(app, ["start", task_id])
+    assert "Important note here." in result.output

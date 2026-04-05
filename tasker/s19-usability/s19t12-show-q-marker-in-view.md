@@ -1,7 +1,7 @@
 ---
 id: s19t12
 slug: show-q-marker-in-view
-status: pending
+status: done
 ---
 
 # Show (q) marker in 'view' and 'edit' commands

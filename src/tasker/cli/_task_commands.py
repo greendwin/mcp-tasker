@@ -10,7 +10,12 @@ from tasker.utils import JsonAppend, console
 
 from ._common import app, complete_task_ref, get_task_repo
 from ._helpers import edit_task_in_editor
-from ._print_utils import format_task_list_item, print_parent_preview
+from ._print_utils import (
+    compute_markers,
+    format_task_list_item,
+    print_parent_preview,
+    print_task,
+)
 from ._resolve_task import ResolvedRef, resolve_ref, save_recent_for_refs
 
 
@@ -54,20 +59,9 @@ def cmd_start_task(
 
     save_recent_for_refs(repo, *resolved_tasks)
 
+    markers = compute_markers(repo, *need_preview)
     for task in need_preview:
-        _print_task_preview(task)
-
-
-def _print_task_preview(task: Task) -> None:
-    title = format_task_list_item(
-        task,
-        show_task_id=False,
-        show_all=True,
-    )
-    console.print(f"\n{title}")
-
-    if task.description:
-        console.print(f"{task.description}")
+        print_task(task, markers=markers, preview=True)
 
 
 def _fail_starting_nonleaf_task(task: Task) -> NoReturn:
@@ -369,4 +363,6 @@ def cmd_edit_task(
     )
 
     save_recent_for_refs(repo, resolved)
-    _print_task_preview(resolved.task)
+
+    markers = compute_markers(repo, resolved.task)
+    print_task(resolved.task, markers=markers, preview=True)

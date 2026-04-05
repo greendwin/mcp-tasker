@@ -37,7 +37,7 @@ class TaskRepo:
     def get_parent(self, task: Task) -> Task | None:
         if is_root_task_id(task.id):
             return None
-        
+
         ref = parse_task_ref(task.ref)
         return self.resolve_ref(ref.parent_id)
 
