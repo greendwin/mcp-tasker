@@ -19,7 +19,7 @@ def generate_slug(title: str) -> str:
 
 def find_next_root_task_id(loader: TaskLoader) -> str:
     existing = _scan_root_task_nums(loader.root) + _scan_root_task_nums(
-        loader.archive_root
+        loader.get_tasks_root(archived=True)
     )
     return f"s{max(existing, default=0) + 1:02d}"
 
@@ -131,7 +131,11 @@ def build_task_path_from_root(task: Task, *, loader: TaskLoader) -> Path:
     assert not task.is_inline, "inline tasks does not have path"
 
     if is_root_task_id(task.id):
-        return append_task_filename(loader.root, task.ref, task.extended)
+        return append_task_filename(
+            loader.get_tasks_root(archived=task.archived),
+            task.ref,
+            task.extended,
+        )
 
     stack: list[Task] = []
 
@@ -144,7 +148,9 @@ def build_task_path_from_root(task: Task, *, loader: TaskLoader) -> Path:
         stack.append(parent)
         cur_id = parent.id
 
-    parent_dir = loader.root
+    root_task = stack[-1]
+    parent_dir = loader.get_tasks_root(archived=root_task.archived)
+
     while stack:
         parent_dir = parent_dir / stack.pop().ref
 

@@ -26,6 +26,7 @@ class Task(BaseModel):
     extra_sections: str | None = None
     subtasks: list[Task] = []
     deleted: bool = False
+    archived: bool = False
 
     @property
     def is_inline(self) -> bool:

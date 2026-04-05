@@ -1,7 +1,7 @@
 ---
 id: s11t15
 slug: support-loading-archived-tasks-in
-status: pending
+status: done
 ---
 
 # Support loading archived tasks in TaskRepo

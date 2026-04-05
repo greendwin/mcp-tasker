@@ -15,15 +15,6 @@ class TaskValidateError(TaskerError):
         self.task_ref = task_ref
 
 
-class TaskArchivedError(TaskerError):
-    def __init__(self, task_ref: str) -> None:
-        super().__init__(
-            f"Task {task_ref!r} is archived.",
-            json_output={"task_ref": task_ref, "archived": True},
-        )
-        self.task_ref = task_ref
-
-
 class TaskHasSubtasksError(TaskerError):
     def __init__(self, task: Task) -> None:
         assert not task.is_inline and len(task.subtasks) > 0

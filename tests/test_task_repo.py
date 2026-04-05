@@ -11,7 +11,7 @@ from tasker.repo._utils import (
     get_next_subtask_id,
 )
 
-from .helpers import GetTaskFile, add_subtask, create_task
+from .helpers import GetTaskFile, add_subtask, assert_invoke, create_task
 
 
 def make_repo(tasks_root: Path) -> TaskRepo:
@@ -440,3 +440,132 @@ def test_update_statuses_on_load(tasks_root: Path) -> None:
     # task must be updated automagically
     updated_content = task_path.read_text()
     assert "status: done" in updated_content
+
+
+# --- archived flag ---
+
+
+def test_archived_flag_moves_file_to_archive(
+    tasks_root: Path, tasks_archive_root: Path
+) -> None:
+    repo = make_repo(tasks_root)
+    task = repo.create_root_task(
+        title="My story", description=None, slug=None, extended=False
+    )
+    repo.flush_to_disk()
+
+    old_path = tasks_root / f"{task.ref}.md"
+    assert old_path.exists()
+
+    task.archived = True
+    repo.flush_to_disk()
+
+    assert not old_path.exists()
+    assert (tasks_archive_root / f"{task.ref}.md").exists()
+
+
+def test_archived_flag_moves_extended_to_archive(
+    tasks_root: Path, tasks_archive_root: Path
+) -> None:
+    repo = make_repo(tasks_root)
+    task = repo.create_root_task(
+        title="My story", description=None, slug=None, extended=True
+    )
+    repo.flush_to_disk()
+
+    old_dir = tasks_root / task.ref
+    assert old_dir.is_dir()
+
+    task.archived = True
+    repo.flush_to_disk()
+
+    assert not old_dir.exists()
+    assert (tasks_archive_root / task.ref / "README.md").exists()
+
+
+def test_unarchive_flag_moves_file_back(
+    tasks_root: Path, tasks_archive_root: Path
+) -> None:
+    repo = make_repo(tasks_root)
+    task = repo.create_root_task(
+        title="My story", description=None, slug=None, extended=False
+    )
+    task.archived = True
+    repo.flush_to_disk()
+
+    assert (tasks_archive_root / f"{task.ref}.md").exists()
+
+    task.archived = False
+    repo.flush_to_disk()
+
+    assert (tasks_root / f"{task.ref}.md").exists()
+    assert not (tasks_archive_root / f"{task.ref}.md").exists()
+
+
+def test_resolve_ref_loads_archived_transparently(
+    tasks_root: Path, tasks_archive_root: Path
+) -> None:
+    from tasker.cli import app
+
+    story_id = create_task("My story").task_id
+    assert_invoke(app, ["done", "--force", story_id])
+    assert_invoke(app, ["archive", story_id])
+
+    repo = make_repo(tasks_root)
+    task = repo.resolve_ref(story_id)
+    assert task.archived
+    assert task.title == "My story"
+
+
+def test_list_root_tasks_archived_flag(
+    tasks_root: Path, tasks_archive_root: Path
+) -> None:
+    from tasker.cli import app
+
+    story_id = create_task("My story").task_id
+    assert_invoke(app, ["done", "--force", story_id])
+    assert_invoke(app, ["archive", story_id])
+
+    repo = make_repo(tasks_root)
+    paths = repo.list_root_tasks(archived=True)
+    assert len(paths) == 1
+    assert story_id in paths[0].name
+
+    # active list should be empty
+    assert repo.list_root_tasks() == []
+
+
+def test_build_task_path_archived_root(
+    tasks_root: Path, tasks_archive_root: Path
+) -> None:
+    repo = make_repo(tasks_root)
+    task = repo.create_root_task(
+        title="My story", description=None, slug=None, extended=False
+    )
+    task.archived = True
+    path = repo.build_task_path(task)
+    assert str(tasks_archive_root) in str(path)
+
+
+def test_archived_extended_with_subtasks(
+    tasks_root: Path, tasks_archive_root: Path
+) -> None:
+    repo = make_repo(tasks_root)
+    task = repo.create_root_task(
+        title="My story", description=None, slug=None, extended=False
+    )
+    child = repo.add_subtask(task, title="Subtask one", description="Details")
+    repo.flush_to_disk()
+
+    assert task.extended
+    story_dir = tasks_root / task.ref
+    assert story_dir.is_dir()
+
+    task.archived = True
+    repo.flush_to_disk()
+
+    assert not story_dir.exists()
+    archived_dir = tasks_archive_root / task.ref
+    assert archived_dir.is_dir()
+    assert (archived_dir / "README.md").exists()
+    assert any(archived_dir.glob(f"{child.ref}*"))

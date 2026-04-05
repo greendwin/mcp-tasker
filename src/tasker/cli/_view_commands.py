@@ -76,9 +76,9 @@ def cmd_list_tasks(
     repo: TaskRepo = Depends(get_task_repo),
 ) -> None:
     if archived:
-        all_tasks = _load_archived_tasks(repo, shallow=not show_all)
+        all_tasks = _load_root_tasks(repo, archived=True, shallow=not show_all)
     elif not task_refs:
-        all_tasks = _load_root_tasks(repo)
+        all_tasks = _load_root_tasks(repo, archived=False, shallow=False)
     else:
         all_tasks = []
 
@@ -105,30 +105,16 @@ def cmd_list_tasks(
         print_subtasks(task.subtasks, show_all=show_all, recent_id=recent_id)
 
 
-def _load_root_tasks(repo: TaskRepo) -> list[Task]:
+def _load_root_tasks(repo: TaskRepo, *, shallow: bool, archived: bool) -> list[Task]:
     tasks: list[Task] = []
-    for task_path in repo.list_root_tasks():
-        tp = detect_task_type(task_path)
-        tasks.append(repo.resolve_ref(tp.task_ref))
-    return tasks
-
-
-def _load_archived_tasks(repo: TaskRepo, shallow: bool) -> list[Task]:
-    if not repo.archive_root.is_dir():
-        return []
-
-    archive_repo = TaskRepo(repo.archive_root)
-    tasks: list[Task] = []
-    for task_path in archive_repo.list_root_tasks():
+    for task_path in repo.list_root_tasks(archived=archived):
         if shallow:
             task, _ = parse_task_file(task_path)
             tasks.append(task)
             continue
 
-        # we need to load a tree to show full hierarchy
         tp = detect_task_type(task_path)
-        task = archive_repo.resolve_ref(tp.task_ref)
-        tasks.append(task)
+        tasks.append(repo.resolve_ref(tp.task_ref))
 
     return tasks
 

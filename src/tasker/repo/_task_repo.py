@@ -4,11 +4,7 @@ from tasker.base_types import Task, TaskStatus
 from tasker.exceptions import TaskHasSubtasksError
 from tasker.parse import ParsedRef
 
-from ._archive_task import (
-    archive_root_task_impl,
-    is_archived_task_impl,
-    unarchive_root_task_impl,
-)
+from ._archive_task import archive_root_task_impl, unarchive_root_task_impl
 from ._move_task import TaskRename, delete_task_impl, move_task_impl
 from ._task_loader import TaskLoader
 from ._utils import (
@@ -30,15 +26,14 @@ class TaskRepo:
     def root(self) -> Path:
         return self.loader.root
 
-    @property
-    def archive_root(self) -> Path:
-        return self.loader.archive_root
-
     def resolve_ref(self, task_ref: str) -> Task:
         return self.loader.resolve_ref(task_ref)
 
-    def list_root_tasks(self) -> list[Path]:
-        return list_root_tasks(self.root)
+    def list_root_tasks(self, *, archived: bool = False) -> list[Path]:
+        root = self.loader.get_tasks_root(archived=archived)
+        if not root.is_dir():
+            return []
+        return list_root_tasks(root)
 
     def create_root_task(
         self,
@@ -166,9 +161,6 @@ class TaskRepo:
         _close_recursive(task, TaskStatus.DONE, closed_tasks)
         update_parents_status(task, loader=self.loader)
         return closed_tasks[1:]  # don't include root task
-
-    def is_archived_task(self, task_ref: str) -> bool:
-        return is_archived_task_impl(self, task_ref)
 
     def archive_root_task(
         self, task: Task, *, force: bool = False

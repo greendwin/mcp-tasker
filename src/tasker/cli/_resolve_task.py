@@ -1,10 +1,8 @@
 import re
 from typing import NamedTuple
 
-import typer
-
 from tasker.base_types import Task
-from tasker.exceptions import TaskArchivedError, TaskValidateError
+from tasker.exceptions import TaskValidateError
 from tasker.parse import find_common_ancestor, make_child_ref, parse_task_ref
 from tasker.repo._task_repo import TaskRepo
 from tasker.utils import JsonAppend, console, write_text
@@ -20,34 +18,39 @@ class ResolvedRef(NamedTuple):
 def resolve_ref(
     repo: TaskRepo,
     task_ref: str,
-    *,
-    auto_unarchive: bool = False,
 ) -> ResolvedRef:
     if _is_direct_ref(task_ref):
         resolved_ref = task_ref
     else:
         resolved_ref = _resolve_recent(repo, task_ref)
 
-    if auto_unarchive and repo.is_archived_task(resolved_ref):
-        ref = parse_task_ref(resolved_ref)
-        repo.unarchive_root_task(ref.root_id)
-        root = repo.resolve_ref(ref.root_id)
-        console.print(
-            f"[yellow]Unarchiving [blue]{root.ref}[/blue] automatically[/yellow]",
-            json_output={"unarchived_ref": JsonAppend(ref.root_id)},
-        )
-
-    try:
-        resolved_task = repo.resolve_ref(resolved_ref)
-    except TaskArchivedError as ex:
-        if console.json_output:
-            raise
-
-        console.print(f"[yellow]Task [blue]{ex.task_ref}[/blue] is archived[/yellow]")
-        console.print("Unarchive it first before performing actions on it")
-        raise typer.Exit(1) from ex
+    resolved_task = repo.resolve_ref(resolved_ref)
 
     return ResolvedRef(task_ref, resolved_task)
+
+
+def unarchive_task(repo: TaskRepo, task: Task) -> bool:
+    if not task.archived:
+        return False
+
+    ref = parse_task_ref(task.id)
+    root_task = repo.resolve_ref(ref.root_id)
+
+    root_task.archived = False
+    _set_archived_recursive(root_task)
+    repo.flush_to_disk()
+
+    console.print(
+        f"[yellow]Unarchiving [blue]{root_task.ref}[/blue] automatically[/yellow]",
+        json_output={"unarchived_ref": JsonAppend(ref.root_id)},
+    )
+    return True
+
+
+def _set_archived_recursive(task: Task) -> None:
+    task.archived = False
+    for child in task.subtasks:
+        _set_archived_recursive(child)
 
 
 def _is_direct_ref(task_ref: str) -> bool:

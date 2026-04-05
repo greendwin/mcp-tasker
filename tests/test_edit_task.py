@@ -506,12 +506,12 @@ def test_edit_json_does_not_show_preview(s1: str) -> None:
     assert "New title" not in data.get("preview", "")
 
 
-# --- auto-unarchive on edit ---
+# --- edit archived task ---
 
 
-def test_edit_auto_unarchives_archived_task(s1: str) -> None:
+def test_edit_archived_task_does_not_unarchive(s1: str) -> None:
     assert_invoke(app, ["done", "--force", s1])
     assert_invoke(app, ["archive", s1])
     result = assert_invoke(app, ["edit", s1, "--title", "New title"])
-    assert "Unarchiving" in result.output
+    assert "Unarchiving" not in result.output
     assert "New title" in result.output

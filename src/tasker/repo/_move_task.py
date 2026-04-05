@@ -55,6 +55,7 @@ def move_task_impl(
     task.id = get_next_subtask_id(new_parent)
     _reregister_tree(task, prev_id, renames, loader=loader)
 
+    _set_archived(task, new_parent.archived)
     new_parent.subtasks.append(task)
     update_parents_status(
         task,
@@ -81,6 +82,12 @@ def _mark_deleted(task: Task) -> None:
         _mark_deleted(child)
 
 
+def _set_archived(task: Task, archived: bool) -> None:
+    task.archived = archived
+    for child in task.subtasks:
+        _set_archived(child, archived)
+
+
 def _is_descendant_of(child_id: str, *, ancestor_id: str) -> bool:
     """True when *child_id* is a strict descendant of *ancestor_id*."""
     prefix = ancestor_id if "t" in ancestor_id else ancestor_id + "t"
@@ -100,6 +107,9 @@ def _convert_to_root(task: Task, *, loader: TaskLoader) -> list[TaskRename]:
     prev_id = task.id
     task.id = find_next_root_task_id(loader)
     _reregister_tree(task, prev_id, renames, loader=loader)
+
+    # new root tasks are always active (not archived)
+    _set_archived(task, False)
 
     # root tasks must be file-based
     upgrade_to_filebased(task, loader=loader)

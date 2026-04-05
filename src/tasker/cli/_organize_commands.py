@@ -11,7 +11,7 @@ from tasker.utils import JsonAppend, console
 
 from ._common import app, complete_task_ref, get_task_repo
 from ._helpers import print_parent_preview
-from ._resolve_task import resolve_ref, save_recent_for_refs
+from ._resolve_task import resolve_ref, save_recent_for_refs, unarchive_task
 
 
 @app.command("arch", hidden=True)
@@ -57,9 +57,18 @@ def cmd_archive_task(
             _report_not_root_task(ref.task)
             raise typer.Exit(1)
 
-        if not force and not console.json_output and not ref.task.is_closed:
-            _report_open_task(ref.task)
-            raise typer.Exit(1)
+        if ref.task.archived:
+            console.print(
+                f"[green]Task [blue]{ref.task_ref}[/blue]"
+                " was already archived[/green]",
+                json_output={"task_refs": JsonAppend(ref.task_ref), "already": True},
+            )
+            continue
+
+        if not force and not ref.task.is_closed:
+            if not console.json_output:
+                _report_open_task(ref.task)
+                raise typer.Exit(1)
 
         forced = repo.archive_root_task(ref.task, force=force)
 
@@ -92,14 +101,32 @@ def cmd_unarchive_task(
 ) -> None:
     unarchived = []
     for task_ref in task_refs:
-        ref = repo.unarchive_root_task(task_ref)
+        ref = resolve_ref(repo, task_ref)
+
+        if not console.json_output and not is_root_task_id(ref.task.id):
+            console.print(
+                f"[yellow]Only root tasks can be unarchived —"
+                f" [blue]{ref.task.ref}[/blue] is a subtask.[/yellow]"
+            )
+            raise typer.Exit(1)
+
+        if not ref.task.archived:
+            console.print(
+                f"[green]Task [blue]{ref.task_ref}[/blue]"
+                " was already unarchived[/green]",
+                json_output={"task_refs": JsonAppend(ref.task_ref), "already": True},
+            )
+            unarchived.append(ref.task)
+            continue
+
+        repo.unarchive_root_task(task_ref)
 
         console.print(
             f"[green]Task [blue]{ref.task_ref}[/blue] unarchived[/green]",
             json_output={"task_refs": JsonAppend(ref.task_ref)},
         )
 
-        task = repo.resolve_ref(ref.task_id)
+        task = repo.resolve_ref(ref.task.id)
         unarchived.append(task)
 
     save_recent_for_refs(repo, *unarchived)
@@ -164,20 +191,23 @@ def cmd_move_task(
             "Specify --parent <ref>, --root, or --delete.", json_output={}
         )
 
-    new_parent = (
-        resolve_ref(repo, parent_ref, auto_unarchive=True)
-        if parent_ref is not None
-        else None
-    )
-
-    if new_parent is not None:
-        console.print("", end="", json_output={"parent_ref": new_parent.task_ref})
+    new_parent = None
+    if parent_ref is not None:
+        new_parent = resolve_ref(repo, parent_ref)
+        console.set_context("parent_ref", new_parent.task_ref)
 
     # Resolve all refs upfront to avoid mid-loop recent changes.
-    resolved = [resolve_ref(repo, ref, auto_unarchive=True) for ref in task_refs]
+    resolved_tasks = [resolve_ref(repo, ref) for ref in task_refs]
+
+    # auto-unarchive when moving tasks with non-closed status
+    if any(not r.task.is_closed for r in resolved_tasks):
+        for r in resolved_tasks:
+            unarchive_task(repo, r.task)
+        if new_parent is not None:
+            unarchive_task(repo, new_parent.task)
 
     need_preview = []
-    for r in resolved:
+    for r in resolved_tasks:
         if delete:
             repo.delete_task(r.task)
             repo.flush_to_disk()
@@ -233,7 +263,7 @@ def cmd_move_task(
     if not delete:
         # include parent link to recent list
         if new_parent:
-            resolved.append(new_parent)
-        save_recent_for_refs(repo, *resolved)
+            resolved_tasks.append(new_parent)
+        save_recent_for_refs(repo, *resolved_tasks)
 
     print_parent_preview(repo, *need_preview)

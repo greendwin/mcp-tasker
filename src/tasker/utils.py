@@ -34,19 +34,22 @@ class OutputContext:
     ) -> None:
         if json_output:
             for k, v in json_output.items():
-                if isinstance(v, JsonAppend):
-                    self.append_json_output(k, v.value)
-                    continue
-
-                assert (
-                    k not in self._json_output_obj
-                ), f"json_output key {k!r} already set"
-                self._json_output_obj[k] = v
+                self.set_context(k, v)
 
         if not self.json_output:
             self._console.print(text, end=end)
 
-    def append_json_output(self, key: str, value: Any) -> None:
+    def set_context(self, key: str, value: Any) -> None:
+        if isinstance(value, JsonAppend):
+            self.append_context(key, value.value)
+            return
+
+        if key in self._json_output_obj:
+            raise AssertionError(f"json_output key {key!r} already set")
+
+        self._json_output_obj[key] = value
+
+    def append_context(self, key: str, value: Any) -> None:
         arr = self._json_output_obj.setdefault(key, [])
         assert isinstance(arr, list), f"json_output key {key!r} is not a list"
         arr.append(value)

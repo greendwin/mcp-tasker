@@ -24,10 +24,10 @@ def cmd_start_task(
     ],
     repo: TaskRepo = Depends(get_task_repo),
 ) -> None:
-    resolved = [resolve_ref(repo, ref) for ref in task_refs]
+    resolved_tasks = [resolve_ref(repo, ref) for ref in task_refs]
 
     need_preview: list[Task] = []
-    for _, task in resolved:
+    for _, task in resolved_tasks:
         orig_status = task.status
 
         if is_nonleaf_task(task):
@@ -54,7 +54,7 @@ def cmd_start_task(
         )
         need_preview.append(task)
 
-    save_recent_for_refs(repo, *resolved)
+    save_recent_for_refs(repo, *resolved_tasks)
 
     for task in need_preview:
         _print_task_preview(task)
@@ -112,10 +112,10 @@ def cmd_reset_task(
     ] = False,
     repo: TaskRepo = Depends(get_task_repo),
 ) -> None:
-    resolved = [resolve_ref(repo, ref) for ref in task_refs]
+    resolved_tasks = [resolve_ref(repo, ref) for ref in task_refs]
 
     need_preview: list[Task] = []
-    for _, task in resolved:
+    for _, task in resolved_tasks:
         already_pending = task.status == TaskStatus.PENDING
 
         if is_nonleaf_task(task):
@@ -143,9 +143,9 @@ def cmd_reset_task(
         else:
             for t in forced:
                 need_preview.append(t)
-                console.append_json_output("forced_task_ids", t.id)
+                console.append_context("forced_task_ids", t.id)
 
-    save_recent_for_refs(repo, *resolved)
+    save_recent_for_refs(repo, *resolved_tasks)
     print_parent_preview(repo, *need_preview)
 
 
@@ -181,10 +181,10 @@ def cmd_cancel_task(
     ] = False,
     repo: TaskRepo = Depends(get_task_repo),
 ) -> None:
-    resolved = [resolve_ref(repo, ref) for ref in task_refs]
+    resolved_tasks = [resolve_ref(repo, ref) for ref in task_refs]
 
     need_preview: list[Task] = []
-    for _, task in resolved:
+    for _, task in resolved_tasks:
         already_cancelled = task.status == TaskStatus.CANCELLED
 
         if is_nonleaf_task(task):
@@ -212,9 +212,9 @@ def cmd_cancel_task(
         else:
             for t in forced:
                 need_preview.append(t)
-                console.append_json_output("forced_task_ids", t.id)
+                console.append_context("forced_task_ids", t.id)
 
-    save_recent_for_refs(repo, *resolved)
+    save_recent_for_refs(repo, *resolved_tasks)
     print_parent_preview(repo, *need_preview)
 
 
@@ -254,10 +254,10 @@ def cmd_done_task(
     ] = False,
     repo: TaskRepo = Depends(get_task_repo),
 ) -> None:
-    resolved = [resolve_ref(repo, ref) for ref in task_refs]
+    resolved_tasks = [resolve_ref(repo, ref) for ref in task_refs]
 
     need_preview: list[Task] = []
-    for _, task in resolved:
+    for _, task in resolved_tasks:
         already_finished = task.status == TaskStatus.DONE
 
         if is_nonleaf_task(task):
@@ -286,9 +286,9 @@ def cmd_done_task(
         else:
             for t in forced:
                 need_preview.append(t)
-                console.append_json_output("forced_task_ids", t.id)
+                console.append_context("forced_task_ids", t.id)
 
-    save_recent_for_refs(repo, *resolved)
+    save_recent_for_refs(repo, *resolved_tasks)
     print_parent_preview(repo, *need_preview)
 
 
@@ -351,7 +351,7 @@ def cmd_edit_task(
             )
             raise typer.Exit(1)
 
-    resolved = resolve_ref(repo, task_ref, auto_unarchive=True)
+    resolved = resolve_ref(repo, task_ref)
 
     if title is not None or details is not None or slug is not None:
         repo.edit_task(resolved.task, title=title, description=details, slug=slug)
