@@ -49,7 +49,7 @@ def cmd_show_task(
 
     console.print("\n[bold]Subtasks:[/bold]")
     for subtask in task.subtasks:
-        console.print(format_task_list_item(subtask, indent=1))
+        console.print(format_task_list_item(subtask, indent=1, show_subtask_count=True))
 
 
 @app.command("list", help="List open tasks with their pending subtasks.")

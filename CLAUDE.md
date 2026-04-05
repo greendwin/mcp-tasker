@@ -6,6 +6,7 @@ Detailed design is described in `DESIGN.md`.
 
 ## Development
 
-* On any development iteration, the final step is to run `poetry run tox` (all environments). Always fix **all** reported issues.
+* On any development iteration, the final step is to run `poetry run tox` (all environments).
+* Always fix **all** reported `tox` issues including **pre-existing**.
 * Never use `type: ignore` if it can be fixed normally.
 * Never include ticket IDs into code comments.

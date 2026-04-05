@@ -18,4 +18,4 @@ status: pending
 - [x] ~~s19t10: Always show recent task in 'list' command even if it filtered out by status~~
 - [ ] s19t11: Show (p) marker if (q) is hidden by filters, TBD: show (pp..) if (q) is deeper
 - [ ] [s19t12](s19t12-show-q-marker-in-view.md): Show (q) marker in 'view' and 'edit' commands
-- [ ] [s19t13](s19t13-show-subtasks-subtasks-count.md): Show subtasks subtasks count
+- [x] [s19t13](s19t13-show-subtasks-subtasks-count.md): Show subtasks subtasks count

@@ -1,9 +1,9 @@
-from typing import Annotated, NoReturn, Optional
+from typing import Annotated, Optional
 
 import typer
 from typer_di import Depends
 
-from tasker.base_types import Task, is_root_task_id
+from tasker.base_types import is_root_task_id
 from tasker.exceptions import TaskerError, TaskValidateError
 from tasker.parse import detect_task_type
 from tasker.repo import TaskRepo

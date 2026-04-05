@@ -43,6 +43,7 @@ def format_task_list_item(
     indent: int = 0,
     highlight_ids: set[str] | None = None,
     recent_id: str | None = None,
+    show_subtask_count: bool = False,
 ) -> str:
     r = []
 
@@ -82,6 +83,11 @@ def format_task_list_item(
     if color_override:
         r.append(f"[/{color_override}]")
 
+    if show_subtask_count:
+        total = _count_subtasks(task)
+        if total > 0:
+            r.append(f" [dim](+{total} subtasks)[/dim]")
+
     if highlight_ids and task.id in highlight_ids:
         r.append(" [bright_yellow]<<<[/bright_yellow]")
 
@@ -89,6 +95,14 @@ def format_task_list_item(
         r.append(" [cyan](q)[/cyan]")
 
     return "".join(r)
+
+
+def _count_subtasks(task: Task) -> int:
+    count = len(task.subtasks)
+    for child in task.subtasks:
+        if child.subtasks:
+            count += _count_subtasks(child)
+    return count
 
 
 def print_subtasks(

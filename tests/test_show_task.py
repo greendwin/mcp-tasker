@@ -87,3 +87,27 @@ def test_show_task_json_output_no_description_is_null() -> None:
     result = assert_invoke(app, ["--json-output", "show", task_id])
     data = json.loads(result.output)
     assert data["description"] is None
+
+
+def test_show_task_subtask_count_not_shown_when_no_subtasks() -> None:
+    task_id = create_task("My story").task_id
+    add_subtask(task_id, "Leaf subtask")
+    result = assert_invoke(app, ["show", task_id])
+    assert "subtasks)" not in result.output
+
+
+def test_show_task_subtask_count_shown_when_has_subtasks() -> None:
+    task_id = create_task("My story").task_id
+    sub_id = add_subtask(task_id, "Parent subtask").task_id
+    add_subtask(sub_id, "Nested child", details="child details")
+    result = assert_invoke(app, ["show", task_id])
+    assert "(+1 subtasks)" in result.output
+
+
+def test_show_task_subtask_count_recursive() -> None:
+    task_id = create_task("My story").task_id
+    sub_id = add_subtask(task_id, "Parent subtask").task_id
+    child_id = add_subtask(sub_id, "Child", details="d1").task_id
+    add_subtask(child_id, "Grandchild", details="d2")
+    result = assert_invoke(app, ["show", task_id])
+    assert "(+2 subtasks)" in result.output
