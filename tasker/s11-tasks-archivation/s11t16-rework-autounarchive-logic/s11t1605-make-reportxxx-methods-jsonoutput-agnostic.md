@@ -1,7 +1,7 @@
 ---
 id: s11t1605
 slug: make-reportxxx-methods-jsonoutput-agnostic
-status: pending
+status: done
 ---
 
 # Make _report_xxx methods json_output agnostic

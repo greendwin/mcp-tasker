@@ -342,3 +342,54 @@ def test_no_extra_sections_when_absent() -> None:
     content = "---\nid: s01\nstatus: pending\n---\n\n" "# My task\n\nDescription.\n"
     task, _ = parse_task(content, task_id="s01", slug="my-task", extended=False)
     assert task.extra_sections is None
+
+
+# --- slug normalization ---
+
+
+def test_normalize_slug_from_filename_uppercase() -> None:
+    path = _DIR / "s01-My-Task.md"
+    write_text(path, "---\nid: s01\nstatus: pending\n---\n\n# My task\n")
+    task = parse_task_file(path).task
+    assert task.slug == "my-task"
+
+
+def test_normalize_slug_from_filename_underscores() -> None:
+    path = _DIR / "s01-my_task_name.md"
+    write_text(path, "---\nid: s01\nstatus: pending\n---\n\n# My task\n")
+    task = parse_task_file(path).task
+    assert task.slug == "my-task-name"
+
+
+def test_normalize_slug_from_filename_special_chars() -> None:
+    path = _DIR / "s01-my...task!!name.md"
+    write_text(path, "---\nid: s01\nstatus: pending\n---\n\n# My task\n")
+    task = parse_task_file(path).task
+    assert task.slug == "my-task-name"
+
+
+def test_normalize_slug_from_frontmatter() -> None:
+    path = _DIR / "s01-my-task.md"
+    write_text(
+        path,
+        "---\nid: s01\nslug: My_Task_Name\nstatus: pending\n---\n\n# My task\n",
+    )
+    task = parse_task_file(path).task
+    assert task.slug == "my-task-name"
+
+
+def test_normalize_slug_preserves_valid_slug() -> None:
+    path = _DIR / "s01-my-task.md"
+    write_text(path, "---\nid: s01\nstatus: pending\n---\n\n# My task\n")
+    task = parse_task_file(path).task
+    assert task.slug == "my-task"
+
+
+def test_normalize_slug_from_link_subtask() -> None:
+    content = (
+        "---\nid: s01\nstatus: pending\n---\n\n"
+        "# My task\n\n## Subtasks\n\n"
+        "- [ ] [s01t01](s01t01-My_Subtask.md): My subtask\n"
+    )
+    _, subtasks = parse_task(content, task_id="s01", slug="my-task", extended=False)
+    assert subtasks[0].slug == "my-subtask"

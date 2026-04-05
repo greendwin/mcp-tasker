@@ -1,7 +1,7 @@
 ---
 id: s11t1604
 slug: add-helpers-to-iterate-over
-status: pending
+status: done
 ---
 
 # Add helpers to iterate over tasks tree

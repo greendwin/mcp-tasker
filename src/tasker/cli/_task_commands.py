@@ -1,9 +1,10 @@
-from typing import Annotated
+from typing import Annotated, NoReturn
 
 import typer
 from typer_di import Depends
 
 from tasker.base_types import Task, TaskStatus, is_nonleaf_task
+from tasker.exceptions import TaskHasSubtasksError
 from tasker.repo import TaskRepo
 from tasker.utils import JsonAppend, console
 
@@ -30,13 +31,9 @@ def cmd_start_task(
     for _, task in resolved_tasks:
         orig_status = task.status
 
-        if is_nonleaf_task(task):
-            if task.status == TaskStatus.IN_PROGRESS:
-                # it'ok if status was not changed
-                pass
-            elif not console.json_output:
-                _report_starting_nonleaf_task(task)
-                raise typer.Exit(1)
+        # note: it's ok if status was not changed
+        if is_nonleaf_task(task) and task.status != TaskStatus.IN_PROGRESS:
+            _fail_starting_nonleaf_task(task)
 
         repo.start_task(task)
         repo.flush_to_disk()
@@ -72,7 +69,10 @@ def _print_task_preview(task: Task) -> None:
         console.print(f"{task.description}")
 
 
-def _report_starting_nonleaf_task(task: Task) -> None:
+def _fail_starting_nonleaf_task(task: Task) -> NoReturn:
+    if console.json_output:
+        raise TaskHasSubtasksError(task)
+
     console.print(
         f"[yellow]Task [blue]{task.ref}[/blue] has subtasks"
         " — its status is managed automatically[/yellow]"
@@ -82,18 +82,19 @@ def _report_starting_nonleaf_task(task: Task) -> None:
         in_progress = [t for t in task.subtasks if t.status == TaskStatus.IN_PROGRESS]
         console.print("\nIn-progress subtasks:")
         for t in in_progress:
-            console.print(f"  - [blue]{t.id}[/blue]: {t.title}")
-        return
+            console.print(format_task_list_item(t, indent=1))
+        raise typer.Exit(1)
 
     pending = [t for t in task.subtasks if t.status == TaskStatus.PENDING]
     console.print("Start one of its pending subtasks instead")
     if not pending:
         console.print("\n[dim]No pending subtasks[/dim]")
-        return
+        raise typer.Exit(1)
 
     console.print("\nPending subtasks:")
     for t in pending:
         console.print(format_task_list_item(t, indent=1))
+    raise typer.Exit(1)
 
 
 @app.command("reset", help="Reset task(s) back to pending.")
@@ -118,12 +119,8 @@ def cmd_reset_task(
     for _, task in resolved_tasks:
         already_pending = task.status == TaskStatus.PENDING
 
-        if is_nonleaf_task(task):
-            if already_pending or force:
-                pass
-            elif not console.json_output:
-                _report_resetting_nonleaf_task(task)
-                raise typer.Exit(1)
+        if is_nonleaf_task(task) and not already_pending and not force:
+            _fail_resetting_nonleaf_task(task)
 
         forced = repo.reset_task(task, force=force)
         repo.flush_to_disk()
@@ -140,16 +137,20 @@ def cmd_reset_task(
 
         if not forced:
             need_preview.append(task)
-        else:
-            for t in forced:
-                need_preview.append(t)
-                console.append_context("forced_task_ids", t.id)
+            continue
+
+        for t in forced:
+            need_preview.append(t)
+            console.append_context("forced_task_ids", t.id)
 
     save_recent_for_refs(repo, *resolved_tasks)
     print_parent_preview(repo, *need_preview)
 
 
-def _report_resetting_nonleaf_task(task: Task) -> None:
+def _fail_resetting_nonleaf_task(task: Task) -> NoReturn:
+    if console.json_output:
+        raise TaskHasSubtasksError(task)
+
     non_pending = [t for t in task.subtasks if t.status != TaskStatus.PENDING]
 
     console.print(
@@ -159,12 +160,12 @@ def _report_resetting_nonleaf_task(task: Task) -> None:
 
     console.print("Reset its subtasks first, or use [bold]--force[/bold]")
 
-    if not non_pending:
-        return
+    if non_pending:
+        console.print("\nNon-pending subtasks:")
+        for t in non_pending:
+            console.print(format_task_list_item(t, indent=1))
 
-    console.print("\nNon-pending subtasks:")
-    for t in non_pending:
-        console.print(f"  - [blue]{t.id}[/blue]: {t.title}")
+    raise typer.Exit(1)
 
 
 @app.command("cancel", help="Cancel task(s).")
@@ -187,12 +188,8 @@ def cmd_cancel_task(
     for _, task in resolved_tasks:
         already_cancelled = task.status == TaskStatus.CANCELLED
 
-        if is_nonleaf_task(task):
-            if already_cancelled or force:
-                pass
-            elif not console.json_output:
-                _report_cancelling_nonleaf_task(task)
-                raise typer.Exit(1)
+        if is_nonleaf_task(task) and not already_cancelled and not force:
+            _fail_cancelling_nonleaf_task(task)
 
         forced = repo.cancel_task(task, force=force)
         repo.flush_to_disk()
@@ -209,18 +206,20 @@ def cmd_cancel_task(
 
         if not forced:
             need_preview.append(task)
-        else:
-            for t in forced:
-                need_preview.append(t)
-                console.append_context("forced_task_ids", t.id)
+            continue
+
+        for t in forced:
+            need_preview.append(t)
+            console.append_context("forced_task_ids", t.id)
 
     save_recent_for_refs(repo, *resolved_tasks)
     print_parent_preview(repo, *need_preview)
 
 
-def _report_cancelling_nonleaf_task(
-    task: Task,
-) -> None:
+def _fail_cancelling_nonleaf_task(task: Task) -> NoReturn:
+    if console.json_output:
+        raise TaskHasSubtasksError(task)
+
     open_tasks = [t for t in task.subtasks if not t.is_closed]
 
     console.print(
@@ -230,12 +229,13 @@ def _report_cancelling_nonleaf_task(
 
     if not open_tasks:
         console.print("All subtasks are already closed")
-        return
+        raise typer.Exit(1)
 
     console.print("Cancel its open subtasks first, or use [bold]--force[/bold]")
     console.print("\nOpen subtasks:")
     for t in open_tasks:
-        console.print(f"  - [blue]{t.id}[/blue]: {t.title}")
+        console.print(format_task_list_item(t, indent=1))
+    raise typer.Exit(1)
 
 
 @app.command("done", help="Mark task(s) as done.")
@@ -260,12 +260,8 @@ def cmd_done_task(
     for _, task in resolved_tasks:
         already_finished = task.status == TaskStatus.DONE
 
-        if is_nonleaf_task(task):
-            if already_finished or force:
-                pass
-            elif not console.json_output:
-                _report_finishing_nonleaf_task(task)
-                raise typer.Exit(1)
+        if is_nonleaf_task(task) and not already_finished and not force:
+            _fail_finishing_nonleaf_task(task)
 
         forced = repo.finish_task(task, force=force)
         repo.flush_to_disk()
@@ -283,16 +279,20 @@ def cmd_done_task(
         if not forced:
             # preview task itself
             need_preview.append(task)
-        else:
-            for t in forced:
-                need_preview.append(t)
-                console.append_context("forced_task_ids", t.id)
+            continue
+
+        for t in forced:
+            need_preview.append(t)
+            console.append_context("forced_task_ids", t.id)
 
     save_recent_for_refs(repo, *resolved_tasks)
     print_parent_preview(repo, *need_preview)
 
 
-def _report_finishing_nonleaf_task(task: Task) -> None:
+def _fail_finishing_nonleaf_task(task: Task) -> NoReturn:
+    if console.json_output:
+        raise TaskHasSubtasksError(task)
+
     open_tasks = [t for t in task.subtasks if not t.is_closed]
 
     console.print(
@@ -302,13 +302,14 @@ def _report_finishing_nonleaf_task(task: Task) -> None:
 
     if not open_tasks:
         console.print("All subtasks are already closed")
-        return
+        raise typer.Exit(1)
 
     console.print("Finish its open subtasks first, or use [bold]--force[/bold]")
 
     console.print("\nOpen subtasks:")
     for t in open_tasks:
-        console.print(f"  - [blue]{t.id}[/blue]: {t.title}")
+        console.print(format_task_list_item(t, indent=1))
+    raise typer.Exit(1)
 
 
 @app.command("edit", help="Edit task properties (title, details, slug).")

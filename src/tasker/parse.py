@@ -16,6 +16,14 @@ _SUBTASK_RE = re.compile(r"^- \[(.)\] (?:~~)?(s\d+t(?:\d{2})+): (.+?)(?:~~)?$")
 _LINK_SUBTASK_RE = re.compile(
     r"^- \[(.)\] (?:~~)?\[(s\d+t(?:\d{2})+)\]\(([^)]+)\): (.+?)(?:~~)?$"
 )
+
+
+def normalize_slug(slug: str) -> str:
+    """Normalize a slug to lowercase kebab-case (only ``[a-z0-9]`` and ``-``)."""
+    normalized = re.sub(r"[^a-z0-9]+", "-", slug.lower()).strip("-")
+    return normalized
+
+
 _CHECKBOX_STATUS = {
     " ": TaskStatus.PENDING,
     "~": TaskStatus.IN_PROGRESS,
@@ -137,7 +145,7 @@ def detect_task_type(task_path: Path) -> TaskDetectResult:
     return TaskDetectResult(
         task_ref=ref.task_ref,
         task_id=ref.task_id,
-        slug=ref.slug,
+        slug=normalize_slug(ref.slug),
         extended=extended,
         content_path=content_path,
     )
@@ -215,7 +223,7 @@ def _parse_subtask_line(line: str) -> ParsedSubtask | None:
         ref = parse_task_ref(ref_str)
         return ParsedSubtask(
             id=task_id,
-            slug=ref.slug,
+            slug=normalize_slug(ref.slug) if ref.slug else None,
             ref=ref_str,
             extended=extended,
             title=task_title,
@@ -282,7 +290,8 @@ def _parse_content(content: str, *, task_ref: str) -> _ParsedContent:
         elif line.startswith("status:"):
             status = TaskStatus(line.split(":", 1)[1].strip())
         elif line.startswith("slug:"):
-            slug = line.split(":", 1)[1].strip()
+            raw_slug = line.split(":", 1)[1].strip()
+            slug = normalize_slug(raw_slug) if raw_slug else None
         elif line.strip():
             key = line.split(":", 1)[0].strip()
             raise TaskValidateError(

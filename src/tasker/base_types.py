@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Iterator
 from enum import Enum
 
 from pydantic import BaseModel
@@ -57,3 +58,9 @@ def is_nonleaf_task(task: Task) -> bool:
     if not task.is_inline and task.subtasks:
         return True
     return False
+
+
+def walk_tasks(task: Task) -> Iterator[Task]:
+    yield task
+    for child in task.subtasks:
+        yield from walk_tasks(child)

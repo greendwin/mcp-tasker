@@ -1,11 +1,16 @@
 from pathlib import Path
 
-from tasker.base_types import Task, TaskStatus
+from tasker.base_types import Task, TaskStatus, walk_tasks
 from tasker.exceptions import TaskHasSubtasksError
 from tasker.parse import ParsedRef
 
-from ._archive_task import archive_root_task_impl, unarchive_root_task_impl
-from ._move_task import TaskRename, delete_task_impl, move_task_impl
+from ._move_task import (
+    TaskRename,
+    archive_root_task_impl,
+    delete_task_impl,
+    move_task_impl,
+    unarchive_root_task_impl,
+)
 from ._task_loader import TaskLoader
 from ._utils import (
     build_task_path_from_root,
@@ -222,23 +227,14 @@ def _is_leaf_task(task: Task) -> bool:
 def _close_recursive(
     task: Task, new_status: TaskStatus, closed_tasks: list[Task]
 ) -> None:
-    if task.is_closed:
-        # already closed — don't override (e.g. don't cancel a done task)
-        return
-
-    closed_tasks.append(task)
-    task.status = new_status
-
-    for subtask in task.subtasks:
-        _close_recursive(subtask, new_status, closed_tasks)
+    for t in walk_tasks(task):
+        if not t.is_closed:
+            closed_tasks.append(t)
+            t.status = new_status
 
 
 def _reset_recursive(task: Task, reset_tasks: list[Task]) -> None:
-    if task.status == TaskStatus.PENDING:
-        return
-
-    reset_tasks.append(task)
-    task.status = TaskStatus.PENDING
-
-    for subtask in task.subtasks:
-        _reset_recursive(subtask, reset_tasks)
+    for t in walk_tasks(task):
+        if t.status != TaskStatus.PENDING:
+            reset_tasks.append(t)
+            t.status = TaskStatus.PENDING

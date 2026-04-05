@@ -1,7 +1,7 @@
 ---
 id: s11
 slug: tasks-archivation
-status: pending
+status: done
 ---
 
 # Tasks archivation
@@ -25,4 +25,4 @@ add 'archive' command that moves complete task to 'planning/archive'
 - [x] s11t13: BUG: when archiving with force, parent status would be CANCELLED regardless of existing done tasks
 - [x] s11t14: Support --closed - archive all closed stories
 - [x] [s11t15](s11t15-support-loading-archived-tasks-in.md): Support loading archived tasks in TaskRepo
-- [ ] [s11t16](s11t16-rework-autoanarchive-logic/): Rework auto-anarchive logic
+- [x] [s11t16](s11t16-rework-autounarchive-logic/): Rework auto-unarchive logic

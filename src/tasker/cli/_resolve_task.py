@@ -1,7 +1,7 @@
 import re
 from typing import NamedTuple
 
-from tasker.base_types import Task
+from tasker.base_types import Task, walk_tasks
 from tasker.exceptions import TaskValidateError
 from tasker.parse import find_common_ancestor, make_child_ref, parse_task_ref
 from tasker.repo._task_repo import TaskRepo
@@ -36,8 +36,8 @@ def unarchive_task(repo: TaskRepo, task: Task) -> bool:
     ref = parse_task_ref(task.id)
     root_task = repo.resolve_ref(ref.root_id)
 
-    root_task.archived = False
-    _set_archived_recursive(root_task)
+    for t in walk_tasks(root_task):
+        t.archived = False
     repo.flush_to_disk()
 
     console.print(
@@ -45,12 +45,6 @@ def unarchive_task(repo: TaskRepo, task: Task) -> bool:
         json_output={"unarchived_ref": JsonAppend(ref.root_id)},
     )
     return True
-
-
-def _set_archived_recursive(task: Task) -> None:
-    task.archived = False
-    for child in task.subtasks:
-        _set_archived_recursive(child)
 
 
 def _is_direct_ref(task_ref: str) -> bool:

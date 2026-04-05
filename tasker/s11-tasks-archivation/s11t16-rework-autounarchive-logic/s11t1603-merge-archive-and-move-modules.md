@@ -1,7 +1,7 @@
 ---
 id: s11t1603
 slug: merge-archive-and-move-modules
-status: pending
+status: done
 ---
 
 # Merge archive and move modules

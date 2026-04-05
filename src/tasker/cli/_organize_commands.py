@@ -1,16 +1,16 @@
-from typing import Annotated, Optional
+from typing import Annotated, NoReturn, Optional
 
 import typer
 from typer_di import Depends
 
 from tasker.base_types import Task, is_root_task_id
-from tasker.exceptions import TaskerError
+from tasker.exceptions import TaskerError, TaskValidateError
 from tasker.parse import detect_task_type
 from tasker.repo import TaskRepo
 from tasker.utils import JsonAppend, console
 
 from ._common import app, complete_task_ref, get_task_repo
-from ._helpers import print_parent_preview
+from ._helpers import format_task_list_item, print_parent_preview
 from ._resolve_task import resolve_ref, save_recent_for_refs, unarchive_task
 
 
@@ -53,9 +53,11 @@ def cmd_archive_task(
     for task_ref in task_refs:
         ref = resolve_ref(repo, task_ref)
 
-        if not console.json_output and not is_root_task_id(ref.task.id):
-            _report_not_root_task(ref.task)
-            raise typer.Exit(1)
+        if not is_root_task_id(ref.task.id):
+            raise TaskValidateError(
+                f"Only root tasks can be archived, {ref.task.id!r} is a subtask.",
+                task_ref=ref.task.ref,
+            )
 
         if ref.task.archived:
             console.print(
@@ -66,24 +68,26 @@ def cmd_archive_task(
             continue
 
         if not force and not ref.task.is_closed:
-            if not console.json_output:
-                _report_open_task(ref.task)
-                raise typer.Exit(1)
+            raise TaskValidateError(
+                f"Task {ref.task.id!r} is not closed. "
+                "Use --force to cancel open subtasks and archive",
+                task_ref=ref.task.id,
+            )
 
         forced = repo.archive_root_task(ref.task, force=force)
-
-        if forced:
-            console.print("[yellow]Forcibly cancelled subtasks:[/yellow]")
-            for t in forced:
-                console.print(
-                    f"  - [blue]{t.id}[/blue]: {t.title}",
-                    json_output={"forced_task_ids": JsonAppend(t.id)},
-                )
 
         console.print(
             f"[green]Task [blue]{ref.task_ref}[/blue] archived[/green]",
             json_output={"task_refs": JsonAppend(ref.task_ref)},
         )
+
+        if forced:
+            console.print("[yellow]Forcibly cancelled subtasks:[/yellow]")
+            for t in forced:
+                console.print(
+                    format_task_list_item(t, indent=1),
+                    json_output={"forced_task_ids": JsonAppend(t.id)},
+                )
 
 
 @app.command("unarch", hidden=True)
@@ -103,12 +107,11 @@ def cmd_unarchive_task(
     for task_ref in task_refs:
         ref = resolve_ref(repo, task_ref)
 
-        if not console.json_output and not is_root_task_id(ref.task.id):
-            console.print(
-                f"[yellow]Only root tasks can be unarchived —"
-                f" [blue]{ref.task.ref}[/blue] is a subtask.[/yellow]"
+        if not is_root_task_id(ref.task.id):
+            raise TaskValidateError(
+                f"Only root tasks can be unarchived, {ref.task.id!r} is a subtask.",
+                task_ref=ref.task.ref,
             )
-            raise typer.Exit(1)
 
         if not ref.task.archived:
             console.print(
@@ -131,26 +134,6 @@ def cmd_unarchive_task(
 
     save_recent_for_refs(repo, *unarchived)
     print_parent_preview(repo, *unarchived)
-
-
-def _report_not_root_task(task: Task) -> None:
-    console.print(
-        f"[yellow]Only root tasks can be archived —"
-        f" [blue]{task.ref}[/blue] is a subtask.[/yellow]"
-    )
-
-
-def _report_open_task(task: Task) -> None:
-    console.print(f"[yellow]Task [blue]{task.ref}[/blue] is not closed.[/yellow]")
-
-    open_tasks = [t for t in task.subtasks if not t.is_closed]
-    if open_tasks:
-        console.print("Close its open subtasks first, or use [bold]--force[/bold]")
-        console.print("\nOpen subtasks:")
-        for t in open_tasks:
-            console.print(f"  - [blue]{t.id}[/blue]: {t.title}")
-    else:
-        console.print("Use [bold]--force[/bold] to cancel and archive")
 
 
 @app.command("move", help="Move a task under a new parent or to root level.")
