@@ -1,15 +1,14 @@
 ---
 id: s09t12
 slug: bug-recent-is-reset-even
-status: pending
+status: done
 ---
 
 # BUG: recent is reset even on qNN reference
 
-recent should never be reset by its own reference (i.e if I use q01, this resolved ref should never override q)
-
-TBD: what to do in case when we use --parent ADDR, when ADDR should be saved to recent? after ALL operations!
-TBD: recent should never be updated during operations!
+* recent should never be reset by its own reference (i.e if I use q01, this resolved ref should never override q)
+* in ALL operations, recent should be updated after finishing all operations (especially when multiple tasks are passed)
+* when multiple tasks are passed -- prefer to choose their common ancestor
 
 ```
 $ td move q01 q02 -p s23t01

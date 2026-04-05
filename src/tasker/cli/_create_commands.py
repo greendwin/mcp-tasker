@@ -9,7 +9,7 @@ from tasker.utils import console
 
 from ._common import app, complete_task_ref, get_task_repo
 from ._helpers import edit_task_in_editor, print_parent_preview
-from ._resolve_task import resolve_ref, save_recent_task
+from ._resolve_task import resolve_ref, save_recent_for_refs
 
 
 @app.command("new", help="Create a new top-level task.")
@@ -36,7 +36,6 @@ def cmd_new_task(
         title=title, description=details, slug=slug, extended=extended
     )
     repo.flush_to_disk()
-    save_recent_task(repo, task.id)
 
     if editor:
         task = edit_task_in_editor(repo, task)
@@ -46,6 +45,7 @@ def cmd_new_task(
         json_output={"task_ref": task.ref},
     )
 
+    save_recent_for_refs(repo, task)
     print_parent_preview(repo, task)
 
 
@@ -69,8 +69,8 @@ def cmd_add_task(
     ] = False,
     repo: TaskRepo = Depends(get_task_repo),
 ) -> None:
-    parent = resolve_ref(repo, parent_ref, save_recent=True, auto_unarchive=True)
-    child = repo.add_subtask(parent, title=title, description=details, slug=slug)
+    parent = resolve_ref(repo, parent_ref, auto_unarchive=True)
+    child = repo.add_subtask(parent.task, title=title, description=details, slug=slug)
     repo.flush_to_disk()
 
     if editor:
@@ -81,6 +81,7 @@ def cmd_add_task(
         json_output={"task_ref": child.ref},
     )
 
+    save_recent_for_refs(repo, parent)
     print_parent_preview(repo, child)
 
 
@@ -93,10 +94,11 @@ def cmd_add_many_tasks(
     ],
     repo: TaskRepo = Depends(get_task_repo),
 ) -> None:
-    parent = resolve_ref(repo, parent_ref, save_recent=True)
+    parent = resolve_ref(repo, parent_ref)
+    save_recent_for_refs(repo, parent)
 
     console.print(
-        f"[cyan]Adding tasks to [blue]{parent.ref}[/blue][/cyan]"
+        f"[cyan]Adding tasks to [blue]{parent.task_ref}[/blue][/cyan]"
         " (empty line to finish):",
         json_output={"parent_ref": parent_ref},
     )
@@ -107,7 +109,7 @@ def cmd_add_many_tasks(
         line = sys.stdin.readline()
         if not line or not line.strip():
             break
-        child = repo.add_subtask(parent, title=line.strip())
+        child = repo.add_subtask(parent.task, title=line.strip())
         repo.flush_to_disk()
         task_refs.append(child.ref)
         console.print(f"  [green]task [blue]{child.ref}[/blue] added[/green]")
@@ -121,6 +123,6 @@ def cmd_add_many_tasks(
 
     console.print(
         f"[green]Done:[/green] {len(task_refs)} task(s) added"
-        f" to [blue]{parent.id}[/blue]",
+        f" to [blue]{parent.task.id}[/blue]",
         json_output={"task_refs": task_refs},
     )

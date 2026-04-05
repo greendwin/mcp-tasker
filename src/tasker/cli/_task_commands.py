@@ -9,7 +9,7 @@ from tasker.utils import JsonAppend, console
 
 from ._common import app, complete_task_ref, get_task_repo
 from ._helpers import edit_task_in_editor, format_task_list_item, print_parent_preview
-from ._resolve_task import resolve_ref
+from ._resolve_task import ResolvedRef, resolve_ref, save_recent_for_refs
 
 
 @app.command("start", help="Mark task(s) as in-progress.")
@@ -24,9 +24,10 @@ def cmd_start_task(
     ],
     repo: TaskRepo = Depends(get_task_repo),
 ) -> None:
+    resolved = [resolve_ref(repo, ref) for ref in task_refs]
+
     need_preview: list[Task] = []
-    for task_ref in task_refs:
-        task = resolve_ref(repo, task_ref, save_recent=True)
+    for _, task in resolved:
         orig_status = task.status
 
         if is_nonleaf_task(task):
@@ -52,6 +53,8 @@ def cmd_start_task(
             json_output={"task_refs": JsonAppend(task.ref)},
         )
         need_preview.append(task)
+
+    save_recent_for_refs(repo, *resolved)
 
     for task in need_preview:
         _print_task_preview(task)
@@ -109,9 +112,10 @@ def cmd_reset_task(
     ] = False,
     repo: TaskRepo = Depends(get_task_repo),
 ) -> None:
+    resolved = [resolve_ref(repo, ref) for ref in task_refs]
+
     need_preview: list[Task] = []
-    for task_ref in task_refs:
-        task = resolve_ref(repo, task_ref, save_recent=True)
+    for _, task in resolved:
         already_pending = task.status == TaskStatus.PENDING
 
         if is_nonleaf_task(task):
@@ -141,8 +145,8 @@ def cmd_reset_task(
                 need_preview.append(t)
                 console.append_json_output("forced_task_ids", t.id)
 
-    if need_preview:
-        print_parent_preview(repo, *need_preview)
+    save_recent_for_refs(repo, *resolved)
+    print_parent_preview(repo, *need_preview)
 
 
 def _report_resetting_nonleaf_task(task: Task) -> None:
@@ -177,9 +181,10 @@ def cmd_cancel_task(
     ] = False,
     repo: TaskRepo = Depends(get_task_repo),
 ) -> None:
+    resolved = [resolve_ref(repo, ref) for ref in task_refs]
+
     need_preview: list[Task] = []
-    for task_ref in task_refs:
-        task = resolve_ref(repo, task_ref, save_recent=True)
+    for _, task in resolved:
         already_cancelled = task.status == TaskStatus.CANCELLED
 
         if is_nonleaf_task(task):
@@ -209,8 +214,8 @@ def cmd_cancel_task(
                 need_preview.append(t)
                 console.append_json_output("forced_task_ids", t.id)
 
-    if need_preview:
-        print_parent_preview(repo, *need_preview)
+    save_recent_for_refs(repo, *resolved)
+    print_parent_preview(repo, *need_preview)
 
 
 def _report_cancelling_nonleaf_task(
@@ -249,9 +254,10 @@ def cmd_done_task(
     ] = False,
     repo: TaskRepo = Depends(get_task_repo),
 ) -> None:
+    resolved = [resolve_ref(repo, ref) for ref in task_refs]
+
     need_preview: list[Task] = []
-    for task_ref in task_refs:
-        task = resolve_ref(repo, task_ref, save_recent=True)
+    for _, task in resolved:
         already_finished = task.status == TaskStatus.DONE
 
         if is_nonleaf_task(task):
@@ -282,8 +288,8 @@ def cmd_done_task(
                 need_preview.append(t)
                 console.append_json_output("forced_task_ids", t.id)
 
-    if need_preview:
-        print_parent_preview(repo, *need_preview)
+    save_recent_for_refs(repo, *resolved)
+    print_parent_preview(repo, *need_preview)
 
 
 def _report_finishing_nonleaf_task(task: Task) -> None:
@@ -345,17 +351,20 @@ def cmd_edit_task(
             )
             raise typer.Exit(1)
 
-    task = resolve_ref(repo, task_ref, save_recent=True, auto_unarchive=True)
+    resolved = resolve_ref(repo, task_ref, auto_unarchive=True)
+
     if title is not None or details is not None or slug is not None:
-        repo.edit_task(task, title=title, description=details, slug=slug)
+        repo.edit_task(resolved.task, title=title, description=details, slug=slug)
         repo.flush_to_disk()
 
     if editor:
-        task = edit_task_in_editor(repo, task)
+        edited = edit_task_in_editor(repo, resolved.task)
+        resolved = ResolvedRef(resolved.task_ref, edited)
 
     console.print(
-        f"[green]Task [blue]{task.ref}[/blue] updated[/green]",
-        json_output={"task_ref": task.ref},
+        f"[green]Task [blue]{resolved.task.ref}[/blue] updated[/green]",
+        json_output={"task_ref": resolved.task.ref},
     )
 
-    _print_task_preview(task)
+    save_recent_for_refs(repo, resolved)
+    _print_task_preview(resolved.task)

@@ -1,29 +1,35 @@
 import re
+from typing import NamedTuple
 
 import typer
 
 from tasker.base_types import Task
 from tasker.exceptions import TaskArchivedError, TaskValidateError
-from tasker.parse import make_child_ref, parse_task_ref
+from tasker.parse import find_common_ancestor, make_child_ref, parse_task_ref
 from tasker.repo._task_repo import TaskRepo
 from tasker.utils import JsonAppend, console, write_text
 
 _RECENT_FILE = ".recent"
 
 
+class ResolvedRef(NamedTuple):
+    task_ref: str  # original task ref, could be recent link aka `qNN`
+    task: Task  # resolved task
+
+
 def resolve_ref(
     repo: TaskRepo,
     task_ref: str,
     *,
-    save_recent: bool = False,
     auto_unarchive: bool = False,
-) -> Task:
-    is_direct_link = task_ref.startswith("s")
-    if not is_direct_link:
-        task_ref = _resolve_recent(repo, task_ref)
+) -> ResolvedRef:
+    if _is_direct_ref(task_ref):
+        resolved_ref = task_ref
+    else:
+        resolved_ref = _resolve_recent(repo, task_ref)
 
-    if auto_unarchive and repo.is_archived_task(task_ref):
-        ref = parse_task_ref(task_ref)
+    if auto_unarchive and repo.is_archived_task(resolved_ref):
+        ref = parse_task_ref(resolved_ref)
         repo.unarchive_root_task(ref.root_id)
         root = repo.resolve_ref(ref.root_id)
         console.print(
@@ -32,7 +38,7 @@ def resolve_ref(
         )
 
     try:
-        task = repo.resolve_ref(task_ref)
+        resolved_task = repo.resolve_ref(resolved_ref)
     except TaskArchivedError as ex:
         if console.json_output:
             raise
@@ -41,13 +47,28 @@ def resolve_ref(
         console.print("Unarchive it first before performing actions on it")
         raise typer.Exit(1) from ex
 
-    if save_recent and is_direct_link:
-        save_recent_task(repo, task.id)
-
-    return task
+    return ResolvedRef(task_ref, resolved_task)
 
 
-def save_recent_task(repo: TaskRepo, task_id: str) -> None:
+def _is_direct_ref(task_ref: str) -> bool:
+    return task_ref.startswith("s")
+
+
+def save_recent_for_refs(repo: TaskRepo, *refs: ResolvedRef | Task) -> None:
+    # collect id of tasks that were resolved from direct refs
+    direct_refs: list[str] = []
+    for p in refs:
+        if isinstance(p, Task):
+            direct_refs.append(p.id)
+        elif _is_direct_ref(p.task_ref):
+            direct_refs.append(p.task.id)
+
+    if not direct_refs:
+        return
+
+    task_id = find_common_ancestor(direct_refs)
+
+    # save recent
     write_text(repo.root / _RECENT_FILE, task_id + "\n")
 
 

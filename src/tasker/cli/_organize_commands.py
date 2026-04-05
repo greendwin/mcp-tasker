@@ -11,7 +11,7 @@ from tasker.utils import JsonAppend, console
 
 from ._common import app, complete_task_ref, get_task_repo
 from ._helpers import print_parent_preview
-from ._resolve_task import resolve_ref, save_recent_task
+from ._resolve_task import resolve_ref, save_recent_for_refs
 
 
 @app.command("arch", hidden=True)
@@ -47,22 +47,21 @@ def cmd_archive_task(
             if tp.task_id in task_refs or tp.task_ref in task_refs:
                 continue
 
-            task = repo.resolve_ref(tp.task_ref)
-            if task.is_closed:
+            if repo.resolve_ref(tp.task_ref).is_closed:
                 task_refs.append(tp.task_ref)
 
     for task_ref in task_refs:
-        task = resolve_ref(repo, task_ref)
+        ref = resolve_ref(repo, task_ref)
 
-        if not console.json_output and not is_root_task_id(task.id):
-            _report_not_root_task(task)
+        if not console.json_output and not is_root_task_id(ref.task.id):
+            _report_not_root_task(ref.task)
             raise typer.Exit(1)
 
-        if not force and not console.json_output and not task.is_closed:
-            _report_open_task(task)
+        if not force and not console.json_output and not ref.task.is_closed:
+            _report_open_task(ref.task)
             raise typer.Exit(1)
 
-        forced = repo.archive_root_task(task, force=force)
+        forced = repo.archive_root_task(ref.task, force=force)
 
         if forced:
             console.print("[yellow]Forcibly cancelled subtasks:[/yellow]")
@@ -73,8 +72,8 @@ def cmd_archive_task(
                 )
 
         console.print(
-            f"[green]Task [blue]{task.ref}[/blue] archived[/green]",
-            json_output={"task_refs": JsonAppend(task.ref)},
+            f"[green]Task [blue]{ref.task_ref}[/blue] archived[/green]",
+            json_output={"task_refs": JsonAppend(ref.task_ref)},
         )
 
 
@@ -91,10 +90,9 @@ def cmd_unarchive_task(
     ],
     repo: TaskRepo = Depends(get_task_repo),
 ) -> None:
-    need_preview = []
+    unarchived = []
     for task_ref in task_refs:
         ref = repo.unarchive_root_task(task_ref)
-        save_recent_task(repo, ref.task_id)
 
         console.print(
             f"[green]Task [blue]{ref.task_ref}[/blue] unarchived[/green]",
@@ -102,10 +100,10 @@ def cmd_unarchive_task(
         )
 
         task = repo.resolve_ref(ref.task_id)
-        need_preview.append(task)
+        unarchived.append(task)
 
-    if need_preview:
-        print_parent_preview(repo, *need_preview)
+    save_recent_for_refs(repo, *unarchived)
+    print_parent_preview(repo, *unarchived)
 
 
 def _report_not_root_task(task: Task) -> None:
@@ -173,63 +171,69 @@ def cmd_move_task(
     )
 
     if new_parent is not None:
-        console.print("", end="", json_output={"parent_ref": new_parent.ref})
+        console.print("", end="", json_output={"parent_ref": new_parent.task_ref})
+
+    # Resolve all refs upfront to avoid mid-loop recent changes.
+    resolved = [resolve_ref(repo, ref, auto_unarchive=True) for ref in task_refs]
 
     need_preview = []
-    for k, task_ref in enumerate(task_refs):
-        task = resolve_ref(repo, task_ref, auto_unarchive=True)
-
+    for r in resolved:
         if delete:
-            repo.delete_task(task)
+            repo.delete_task(r.task)
             repo.flush_to_disk()
 
             console.print(
-                f"[green]Task [blue]{task.ref}[/blue] deleted[/green]",
-                json_output={"task_refs": JsonAppend(task.ref)},
+                f"[green]Task [blue]{r.task_ref}[/blue] deleted[/green]",
+                json_output={"task_refs": JsonAppend(r.task_ref)},
             )
 
-            need_preview.append(task)
+            need_preview.append(r.task)
             continue
 
-        renames = repo.move_task(task, new_parent=new_parent)
+        renames = repo.move_task(
+            r.task,
+            new_parent=new_parent.task if new_parent else None,
+        )
         repo.flush_to_disk()
-
-        # save regenerated id
-        save_recent_task(repo, task.id)
 
         if not renames:
             # idempotent — task is already at the requested location
             console.print(
-                f"[green]Task [blue]{task.ref}[/blue]"
+                f"[green]Task [blue]{r.task_ref}[/blue]"
                 " is already in the requested location[/green]",
-                json_output={"task_refs": JsonAppend(task.ref), "already": True},
+                json_output={"task_refs": JsonAppend(r.task_ref), "already": True},
             )
 
-            need_preview.append(task)
+            need_preview.append(r.task)
             continue
 
         if new_parent is None:
             console.print(
-                f"[green]Task [blue]{task.ref}[/blue] moved to root[/green]",
-                json_output={"task_refs": JsonAppend(task.ref)},
+                f"[green]Task [blue]{r.task_ref}[/blue] moved to root[/green]",
+                json_output={"task_refs": JsonAppend(r.task_ref)},
             )
         else:
             console.print(
-                f"[green]Task [blue]{task.ref}[/blue]"
-                f" moved under [blue]{new_parent.ref}[/blue][/green]",
-                json_output={"task_refs": JsonAppend(task.ref)},
+                f"[green]Task [blue]{r.task_ref}[/blue]"
+                f" moved under [blue]{new_parent.task_ref}[/blue][/green]",
+                json_output={"task_refs": JsonAppend(r.task_ref)},
             )
 
         console.print("[yellow]Renamed tasks:[/yellow]")
-        for r in renames:
+        for rn in renames:
             console.print(
-                f"  [cyan]{r.old_id}[/cyan] → [blue]{r.new_id}[/blue]",
+                f"  [cyan]{rn.old_id}[/cyan] → [blue]{rn.new_id}[/blue]",
                 json_output={
-                    "renames": JsonAppend({"old_id": r.old_id, "new_id": r.new_id})
+                    "renames": JsonAppend({"old_id": rn.old_id, "new_id": rn.new_id})
                 },
             )
 
-        need_preview.append(task)
+        need_preview.append(r.task)
 
-    if need_preview:
-        print_parent_preview(repo, *need_preview)
+    if not delete:
+        # include parent link to recent list
+        if new_parent:
+            resolved.append(new_parent)
+        save_recent_for_refs(repo, *resolved)
+
+    print_parent_preview(repo, *need_preview)

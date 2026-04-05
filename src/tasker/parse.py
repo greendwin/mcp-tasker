@@ -59,6 +59,45 @@ def parse_task_ref(task_ref: str) -> ParsedRef:
     )
 
 
+def find_common_ancestor(direct_refs: list[str]) -> str:
+    assert len(direct_refs) > 0
+
+    refs = [parse_task_ref(r) for r in direct_refs]
+
+    if len(refs) == 1:
+        return refs[0].task_id
+
+    root_ids: list[str] = []
+    for r in refs:
+        if r.root_id not in root_ids:
+            root_ids.append(r.root_id)
+
+    # peak the latter root as a result
+    root_id = root_ids.pop()
+
+    # split each ID into per-level digit pairs after the 't' separator.
+    digit_seqs: list[list[str]] = []
+    for r in refs:
+        if "t" in r.task_id:
+            t_pos = r.task_id.index("t")
+            digits = r.task_id[t_pos + 1 :]
+            digit_seqs.append([digits[i : i + 2] for i in range(0, len(digits), 2)])
+        else:
+            digit_seqs.append([])
+
+    common: list[str] = []
+    for level_parts in zip(*digit_seqs):
+        if len(set(level_parts)) != 1:
+            break
+
+        common.append(level_parts[0])
+
+    if not common:
+        return root_id
+
+    return root_id + "t" + "".join(common)
+
+
 def make_child_ref(parent_id: str, child_digits: str) -> str:
     """
     Build a child task ID by appending *child_digits* under *parent_id*.

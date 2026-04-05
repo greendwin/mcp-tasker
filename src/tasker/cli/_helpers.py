@@ -139,6 +139,9 @@ def _has_highlights(task: Task, highlight_ids: set[str] | None) -> bool:
 
 
 def print_parent_preview(repo: TaskRepo, *tasks: Task) -> None:
+    if not tasks:
+        return
+
     recent_id = load_recent_task_id(repo)
 
     # group tasks by root story, then find common ancestor per group

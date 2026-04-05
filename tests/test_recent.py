@@ -415,3 +415,97 @@ def test_add_many_with_q_shortcut_does_not_override_recent(
     # add-many via shortcut q — recent must stay as t01
     assert_invoke(app, ["add-many", "q"], input="New subtask\n\n")
     assert _read_recent(tasks_root) == t01
+
+
+# ---------------------------------------------------------------------------
+# Multiple tasks update recent to common ancestor (s09t12)
+# ---------------------------------------------------------------------------
+
+
+def test_start_multiple_saves_common_ancestor(s1: str, tasks_root: Path) -> None:
+    t01 = add_subtask(s1, "Task A").task_id
+    t02 = add_subtask(s1, "Task B").task_id
+    assert_invoke(app, ["start", t01, t02])
+    # common ancestor of s01t01 and s01t02 is s01
+    assert _read_recent(tasks_root) == s1
+
+
+def test_done_multiple_saves_common_ancestor(s1: str, tasks_root: Path) -> None:
+    t01 = add_subtask(s1, "Task A").task_id
+    t02 = add_subtask(s1, "Task B").task_id
+    assert_invoke(app, ["done", t01, t02])
+    assert _read_recent(tasks_root) == s1
+
+
+def test_cancel_multiple_saves_common_ancestor(s1: str, tasks_root: Path) -> None:
+    t01 = add_subtask(s1, "Task A").task_id
+    t02 = add_subtask(s1, "Task B").task_id
+    assert_invoke(app, ["cancel", t01, t02])
+    assert _read_recent(tasks_root) == s1
+
+
+def test_reset_multiple_saves_common_ancestor(s1: str, tasks_root: Path) -> None:
+    t01 = add_subtask(s1, "Task A").task_id
+    t02 = add_subtask(s1, "Task B").task_id
+    assert_invoke(app, ["start", t01, t02])
+    assert_invoke(app, ["reset", t01, t02])
+    assert _read_recent(tasks_root) == s1
+
+
+# ---------------------------------------------------------------------------
+# q-refs must not break when multiple tasks are passed (s09t12)
+# ---------------------------------------------------------------------------
+
+
+def test_move_q_refs_resolve_correctly(tasks_root: Path) -> None:
+    """Moving q01 q02 must resolve both refs against the same recent."""
+    s1 = create_task("Story one").task_id
+    s2 = create_task("Story two").task_id
+    add_subtask(s1, "Task A")
+    add_subtask(s1, "Task B")
+
+    assert_invoke(app, ["edit", s1, "--title", "Story one"])  # recent = s01
+
+    result = assert_invoke(app, ["move", "q01", "q02", "--parent", s2])
+    assert "moved" in result.output
+
+    # Both tasks should have been moved to s02
+    assert f"{s2}t01" in result.output
+    assert f"{s2}t02" in result.output
+
+
+def test_move_update_to_parent(tasks_root: Path) -> None:
+    """Moving via q-refs must not change recent."""
+    s1 = create_task("Story one").task_id
+    s2 = create_task("Story two").task_id
+    add_subtask(s1, "Task A")
+
+    assert_invoke(app, ["edit", s1, "--title", "Story one"])  # recent = s01
+
+    assert_invoke(app, ["move", "q01", "--parent", s2])
+    assert _read_recent(tasks_root) == s2
+
+
+def test_start_q_refs_resolve_correctly(tasks_root: Path) -> None:
+    """Starting q01 q02 must resolve both against the same recent."""
+    s1 = create_task("Story one").task_id
+    t01 = add_subtask(s1, "Task A").task_id
+    add_subtask(s1, "Task B")
+
+    assert_invoke(app, ["edit", s1, "--title", "Story one"])  # recent = s01
+
+    result = assert_invoke(app, ["start", "q01", "q02"])
+    assert t01 in result.output  # s01t01 resolved
+    assert f"{s1}t02" in result.output  # s01t02 resolved
+
+
+def test_move_direct_refs_saves_common_ancestor(tasks_root: Path) -> None:
+    """Moving direct refs updates recent to common ancestor of post-move IDs."""
+    s1 = create_task("Story one").task_id
+    s2 = create_task("Story two").task_id
+    t01 = add_subtask(s1, "Task A").task_id
+    t02 = add_subtask(s1, "Task B").task_id
+
+    assert_invoke(app, ["move", t01, t02, "--parent", s2])
+    # post-move IDs: s02t01 and s02t02 — common ancestor is s02
+    assert _read_recent(tasks_root) == s2

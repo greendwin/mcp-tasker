@@ -1,7 +1,7 @@
 import pytest
 
 from tasker.exceptions import TaskValidateError
-from tasker.parse import ParsedRef, make_child_ref, parse_task_ref
+from tasker.parse import ParsedRef, find_common_ancestor, make_child_ref, parse_task_ref
 
 
 def test_root_story_id_only() -> None:
@@ -114,3 +114,53 @@ def test_make_child_ref_empty_digits() -> None:
     # Used by get_next_subtask_id to get the prefix
     assert make_child_ref("s01", "") == "s01t"
     assert make_child_ref("s01t02", "") == "s01t02"
+
+
+# ---------------------------------------------------------------------------
+# find_common_ancestor
+# ---------------------------------------------------------------------------
+
+
+def test_common_ancestor_empty_is_denied() -> None:
+    with pytest.raises(AssertionError):
+        _ = find_common_ancestor([])
+
+
+def test_common_ancestor_single() -> None:
+    assert find_common_ancestor(["s01t01"]) == "s01t01"
+
+
+def test_common_ancestor_same() -> None:
+    assert find_common_ancestor(["s01t01", "s01t01"]) == "s01t01"
+
+
+def test_common_ancestor_siblings() -> None:
+    assert find_common_ancestor(["s01t01", "s01t02"]) == "s01"
+
+
+def test_common_ancestor_nested_siblings() -> None:
+    assert find_common_ancestor(["s01t0201", "s01t0202"]) == "s01t02"
+
+
+def test_common_ancestor_different_depth() -> None:
+    assert find_common_ancestor(["s01t01", "s01t0102"]) == "s01t01"
+
+
+def test_common_ancestor_root_and_subtask() -> None:
+    assert find_common_ancestor(["s01", "s01t01"]) == "s01"
+
+
+def test_common_ancestor_different_stories() -> None:
+    assert find_common_ancestor(["s01t01", "s02t01"]) == "s02t01"
+
+
+def test_common_ancestor_three_tasks() -> None:
+    assert find_common_ancestor(["s01t0101", "s01t0102", "s01t0103"]) == "s01t01"
+
+
+def test_common_ancestor_three_tasks_different_parents() -> None:
+    assert find_common_ancestor(["s01t0101", "s01t0201", "s01t0301"]) == "s01"
+
+
+def test_common_ancestor_root_tasks() -> None:
+    assert find_common_ancestor(["s01", "s01"]) == "s01"
