@@ -1,11 +1,9 @@
 import json
 from typing import Any
 
-from typer.testing import CliRunner
-
 from tasker.cli import app
 
-_runner = CliRunner()
+from .helpers import assert_invoke
 
 
 def _parse_json(output: str) -> Any:
@@ -16,26 +14,25 @@ def _parse_json(output: str) -> Any:
 
 
 def test_json_new_task_outputs_valid_json() -> None:
-    result = _runner.invoke(app, ["--json-output", "new", "My task"])
-    assert result.exit_code == 0
+    result = assert_invoke(app, ["--json-output", "new", "My task"])
     _parse_json(result.output)  # must not raise
 
 
 def test_json_new_task_is_single_object() -> None:
-    result = _runner.invoke(app, ["--json-output", "new", "My task"])
+    result = assert_invoke(app, ["--json-output", "new", "My task"])
     data = _parse_json(result.output)
     assert isinstance(data, dict)
 
 
 def test_json_new_task_ref_is_correct() -> None:
-    result = _runner.invoke(app, ["--json-output", "new", "My task"])
+    result = assert_invoke(app, ["--json-output", "new", "My task"])
     data = _parse_json(result.output)
     assert "task_ref" in data
     assert data["task_ref"] == "s01-my-task"
 
 
 def test_json_new_task_no_extra_output() -> None:
-    result = _runner.invoke(app, ["--json-output", "new", "My task"])
+    result = assert_invoke(app, ["--json-output", "new", "My task"])
     # entire output must be parseable as a single JSON value
     _parse_json(result.output)
     assert "[green]" not in result.output
@@ -43,30 +40,29 @@ def test_json_new_task_no_extra_output() -> None:
 
 
 def test_json_add_task_outputs_valid_json() -> None:
-    _runner.invoke(app, ["new", "Parent story"])
-    result = _runner.invoke(app, ["--json-output", "add", "s01", "Subtask"])
-    assert result.exit_code == 0
+    assert_invoke(app, ["new", "Parent story"])
+    result = assert_invoke(app, ["--json-output", "add", "s01", "Subtask"])
     _parse_json(result.output)  # must not raise
 
 
 def test_json_add_task_is_single_object() -> None:
-    _runner.invoke(app, ["new", "Parent story"])
-    result = _runner.invoke(app, ["--json-output", "add", "s01", "Subtask"])
+    assert_invoke(app, ["new", "Parent story"])
+    result = assert_invoke(app, ["--json-output", "add", "s01", "Subtask"])
     data = _parse_json(result.output)
     assert isinstance(data, dict)
 
 
 def test_json_add_task_ref_is_correct() -> None:
-    _runner.invoke(app, ["new", "Parent story"])
-    result = _runner.invoke(app, ["--json-output", "add", "s01", "Subtask"])
+    assert_invoke(app, ["new", "Parent story"])
+    result = assert_invoke(app, ["--json-output", "add", "s01", "Subtask"])
     data = _parse_json(result.output)
     assert "task_ref" in data
     assert data["task_ref"] == "s01t01"
 
 
 def test_json_add_task_no_extra_output() -> None:
-    _runner.invoke(app, ["new", "Parent story"])
-    result = _runner.invoke(app, ["--json-output", "add", "s01", "Subtask"])
+    assert_invoke(app, ["new", "Parent story"])
+    result = assert_invoke(app, ["--json-output", "add", "s01", "Subtask"])
     _parse_json(result.output)
     assert "[green]" not in result.output
     assert "[blue]" not in result.output
@@ -76,35 +72,47 @@ def test_json_add_task_no_extra_output() -> None:
 
 
 def test_json_error_outputs_valid_json() -> None:
-    result = _runner.invoke(app, ["--json-output", "add", "s99", "Task"])
+    result = assert_invoke(
+        app, ["--json-output", "add", "s99", "Task"], expect_error=True
+    )
     _parse_json(result.output)  # must not raise
 
 
 def test_json_error_is_single_object() -> None:
-    result = _runner.invoke(app, ["--json-output", "add", "s99", "Task"])
+    result = assert_invoke(
+        app, ["--json-output", "add", "s99", "Task"], expect_error=True
+    )
     data = _parse_json(result.output)
     assert isinstance(data, dict)
 
 
 def test_json_error_contains_error_key() -> None:
-    result = _runner.invoke(app, ["--json-output", "add", "s99", "Task"])
+    result = assert_invoke(
+        app, ["--json-output", "add", "s99", "Task"], expect_error=True
+    )
     data = _parse_json(result.output)
     assert "error" in data
 
 
 def test_json_error_message_is_non_empty() -> None:
-    result = _runner.invoke(app, ["--json-output", "add", "s99", "Task"])
+    result = assert_invoke(
+        app, ["--json-output", "add", "s99", "Task"], expect_error=True
+    )
     data = _parse_json(result.output)
     assert data["error"]
 
 
 def test_json_error_exits_nonzero() -> None:
-    result = _runner.invoke(app, ["--json-output", "add", "s99", "Task"])
+    result = assert_invoke(
+        app, ["--json-output", "add", "s99", "Task"], expect_error=True
+    )
     assert result.exit_code != 0
 
 
 def test_json_error_no_plain_error_prefix() -> None:
-    result = _runner.invoke(app, ["--json-output", "add", "s99", "Task"])
+    result = assert_invoke(
+        app, ["--json-output", "add", "s99", "Task"], expect_error=True
+    )
     assert "Error:" not in result.output
 
 
@@ -112,19 +120,25 @@ def test_json_error_no_plain_error_prefix() -> None:
 
 
 def test_json_debug_error_includes_traceback() -> None:
-    result = _runner.invoke(app, ["--json-output", "--debug", "add", "s99", "Task"])
+    result = assert_invoke(
+        app, ["--json-output", "--debug", "add", "s99", "Task"], expect_error=True
+    )
     data = _parse_json(result.output)
     assert "traceback" in data
 
 
 def test_json_debug_error_traceback_non_empty() -> None:
-    result = _runner.invoke(app, ["--json-output", "--debug", "add", "s99", "Task"])
+    result = assert_invoke(
+        app, ["--json-output", "--debug", "add", "s99", "Task"], expect_error=True
+    )
     data = _parse_json(result.output)
     assert data["traceback"]
 
 
 def test_json_no_debug_error_no_traceback() -> None:
-    result = _runner.invoke(app, ["--json-output", "add", "s99", "Task"])
+    result = assert_invoke(
+        app, ["--json-output", "add", "s99", "Task"], expect_error=True
+    )
     data = _parse_json(result.output)
     assert "traceback" not in data
 
@@ -133,19 +147,25 @@ def test_json_no_debug_error_no_traceback() -> None:
 
 
 def test_json_error_contains_task_ref() -> None:
-    result = _runner.invoke(app, ["--json-output", "add", "s99", "Task"])
+    result = assert_invoke(
+        app, ["--json-output", "add", "s99", "Task"], expect_error=True
+    )
     data = _parse_json(result.output)
     assert "task_ref" in data
 
 
 def test_json_error_task_ref_is_non_empty() -> None:
-    result = _runner.invoke(app, ["--json-output", "add", "s99", "Task"])
+    result = assert_invoke(
+        app, ["--json-output", "add", "s99", "Task"], expect_error=True
+    )
     data = _parse_json(result.output)
     assert data["task_ref"]
 
 
 def test_json_error_task_ref_contains_task_id() -> None:
-    result = _runner.invoke(app, ["--json-output", "add", "s99", "Task"])
+    result = assert_invoke(
+        app, ["--json-output", "add", "s99", "Task"], expect_error=True
+    )
     data = _parse_json(result.output)
     assert "s99" in data["task_ref"]
 
@@ -154,26 +174,23 @@ def test_json_error_task_ref_contains_task_id() -> None:
 
 
 def test_json_start_outputs_task_ref() -> None:
-    _runner.invoke(app, ["new", "My story"])
-    _runner.invoke(app, ["add", "s01", "Leaf task"])
-    result = _runner.invoke(app, ["--json-output", "start", "s01t01"])
-    assert result.exit_code == 0
+    assert_invoke(app, ["new", "My story"])
+    assert_invoke(app, ["add", "s01", "Leaf task"])
+    result = assert_invoke(app, ["--json-output", "start", "s01t01"])
     data = _parse_json(result.output)
     assert data["task_refs"] == ["s01t01"]
 
 
 def test_json_start_nonleaf_outputs_error() -> None:
-    _runner.invoke(app, ["new", "My story"])
-    _runner.invoke(app, ["add", "s01", "Leaf task"])
-    result = _runner.invoke(app, ["--json-output", "start", "s01"])
-    assert result.exit_code != 0
+    assert_invoke(app, ["new", "My story"])
+    assert_invoke(app, ["add", "s01", "Leaf task"])
+    result = assert_invoke(app, ["--json-output", "start", "s01"], expect_error=True)
     data = _parse_json(result.output)
     assert "error" in data
 
 
 def test_json_start_nonexistent_outputs_error() -> None:
-    result = _runner.invoke(app, ["--json-output", "start", "s99t01"])
-    assert result.exit_code != 0
+    result = assert_invoke(app, ["--json-output", "start", "s99t01"], expect_error=True)
     data = _parse_json(result.output)
     assert "error" in data
 
@@ -182,53 +199,49 @@ def test_json_start_nonexistent_outputs_error() -> None:
 
 
 def test_json_done_outputs_task_ref() -> None:
-    _runner.invoke(app, ["new", "My story"])
-    _runner.invoke(app, ["add", "s01", "Leaf task"])
-    result = _runner.invoke(app, ["--json-output", "done", "s01t01"])
-    assert result.exit_code == 0
+    assert_invoke(app, ["new", "My story"])
+    assert_invoke(app, ["add", "s01", "Leaf task"])
+    result = assert_invoke(app, ["--json-output", "done", "s01t01"])
     data = _parse_json(result.output)
     assert data["task_refs"] == ["s01t01"]
 
 
 def test_json_done_nonleaf_outputs_error() -> None:
-    _runner.invoke(app, ["new", "My story"])
-    _runner.invoke(app, ["add", "s01", "Leaf task"])
-    result = _runner.invoke(app, ["--json-output", "done", "s01"])
-    assert result.exit_code != 0
+    assert_invoke(app, ["new", "My story"])
+    assert_invoke(app, ["add", "s01", "Leaf task"])
+    result = assert_invoke(app, ["--json-output", "done", "s01"], expect_error=True)
     data = _parse_json(result.output)
     assert "error" in data
 
 
 def test_json_done_force_outputs_task_ref() -> None:
-    _runner.invoke(app, ["new", "My story"])
-    _runner.invoke(app, ["add", "s01", "Subtask one"])
-    _runner.invoke(app, ["add", "s01", "Subtask two"])
-    result = _runner.invoke(app, ["--json-output", "done", "--force", "s01"])
-    assert result.exit_code == 0
+    assert_invoke(app, ["new", "My story"])
+    assert_invoke(app, ["add", "s01", "Subtask one"])
+    assert_invoke(app, ["add", "s01", "Subtask two"])
+    result = assert_invoke(app, ["--json-output", "done", "--force", "s01"])
     data = _parse_json(result.output)
     assert data["task_refs"] == ["s01-my-story"]
 
 
 def test_json_done_force_includes_forced_task_ids() -> None:
-    _runner.invoke(app, ["new", "My story"])
-    _runner.invoke(app, ["add", "s01", "Subtask one"])
-    _runner.invoke(app, ["add", "s01", "Subtask two"])
-    result = _runner.invoke(app, ["--json-output", "done", "--force", "s01"])
+    assert_invoke(app, ["new", "My story"])
+    assert_invoke(app, ["add", "s01", "Subtask one"])
+    assert_invoke(app, ["add", "s01", "Subtask two"])
+    result = assert_invoke(app, ["--json-output", "done", "--force", "s01"])
     data = _parse_json(result.output)
     assert set(data["forced_task_ids"]) == {"s01t01", "s01t02"}
 
 
 def test_json_done_force_no_forced_when_all_done() -> None:
-    _runner.invoke(app, ["new", "My story"])
-    _runner.invoke(app, ["add", "s01", "Subtask one"])
-    _runner.invoke(app, ["done", "s01t01"])
-    result = _runner.invoke(app, ["--json-output", "done", "--force", "s01"])
+    assert_invoke(app, ["new", "My story"])
+    assert_invoke(app, ["add", "s01", "Subtask one"])
+    assert_invoke(app, ["done", "s01t01"])
+    result = assert_invoke(app, ["--json-output", "done", "--force", "s01"])
     data = _parse_json(result.output)
     assert data.get("forced_task_ids") is None
 
 
 def test_json_done_nonexistent_outputs_error() -> None:
-    result = _runner.invoke(app, ["--json-output", "done", "s99t01"])
-    assert result.exit_code != 0
+    result = assert_invoke(app, ["--json-output", "done", "s99t01"], expect_error=True)
     data = _parse_json(result.output)
     assert "error" in data

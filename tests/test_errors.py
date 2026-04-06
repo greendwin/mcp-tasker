@@ -1,27 +1,26 @@
-from typer.testing import CliRunner
+import pytest
 
 from tasker.cli import app
 from tasker.exceptions import TaskerError
 
-_runner = CliRunner()
+from .helpers import assert_invoke
 
 
 def test_tasker_error_shows_clean_message() -> None:
-    result = _runner.invoke(app, ["add", "s99", "Some task"])
+    result = assert_invoke(app, ["add", "s99", "Some task"], expect_error=True)
     assert "Error:" in result.output
-    assert result.exit_code != 0
 
 
 def test_tasker_error_no_traceback_by_default() -> None:
-    result = _runner.invoke(app, ["add", "s99", "Some task"])
+    result = assert_invoke(app, ["add", "s99", "Some task"], expect_error=True)
     assert "Traceback" not in result.output
 
 
 def test_debug_flag_propagates_exception() -> None:
-    result = _runner.invoke(app, ["--debug", "add", "s99", "Some task"])
-    assert isinstance(result.exception, TaskerError)
+    with pytest.raises(TaskerError):
+        assert_invoke(app, ["--debug", "add", "s99", "Some task"])
 
 
 def test_debug_flag_does_not_print_clean_error() -> None:
-    result = _runner.invoke(app, ["--debug", "add", "s99", "Some task"])
-    assert "Error:" not in result.output
+    with pytest.raises(TaskerError):
+        assert_invoke(app, ["--debug", "add", "s99", "Some task"])

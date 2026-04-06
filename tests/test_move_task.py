@@ -1,5 +1,6 @@
 import json
 from pathlib import Path
+from unittest import mock
 
 import pytest
 
@@ -824,3 +825,55 @@ def test_delete_preview_not_listed_as_subtask_text(s1: str) -> None:
     add_subtask(s1, "Task A")
     result = assert_invoke(app, ["move", f"{s1}t01", "--delete"])
     assert "Deleted subtasks:" not in result.output
+
+
+# ---------------------------------------------------------------------------
+# move --editor
+# ---------------------------------------------------------------------------
+
+
+def test_move_editor_calls_editor(s1: str, s2: str, run_editor: mock.Mock) -> None:
+    t01 = add_subtask(s1, "Task A").task_id
+    assert_invoke(app, ["move", t01, "--parent", s2, "--editor"])
+    assert run_editor.call_count == 1
+
+
+def test_move_editor_short_flag(s1: str, s2: str, run_editor: mock.Mock) -> None:
+    t01 = add_subtask(s1, "Task A").task_id
+    assert_invoke(app, ["move", t01, "--parent", s2, "-e"])
+    assert run_editor.call_count == 1
+
+
+def test_move_editor_opens_moved_task(s1: str, s2: str, run_editor: mock.Mock) -> None:
+    t01 = add_subtask(s1, "Task A").task_id
+    assert_invoke(app, ["move", t01, "--parent", s2, "-e"])
+    opened_path: Path = run_editor.call_args[0][0]
+    assert opened_path.exists()
+    content = opened_path.read_text()
+    assert "Task A" in content
+
+
+def test_move_root_editor_opens_promoted_task(s1: str, run_editor: mock.Mock) -> None:
+    t01 = add_subtask(s1, "Task A", details="some desc").task_id
+    assert_invoke(app, ["move", t01, "--root", "-e"])
+    opened_path: Path = run_editor.call_args[0][0]
+    assert opened_path.exists()
+    content = opened_path.read_text()
+    assert "Task A" in content
+
+
+def test_move_editor_opens_each_moved_task(
+    s1: str, s2: str, run_editor: mock.Mock
+) -> None:
+    add_subtask(s1, "Task A")
+    add_subtask(s1, "Task B")
+    assert_invoke(app, ["move", f"{s1}t01", f"{s1}t02", "--parent", s2, "-e"])
+    assert run_editor.call_count == 2
+
+
+def test_move_delete_editor_errors(s1: str) -> None:
+    add_subtask(s1, "Task A")
+    result = assert_invoke(
+        app, ["move", f"{s1}t01", "--delete", "-e"], expect_error=True
+    )
+    assert "--editor cannot be used with --delete" in result.output

@@ -319,6 +319,10 @@ tasker move <task-id> --root
 
 # Delete a task
 tasker move <task-id> --delete
+
+# Move and open in editor for manual adjustments
+tasker move <task-id> --parent <new-parent-id> --editor
+tasker move <task-id> --root -e
 ```
 
 Moving re-generates task IDs to match the new location and prints the rename mapping. Source parents are auto-downgraded when possible.
