@@ -195,9 +195,12 @@ All commands support `--json-output` for machine-readable output, `--debug` for 
 ```bash
 # Initialize tasker in the current directory (creates tasker/ and archive/)
 tasker init
+
+# Initialize user-level tasker (~/.local/share/tasker on Linux/macOS, %LOCALAPPDATA%\tasker on Windows)
+tasker init --user
 ```
 
-When no `tasker/` directory exists in the current directory, tasker walks up the directory tree looking for one. If it finds a `.git` root first, it auto-initializes there.
+When no `tasker/` directory exists in the current directory, tasker walks up the directory tree looking for one. If none is found, it checks the user-level tasker directory. Respects `XDG_DATA_HOME` on Linux/macOS and `LOCALAPPDATA` on Windows.
 
 ### Add tasks
 

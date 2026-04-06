@@ -1,3 +1,5 @@
+import os
+import platform
 from pathlib import Path
 from typing import Iterator
 
@@ -17,9 +19,22 @@ class TaskerNotFoundError(TaskerError):
     def __init__(self) -> None:
         super().__init__(
             "Tasker directory not found."
-            " Run 'tasker init' to initialize in the current directory.",
+            " Run 'tasker init' or 'tasker init --user' to initialize.",
             json_output={"error_type": "tasker_not_found"},
         )
+
+
+def get_user_tasker_dir() -> Path:
+    if platform.system() == "Windows":
+        base = os.environ.get("LOCALAPPDATA")
+        if base:
+            return Path(base) / TASKER_DIR
+        return Path.home() / "AppData" / "Local" / TASKER_DIR
+    else:
+        base = os.environ.get("XDG_DATA_HOME")
+        if base:
+            return Path(base) / TASKER_DIR
+        return Path.home() / ".local" / "share" / TASKER_DIR
 
 
 def discover_tasker_dir(start: Path | None = None) -> Path:
@@ -28,16 +43,16 @@ def discover_tasker_dir(start: Path | None = None) -> Path:
 
     start = start.resolve()
 
-    # 1. search for existing tasker/ folder
+    # 1. search for existing tasker/ folder in project tree
     for parent in _walk_parents(start):
         candidate = parent / TASKER_DIR
         if candidate.is_dir() and is_tasker_dir(candidate):
             return candidate
 
-    # 2. search for .git/ and auto-init there
-    for parent in _walk_parents(start):
-        if (parent / ".git").exists():
-            return init_tasker_dir(parent)
+    # 2. check user-level tasker dir
+    user_dir = get_user_tasker_dir()
+    if user_dir.is_dir() and is_tasker_dir(user_dir):
+        return user_dir
 
     # 3. not found
     raise TaskerNotFoundError
@@ -48,7 +63,7 @@ def init_tasker_dir(project_root: Path | None = None) -> Path:
         project_root = Path.cwd()
 
     tasker_dir = project_root / TASKER_DIR
-    tasker_dir.mkdir(exist_ok=True)
+    tasker_dir.mkdir(parents=True, exist_ok=True)
 
     gitignore = tasker_dir / _GITIGNORE_FILE
     if not gitignore.exists():

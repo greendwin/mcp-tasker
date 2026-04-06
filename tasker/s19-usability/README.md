@@ -1,7 +1,7 @@
 ---
 id: s19
 slug: usability
-status: done
+status: pending
 ---
 
 # Usability
@@ -21,3 +21,5 @@ Improve user experience
 - [x] s19t11: Show (p) marker if (q) is hidden by filters, TBD: show (pp..) if (q) is deeper
 - [x] [s19t12](s19t12-show-q-marker-in-view.md): Show (q) marker in 'view' and 'edit' commands
 - [x] [s19t13](s19t13-show-subtasks-subtasks-count.md): Show subtasks subtasks count
+- [x] [s19t14](s19t14-by-default-create-tasker-repo.md): Support user-level tasks in ~/.local/tasker
+- [ ] s19t15: Support -e option for 'move' command (i.e. edit after move)

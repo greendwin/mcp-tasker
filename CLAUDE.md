@@ -10,3 +10,4 @@ Detailed design is described in `DESIGN.md`.
 * Always fix **all** reported `tox` issues including **pre-existing**.
 * Never use `type: ignore` if it can be fixed normally.
 * Never include ticket IDs into code comments.
+* Never use `unittest.mock.patch`, use `monkeypatch`.

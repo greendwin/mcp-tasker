@@ -5,7 +5,7 @@ import typer
 from typer_di import TyperDI
 
 from tasker import __version__
-from tasker.layout import discover_tasker_dir, init_tasker_dir
+from tasker.layout import discover_tasker_dir, get_user_tasker_dir, init_tasker_dir
 from tasker.parse import parse_task_file
 from tasker.repo import TaskRepo
 from tasker.utils import console
@@ -78,10 +78,19 @@ def get_task_repo() -> TaskRepo:
     return TaskRepo(tasker_dir)
 
 
-@app.command("init", help="Initialize tasker in the current directory.")
+@app.command("init", help="Initialize tasker in the current directory or user home.")
 @console.catching_output
-def cmd_init() -> None:
-    tasker_dir = init_tasker_dir()
+def cmd_init(
+    user: Annotated[
+        bool,
+        typer.Option("--user", help="Initialize user-level tasker."),
+    ] = False,
+) -> None:
+    if user:
+        tasker_dir = init_tasker_dir(get_user_tasker_dir().parent)
+    else:
+        tasker_dir = init_tasker_dir()
+
     console.print(
         f"[green]Initialized tasker in [blue]{tasker_dir}[/blue][/green]",
         context={"tasker_dir": str(tasker_dir)},

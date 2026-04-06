@@ -14,4 +14,3 @@ status: pending
 - [x] [s12t05](s12t05-discover-tasker-folder-location.md): Discover 'tasker' folder location
 - [x] ~~s12t06: Rename README.md to smth different~~
 - [x] s12t07: REF: rework console.catching_output to decorator
-- [ ] [s12t08](s12t08-by-default-create-tasker-repo.md): By default create tasker repo on user-level in ~/.local/tasker
