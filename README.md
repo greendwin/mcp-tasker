@@ -29,6 +29,9 @@ poetry install --with dev
 ## Quick Start
 
 ```bash
+# Initialize tasker (or let it auto-detect from any subdirectory)
+tasker init
+
 # Create a story
 tasker new "Build authentication"
 
@@ -80,6 +83,7 @@ tasker start <task-id>...     # mark in-progress
 tasker done <task-id>...      # mark done
 tasker cancel <task-id>...    # cancel
 tasker reset <task-id>...     # reset to pending
+tasker reset <task-id> --force  # force reset non-pending subtasks
 
 # Force-close a parent with open subtasks
 tasker done <task-id> --force
@@ -109,6 +113,7 @@ tasker edit <task-id> --slug new-slug
 ```bash
 tasker move <task-id> --parent <new-parent>  # reparent
 tasker move <task-id> --root                 # promote to story
+tasker move <task-id> --delete               # delete a task
 tasker archive <task-id>                     # archive completed story
 tasker archive --closed                      # archive all closed stories
 tasker unarchive <task-id>                   # restore from archive
@@ -214,6 +219,16 @@ isort src tests
 - Python >= 3.10
 
 ## Release Notes
+
+### 1.2.0
+- `init` command and automatic `tasker/` directory discovery (walks up to git root)
+- `move --delete` option to delete tasks
+- `reset --force` to force-reset non-pending subtasks
+- `(q)` / `(p)` recent-task markers shown in `view` and `edit` commands
+- Subtask count shown in `view` command
+- Tab autocompletion for task ID arguments
+- Slug validation
+- Bug fixes: recent task override, auto-unarchive logic
 
 ### 1.1.0
 - `--editor` (`-e`) option on `new` and `add` commands to open the task in an editor after creation

@@ -188,7 +188,16 @@ status: in-progress
 
 ## CLI Commands
 
-All commands support `--json-output` for machine-readable output, `--debug` for full tracebacks, and `--version` for version info.
+All commands support `--json-output` for machine-readable output, `--debug` for full tracebacks, and `--version` for version info. Task ID arguments support tab autocompletion.
+
+### Initialize
+
+```bash
+# Initialize tasker in the current directory (creates tasker/ and archive/)
+tasker init
+```
+
+When no `tasker/` directory exists in the current directory, tasker walks up the directory tree looking for one. If it finds a `.git` root first, it auto-initializes there.
 
 ### Add tasks
 
@@ -246,11 +255,14 @@ tasker cancel <task-id> --force
 
 # Reset a task back to pending
 tasker reset <task-id>...
+
+# Force reset all non-pending subtasks
+tasker reset <task-id> --force
 ```
 
 ### View tasks
 
-The `list` command highlights the most recently referenced task with `>`.
+The `list` and `view` commands show markers for the most recently referenced task: `(q)` if the recent task is visible, or `(p)` / `(pp)` pointing to the nearest visible ancestor.
 
 ```bash
 # View full task details and subtasks
@@ -301,6 +313,9 @@ tasker move <task-id> --parent <new-parent-id>
 
 # Promote a subtask to a root-level story
 tasker move <task-id> --root
+
+# Delete a task
+tasker move <task-id> --delete
 ```
 
 Moving re-generates task IDs to match the new location and prints the rename mapping. Source parents are auto-downgraded when possible.
