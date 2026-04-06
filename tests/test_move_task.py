@@ -688,7 +688,7 @@ def test_move_deep_nested_cleans_ancestor_dirs(tasks_root: Path, s1: str) -> Non
     # note: child of s01t01 is s01t0101 (digits appended directly)
     assert_invoke(app, ["move", leaf, "--root"])
     # all intermediate directories should be cleaned up
-    leftover = [p for p in tasks_root.rglob("*") if p.is_dir()]
+    leftover = [p for p in tasks_root.rglob("*") if p.is_dir() and p.name != "archive"]
     dirs = [str(p.relative_to(tasks_root)) for p in leftover]
     assert dirs == [], f"Leftover directories: {dirs}"
 

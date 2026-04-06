@@ -9,22 +9,29 @@ from tasker.layout import (
     TaskerNotFoundError,
     discover_tasker_dir,
     init_tasker_dir,
+    is_tasker_dir,
 )
 
 from .helpers import assert_invoke
 
 
+def _make_tasker_dir(parent: Path) -> Path:
+    """Create a tasker dir with the gitignore header so it's recognized."""
+    d = parent / TASKER_DIR
+    d.mkdir(exist_ok=True)
+    (d / ".gitignore").write_text("# tasker\n.recent\n")
+    return d
+
+
 def test_discover_finds_tasker_in_current_dir(project_root: Path) -> None:
-    tasker_dir = project_root / TASKER_DIR
-    tasker_dir.mkdir()
+    tasker_dir = _make_tasker_dir(project_root)
 
     result = discover_tasker_dir(project_root)
     assert result == tasker_dir
 
 
 def test_discover_finds_tasker_in_parent_dir(project_root: Path) -> None:
-    tasker_dir = project_root / TASKER_DIR
-    tasker_dir.mkdir()
+    tasker_dir = _make_tasker_dir(project_root)
 
     child = project_root / "subdir"
     child.mkdir()
@@ -39,7 +46,9 @@ def test_discover_auto_inits_near_git(project_root: Path) -> None:
     assert result == project_root / TASKER_DIR
     assert result.is_dir()
     assert (result / ".gitignore").exists()
-    assert ".recent" in (result / ".gitignore").read_text()
+    content = (result / ".gitignore").read_text()
+    assert "# tasker" in content
+    assert ".recent" in content
 
 
 def test_discover_auto_inits_from_subdir(project_root: Path) -> None:
@@ -60,7 +69,7 @@ def test_discover_prefers_existing_tasker_over_git() -> None:
 
     inner = root / "inner"
     inner.mkdir()
-    (inner / TASKER_DIR).mkdir()
+    _make_tasker_dir(inner)
 
     result = discover_tasker_dir(inner)
     assert result == inner / TASKER_DIR
@@ -81,12 +90,16 @@ def test_init_creates_tasker_dir(project_root: Path) -> None:
     assert result.is_dir()
 
 
-def test_init_creates_gitignore_with_recent(project_root: Path) -> None:
+def test_init_creates_gitignore_with_header_and_recent(
+    project_root: Path,
+) -> None:
     init_tasker_dir(project_root)
 
     gitignore = project_root / TASKER_DIR / ".gitignore"
     assert gitignore.exists()
-    assert ".recent" in gitignore.read_text()
+    content = gitignore.read_text()
+    assert content.startswith("# tasker\n")
+    assert ".recent" in content
 
 
 def test_init_creates_archive_with_gitkeep(project_root: Path) -> None:
@@ -131,6 +144,62 @@ def test_init_cli_json_output(project_root: Path) -> None:
 
     result = assert_invoke(app, ["--json-output", "init"])
     assert "tasker_dir" in result.output
+
+
+def test_discover_skips_accidental_tasker_dir(project_root: Path) -> None:
+    """A bare 'tasker/' dir without markers must not be recognized."""
+    bare = project_root / TASKER_DIR
+    bare.mkdir()
+
+    result = discover_tasker_dir(project_root)
+    # bare dir is skipped; auto-init creates a proper one
+    assert result == bare
+    assert is_tasker_dir(result)
+
+
+def test_discover_skips_foreign_tasker_above_git(project_root: Path) -> None:
+    """A sibling 'tasker/' dir outside the current repo must not be found."""
+    sibling_tasker = Path("/") / TASKER_DIR
+    sibling_tasker.mkdir()
+
+    subdir = project_root / "src"
+    subdir.mkdir()
+
+    result = discover_tasker_dir(subdir)
+    assert result == project_root / TASKER_DIR
+    assert result != sibling_tasker
+
+
+def test_discover_finds_tasker_above_git(project_root: Path) -> None:
+    """An inited tasker/ dir above .git should be found."""
+    parent = project_root.parent
+    _make_tasker_dir(parent)
+
+    result = discover_tasker_dir(project_root)
+    assert result == parent / TASKER_DIR
+
+
+def test_is_tasker_dir_with_recent_file(project_root: Path) -> None:
+    d = project_root / TASKER_DIR
+    d.mkdir()
+    (d / ".recent").write_text("s01t01\n")
+
+    assert is_tasker_dir(d)
+
+
+def test_is_tasker_dir_with_gitignore_header(project_root: Path) -> None:
+    d = project_root / TASKER_DIR
+    d.mkdir()
+    (d / ".gitignore").write_text("# tasker\n.recent\n")
+
+    assert is_tasker_dir(d)
+
+
+def test_is_tasker_dir_bare_dir(project_root: Path) -> None:
+    d = project_root / TASKER_DIR
+    d.mkdir()
+
+    assert not is_tasker_dir(d)
 
 
 def test_discover_error_message_suggests_init() -> None:
