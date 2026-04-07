@@ -10,6 +10,7 @@ from tasker.utils import console
 _STATUS_COLOR = {
     TaskStatus.PENDING: "white",
     TaskStatus.IN_PROGRESS: "bright_blue",
+    TaskStatus.IN_REVIEW: "bright_blue",
     TaskStatus.DONE: "green",
     TaskStatus.CANCELLED: "bright_black",
 }
@@ -17,6 +18,7 @@ _STATUS_COLOR = {
 _STATUS_MARKER = {
     TaskStatus.PENDING: r"\[ ]",
     TaskStatus.IN_PROGRESS: r"\[~]",
+    TaskStatus.IN_REVIEW: r"\[~]",
     TaskStatus.DONE: r"\[x]",
     TaskStatus.CANCELLED: r"\[x]",
 }
@@ -200,8 +202,8 @@ def format_task_list_item(
     id_color = "blue"
     if task.deleted:
         id_color = "red"
-    elif task.status in (TaskStatus.CANCELLED, TaskStatus.IN_PROGRESS):
-        # override task_id by status collor
+    elif task.status == TaskStatus.CANCELLED:
+        # override task_id by status color
         id_color = _STATUS_COLOR[task.status]
 
     if show_task_id:
@@ -223,6 +225,9 @@ def format_task_list_item(
     if show_marker:
         r.append(_task_marker(task, colored=not color_override))
         r.append(" ")
+
+    if task.status == TaskStatus.IN_REVIEW:
+        r.append("[bold cyan]**review**[/bold cyan] ")
 
     r.append(task.title)
 

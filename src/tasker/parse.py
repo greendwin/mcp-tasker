@@ -216,6 +216,7 @@ def _parse_subtask_line(line: str) -> ParsedSubtask | None:
             ml.group(4),
         )
         sub_status = _resolve_subtask_status(checkbox, line, task_title)
+        task_title = _strip_review_tag(task_title)
         task_title = _strip_strikethrough(task_title, line)
         extended = link_target.endswith("/")
         # extract slug from link target
@@ -235,6 +236,7 @@ def _parse_subtask_line(line: str) -> ParsedSubtask | None:
     if m:
         checkbox, task_id, task_title = m.group(1), m.group(2), m.group(3)
         sub_status = _resolve_subtask_status(checkbox, line, task_title)
+        task_title = _strip_review_tag(task_title)
         task_title = _strip_strikethrough(task_title, line)
         return ParsedSubtask(
             id=task_id,
@@ -248,11 +250,22 @@ def _parse_subtask_line(line: str) -> ParsedSubtask | None:
     return None
 
 
+_REVIEW_TAG = "**review** "
+
+
 def _resolve_subtask_status(checkbox: str, line: str, title: str) -> TaskStatus:
     status = _CHECKBOX_STATUS.get(checkbox, TaskStatus.PENDING)
     if "~~" in line:
         status = TaskStatus.CANCELLED
+    elif status == TaskStatus.IN_PROGRESS and title.startswith(_REVIEW_TAG):
+        status = TaskStatus.IN_REVIEW
     return status
+
+
+def _strip_review_tag(title: str) -> str:
+    if title.startswith(_REVIEW_TAG):
+        return title[len(_REVIEW_TAG) :]
+    return title
 
 
 def _strip_strikethrough(title: str, line: str) -> str:

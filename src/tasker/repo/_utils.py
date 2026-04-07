@@ -63,7 +63,8 @@ def get_status_from_subtasks(task: Task) -> TaskStatus:
             return TaskStatus.CANCELLED
         return TaskStatus.DONE
 
-    if any(t.status == TaskStatus.IN_PROGRESS for t in subtasks):
+    if any(not t.is_closed and t.status != TaskStatus.PENDING for t in subtasks):
+        # any non-pending and non-closed task treat as in-progress
         return TaskStatus.IN_PROGRESS
 
     return TaskStatus.PENDING

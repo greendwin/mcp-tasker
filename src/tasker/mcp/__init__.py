@@ -8,6 +8,7 @@ __all__ = [
     "view_tasks",
     "edit_task",
     "start_task",
+    "review_task",
     "reset_task",
     "finish_task",
     "create_task",
@@ -16,7 +17,7 @@ __all__ = [
 from ._common import mcp
 from ._create_methods import create_task
 from ._model import TaskInfo, TaskPreview
-from ._status_methods import edit_task, finish_task, reset_task, start_task
+from ._status_methods import edit_task, finish_task, reset_task, review_task, start_task
 from ._view_methods import (
     list_tasks,
     resource_task,

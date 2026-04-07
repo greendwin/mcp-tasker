@@ -28,6 +28,16 @@ def start_task(task_ref: str) -> TaskInfo:
 
 
 @mcp.tool()
+def review_task(task_ref: str) -> TaskInfo:
+    """Mark a task as in-review (submit for review)."""
+    repo = get_repo()
+    task = repo.resolve_ref(task_ref)
+    repo.review_task(task)
+    repo.flush_to_disk()
+    return TaskInfo.from_task(task)
+
+
+@mcp.tool()
 def reset_task(task_ref: str, force: bool = False) -> TaskInfo:
     """Reset a task back to pending.
 

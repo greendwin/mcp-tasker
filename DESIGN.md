@@ -143,13 +143,14 @@ Can span multiple paragraphs.
 | Field | Required | Description |
 |---|---|---|
 | `id` | yes | Task ID (e.g. `s01`, `s01t02`) |
-| `status` | yes | One of `pending`, `in-progress`, `done`, `cancelled` |
+| `status` | yes | One of `pending`, `in-progress`, `in-review`, `done`, `cancelled` |
 | `slug` | no | Filename slug (present in basic/extended tasks, absent for inline) |
 
 | Status value | Meaning |
 |---|---|
 | `pending` | not started |
 | `in-progress` | being worked on |
+| `in-review` | submitted for review |
 | `done` | finished |
 | `cancelled` | cancelled |
 
@@ -181,6 +182,7 @@ status: in-progress
 |---|---|
 | `- [ ]` | pending |
 | `- [~]` | in-progress |
+| `- [~] …: **review** Title` | in-review (bold tag before title) |
 | `- [x]` | done |
 | `- [x] ~~…~~` | cancelled (strikethrough whole entry) |
 
@@ -247,6 +249,9 @@ Status commands accept one or more task IDs. Parent tasks with subtasks have the
 ```bash
 # Mark in-progress
 tasker start <task-id>...
+
+# Mark in-review (leaf tasks only)
+tasker review <task-id>...
 
 # Mark done (fails if task has open subtasks)
 tasker done <task-id>...
@@ -455,6 +460,7 @@ tasker mcp --port 8080
 | `view_tasks` | `task_refs` | View tasks by IDs: title, status, description, and subtask IDs |
 | `edit_task` | `task_ref`, `title?`, `description?`, `slug?` | Update a task's title, description, or slug |
 | `start_task` | `task_ref` | Mark task in-progress |
+| `review_task` | `task_ref` | Mark task in-review (submit for review) |
 | `reset_task` | `task_ref`, `force?` | Reset task to pending (`force` resets non-pending subtasks) |
 | `finish_task` | `task_ref`, `force?` | Mark task done (`force` closes open subtasks) |
 

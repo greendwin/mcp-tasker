@@ -11,6 +11,7 @@ EXTENDED_TASK_FILENAME = "README.md"
 class TaskStatus(str, Enum):
     PENDING = "pending"
     IN_PROGRESS = "in-progress"
+    IN_REVIEW = "in-review"
     DONE = "done"
     CANCELLED = "cancelled"
 

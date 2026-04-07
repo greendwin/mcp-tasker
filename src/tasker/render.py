@@ -7,6 +7,7 @@ from .base_types import EXTENDED_TASK_FILENAME, Task, TaskStatus
 _CHECKBOX = {
     TaskStatus.PENDING: " ",
     TaskStatus.IN_PROGRESS: "~",
+    TaskStatus.IN_REVIEW: "~",
     TaskStatus.DONE: "x",
     TaskStatus.CANCELLED: "x",
 }

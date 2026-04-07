@@ -120,6 +120,16 @@ class TaskRepo:
         task.status = TaskStatus.IN_PROGRESS
         update_parents_status(task, loader=self.loader)
 
+    def review_task(self, task: Task) -> None:
+        if task.status == TaskStatus.IN_REVIEW:
+            return
+
+        if not _is_leaf_task(task):
+            raise TaskHasSubtasksError(task)
+
+        task.status = TaskStatus.IN_REVIEW
+        update_parents_status(task, loader=self.loader)
+
     def reset_task(self, task: Task, *, force: bool = False) -> list[Task] | None:
         if task.status == TaskStatus.PENDING:
             assert all(t.status == TaskStatus.PENDING for t in task.subtasks)

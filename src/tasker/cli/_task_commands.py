@@ -64,6 +64,76 @@ def cmd_start_task(
         print_task(task, markers=markers, preview=True)
 
 
+@app.command("review", help="Mark task(s) as in-review.")
+@console.catching_output
+def cmd_review_task(
+    *,
+    task_refs: Annotated[
+        list[str],
+        typer.Argument(
+            help="Task ID(s) to mark in-review.", autocompletion=complete_task_ref
+        ),
+    ],
+    repo: TaskRepo = Depends(get_task_repo),
+) -> None:
+    resolved_tasks = [resolve_ref(repo, ref) for ref in task_refs]
+
+    need_preview: list[Task] = []
+    for _, task in resolved_tasks:
+        orig_status = task.status
+
+        if is_nonleaf_task(task) and task.status != TaskStatus.IN_REVIEW:
+            _fail_reviewing_nonleaf_task(task)
+
+        repo.review_task(task)
+        repo.flush_to_disk()
+
+        if orig_status == TaskStatus.IN_REVIEW:
+            action = "was already in review"
+        else:
+            action = "marked for review"
+
+        console.print(
+            f"[green]Task [blue]{task.ref}[/blue] {action}[/green]",
+            context={"task_refs": JsonAppend(task.ref)},
+        )
+        need_preview.append(task)
+
+    save_recent_for_refs(repo, *resolved_tasks)
+
+    markers = compute_markers(repo, *need_preview)
+    for task in need_preview:
+        print_task(task, markers=markers, preview=True)
+
+
+def _fail_reviewing_nonleaf_task(task: Task) -> NoReturn:
+    if console.json_output:
+        raise TaskHasSubtasksError(task)
+
+    console.print(
+        f"[yellow]Task [blue]{task.ref}[/blue] has subtasks"
+        " — its status is managed automatically[/yellow]"
+    )
+
+    if task.status == TaskStatus.IN_REVIEW:
+        in_review = [t for t in task.subtasks if t.status == TaskStatus.IN_REVIEW]
+        console.print("\nIn-review subtasks:")
+        for t in in_review:
+            console.print(format_task_list_item(t, indent=1))
+        raise typer.Exit(1)
+
+    pending = [t for t in task.subtasks if t.status == TaskStatus.PENDING]
+    console.print("Review one of its pending subtasks instead")
+    if not pending:
+        console.print("\n[dim]No pending subtasks[/dim]")
+        raise typer.Exit(1)
+
+    console.print("\nPending subtasks:")
+    for t in pending:
+        console.print(format_task_list_item(t, indent=1))
+    raise typer.Exit(1)
+
+
 def _fail_starting_nonleaf_task(task: Task) -> NoReturn:
     if console.json_output:
         raise TaskHasSubtasksError(task)

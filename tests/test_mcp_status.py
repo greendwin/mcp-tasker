@@ -2,7 +2,14 @@ import pytest
 
 from tasker.base_types import TaskStatus
 from tasker.exceptions import TaskHasSubtasksError
-from tasker.mcp import finish_task, reset_task, resource_task, start_task, view_tasks
+from tasker.mcp import (
+    finish_task,
+    reset_task,
+    resource_task,
+    review_task,
+    start_task,
+    view_tasks,
+)
 
 from .helpers import add_subtask, create_task
 
@@ -35,6 +42,37 @@ def test_start_task_persists_to_disk(story_id: str, leaf_ref: str) -> None:
 def test_start_task_nonleaf_raises(story_id: str, leaf_ref: str) -> None:
     with pytest.raises(TaskHasSubtasksError):
         start_task(story_id)
+
+
+# --- review_task ---
+
+
+def test_review_task_returns_in_review(leaf_ref: str) -> None:
+    result = review_task(leaf_ref)
+    assert result.status == TaskStatus.IN_REVIEW
+
+
+def test_review_task_persists_to_disk(story_id: str, leaf_ref: str) -> None:
+    review_task(leaf_ref)
+    parent = resource_task(story_id)
+    assert parent.status == TaskStatus.IN_PROGRESS
+
+
+def test_review_task_nonleaf_raises(story_id: str, leaf_ref: str) -> None:
+    with pytest.raises(TaskHasSubtasksError):
+        review_task(story_id)
+
+
+def test_review_task_idempotent(leaf_ref: str) -> None:
+    review_task(leaf_ref)
+    result = review_task(leaf_ref)
+    assert result.status == TaskStatus.IN_REVIEW
+
+
+def test_done_after_review(leaf_ref: str) -> None:
+    review_task(leaf_ref)
+    result = finish_task(leaf_ref)
+    assert result.status == TaskStatus.DONE
 
 
 # --- reset_task ---
