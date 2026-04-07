@@ -199,16 +199,26 @@ def format_task_list_item(
         r.append("- ")
 
     id_color = "blue"
+    id_suffix_color = "slate_blue3"
     if task.deleted:
         id_color = "red"
+        id_suffix_color = "red"
     elif task.status == TaskStatus.CANCELLED:
         # override task_id by status color
         id_color = _STATUS_COLOR[task.status]
+        id_suffix_color = _STATUS_COLOR[task.status]
 
     if show_task_id:
-        r.append(f"[{id_color}]")
-        r.append(task.id)
-        r.append(f"[/{id_color}]")
+        if len(task.id) <= 3:
+            # don't highlight digits in stories aka `s01` - it's short enough
+            r.append(f"[{id_color}]{task.id}[/{id_color}]")
+        else:
+            id_prefix = task.id[:-2]
+            r.append(f"[{id_color}]{id_prefix}[/{id_color}]")
+
+            id_suffix = task.id[-2:]
+            r.append(f"[{id_suffix_color}]{id_suffix}[/{id_suffix_color}]")
+
         r.append(": ")
 
     # note: omit `[ ]` for pending tasks unless when `--all` is used

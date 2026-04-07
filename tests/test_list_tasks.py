@@ -98,8 +98,8 @@ def test_list_all_cancelled_subtask_has_no_blue_id() -> None:
     sub_id = add_subtask(task_id, "Cancelled subtask").task_id
     assert_invoke(app, ["cancel", sub_id])
     result = assert_invoke(app, ["list", "--all"])
-    # cancelled line should not linkify the ID in blue
-    assert f"[blue]{sub_id}[/blue]" not in result.output
+    # cancelled line should not show the ID in blue
+    assert "[blue]" not in next(ln for ln in result.output.splitlines() if sub_id in ln)
     assert sub_id in result.output
 
 

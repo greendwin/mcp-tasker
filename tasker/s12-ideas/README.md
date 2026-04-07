@@ -15,4 +15,4 @@ status: pending
 - [x] ~~s12t06: Rename README.md to smth different~~
 - [x] s12t07: REF: rework console.catching_output to decorator
 - [ ] s12t08: Show recently finished task in list command, otherwise it is vanishing from radars as soon as it marks done
-- [ ] s12t09: Highlight last two digits in bullet lists
+- [x] s12t09: Highlight last two digits in bullet lists
