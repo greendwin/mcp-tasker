@@ -69,13 +69,19 @@ def save_recent_for_refs(repo: TaskRepo, *refs: ResolvedRef | Task) -> None:
     write_text(repo.root / _RECENT_FILE, task_id + "\n")
 
 
-def load_recent_task_id(repo: TaskRepo) -> str | None:
+def load_recent_task(repo: TaskRepo) -> Task | None:
     path = repo.root / _RECENT_FILE
     if not path.exists():
         return None
 
     text = path.read_text().strip()
-    return text or None
+    if not text:
+        return None
+
+    try:
+        return repo.resolve_ref(text)
+    except TaskValidateError:
+        return None
 
 
 def _resolve_recent(repo: TaskRepo, task_ref: str) -> str:

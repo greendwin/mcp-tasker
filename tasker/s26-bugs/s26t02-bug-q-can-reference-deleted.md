@@ -1,7 +1,7 @@
 ---
 id: s26t02
 slug: bug-q-can-reference-deleted
-status: pending
+status: done
 ---
 
 # BUG: (q) can reference deleted task, it should not fail in this case

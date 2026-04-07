@@ -319,3 +319,12 @@ def test_list_p_marker_on_cancelled_recent() -> None:
     result = assert_invoke(app, ["list"])
     task_line = next(ln for ln in result.output.splitlines() if task_id in ln)
     assert "(p)" in task_line
+
+
+def test_list_after_deleting_recent_task_does_not_crash() -> None:
+    task_id = create_task("My story").task_id
+    sub_id = add_subtask(task_id, "Subtask").task_id
+    assert_invoke(app, ["start", sub_id])  # saves recent
+    assert_invoke(app, ["move", sub_id, "--delete"])
+    result = assert_invoke(app, ["list"])
+    assert task_id in result.output

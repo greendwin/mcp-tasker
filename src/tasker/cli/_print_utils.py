@@ -3,7 +3,7 @@ from dataclasses import dataclass, field
 from itertools import chain
 
 from tasker.base_types import Task, TaskStatus
-from tasker.cli._resolve_task import load_recent_task_id
+from tasker.cli._resolve_task import load_recent_task
 from tasker.repo import TaskRepo
 from tasker.utils import console
 
@@ -124,13 +124,12 @@ def _collect_visible_tasks(
 
 
 def compute_markers(repo: TaskRepo, *visible: Task) -> dict[str, str]:
-    recent_id = load_recent_task_id(repo)
-    if not recent_id:
+    recent = load_recent_task(repo)
+    if not recent:
         return {}
 
     visible_ids = {t.id for t in visible}
 
-    recent = repo.resolve_ref(recent_id)
     if recent.id in visible_ids:
         return {recent.id: "(q)"}
 
