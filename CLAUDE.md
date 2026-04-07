@@ -8,7 +8,7 @@ Detailed design is described in `DESIGN.md`.
 
 * On any development iteration, the final step is to run `poetry run tox` (all environments).
 * Always fix **all** reported `tox` issues including **pre-existing**.
-* Never include ticket IDs into code comments.
+* Never include ticket IDs into code comments (e.g. `s12t03`, `s01` in section headers or inline comments).
 
 ## Python Guide
 

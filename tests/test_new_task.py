@@ -114,6 +114,41 @@ def test_new_json_no_root_list() -> None:
 # ---------------------------------------------------------------------------
 
 
+# ---------------------------------------------------------------------------
+# multi-word title without quotes
+# ---------------------------------------------------------------------------
+
+
+def test_new_multi_word_title(tasks_root: Path) -> None:
+    result = assert_invoke(app, ["new", "Design", "file", "structure"])
+    assert "Task s01-design-file-structure created" in result.output
+    assert (tasks_root / "s01-design-file-structure.md").exists()
+
+
+def test_new_multi_word_title_capitalized(tasks_root: Path) -> None:
+    assert_invoke(app, ["new", "design", "file", "structure"])
+    content = (tasks_root / "s01-design-file-structure.md").read_text()
+    assert "# Design file structure" in content
+
+
+def test_new_multi_word_with_options(tasks_root: Path) -> None:
+    result = assert_invoke(app, ["new", "Design", "file", "structure", "--slug", "dfs"])
+    assert "Task s01-dfs created" in result.output
+    assert (tasks_root / "s01-dfs.md").exists()
+    content = (tasks_root / "s01-dfs.md").read_text()
+    assert "# Design file structure" in content
+
+
+def test_new_single_word_still_works(tasks_root: Path) -> None:
+    result = assert_invoke(app, ["new", "Design"])
+    assert "Task s01-design created" in result.output
+
+
+# ---------------------------------------------------------------------------
+# s21: show actual slug after editor invoke
+# ---------------------------------------------------------------------------
+
+
 def test_new_editor_output_shows_updated_slug(
     setup_task_edits: SetupTaskEdits,
 ) -> None:

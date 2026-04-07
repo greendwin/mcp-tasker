@@ -204,9 +204,12 @@ When no `tasker/` directory exists in the current directory, tasker walks up the
 
 ### Add tasks
 
+Title can be passed as a single quoted string or as separate words (quotes are optional):
+
 ```bash
 # Add a root-level story (slug auto-derived from title)
 tasker new <title>
+tasker new <title> <extra-words...>
 
 # Add a root-level story with explicit slug and description
 tasker new <title> --slug <slug> --details <description>
@@ -220,6 +223,7 @@ tasker new <title> -e
 
 # Add a simple inline subtask under any parent
 tasker add <parent-id> <title>
+tasker add <parent-id> <title> <extra-words...>
 
 # Add a subtask with details — auto-upgrades parent to extended form
 tasker add <parent-id> <title> --details <description>

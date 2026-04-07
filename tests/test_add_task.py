@@ -278,7 +278,38 @@ def test_add_to_inline_task(tasks_root: Path, parent_id: str) -> None:
 
 
 # ---------------------------------------------------------------------------
-# s21: show actual slug after editor invoke
+# multi-word title without quotes
+# ---------------------------------------------------------------------------
+
+
+def test_add_multi_word_title(parent_id: str) -> None:
+    result = assert_invoke(app, ["add", parent_id, "Define", "task", "forms"])
+    assert f"{parent_id}t01" in result.output
+
+
+def test_add_multi_word_title_in_parent(
+    parent_id: str, get_task_file: GetTaskFile
+) -> None:
+    assert_invoke(app, ["add", parent_id, "Define", "task", "forms"])
+    task_file = get_task_file(parent_id)
+    content = task_file.read_text()
+    assert f"- [ ] {parent_id}t01: Define task forms" in content
+
+
+def test_add_multi_word_with_details(tasks_root: Path, parent_id: str) -> None:
+    assert_invoke(
+        app,
+        ["add", parent_id, "Write", "CLI", "spec", "--details", "Cover all commands"],
+    )
+    parent_dir = next(tasks_root.glob(f"{parent_id}-*/"))
+    child_file = next(parent_dir.glob(f"{parent_id}t01-*.md"))
+    content = child_file.read_text()
+    assert "Write CLI spec" in content
+    assert "Cover all commands" in content
+
+
+# ---------------------------------------------------------------------------
+# show actual slug after editor invoke
 # ---------------------------------------------------------------------------
 
 

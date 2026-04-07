@@ -18,6 +18,10 @@ from ._resolve_task import resolve_ref, save_recent_for_refs, unarchive_task
 def cmd_new_task(
     *,
     title: Annotated[str, typer.Argument(help="Task title.")],
+    extra_words: Annotated[
+        Optional[list[str]],
+        typer.Argument(help="Additional title words.", metavar="WORDS"),
+    ] = None,
     details: Annotated[
         Optional[str], typer.Option("--details", "-d", help="Task description.")
     ] = None,
@@ -33,6 +37,9 @@ def cmd_new_task(
     ] = False,
     repo: TaskRepo = Depends(get_task_repo),
 ) -> None:
+    if extra_words:
+        title = title + " " + " ".join(extra_words)
+
     task = repo.create_root_task(
         title=title, description=details, slug=slug, extended=extended
     )
@@ -58,6 +65,10 @@ def cmd_add_task(
         str, typer.Argument(help="Parent task ID.", autocompletion=complete_task_ref)
     ],
     title: Annotated[str, typer.Argument(help="Subtask title.")],
+    extra_words: Annotated[
+        Optional[list[str]],
+        typer.Argument(help="Additional title words.", metavar="WORDS"),
+    ] = None,
     details: Annotated[
         Optional[str], typer.Option("--details", "-d", help="Task description.")
     ] = None,
@@ -72,6 +83,9 @@ def cmd_add_task(
 ) -> None:
     parent = resolve_ref(repo, parent_ref)
     unarchive_task(repo, parent.task)
+
+    if extra_words:
+        title = title + " " + " ".join(extra_words)
 
     child = repo.add_subtask(parent.task, title=title, description=details, slug=slug)
     repo.flush_to_disk()
