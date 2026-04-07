@@ -303,6 +303,7 @@ def _fail_cancelling_nonleaf_task(task: Task) -> NoReturn:
     raise typer.Exit(1)
 
 
+@app.command("finish", hidden=True)
 @app.command("done", help="Mark task(s) as done.")
 @console.catching_output
 def cmd_done_task(
