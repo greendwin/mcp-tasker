@@ -1,3 +1,5 @@
+from tasker.resolve import save_closed_refs
+
 from ._common import get_repo, mcp
 from ._model import TaskInfo
 
@@ -55,6 +57,14 @@ def finish_task(task_ref: str, force: bool = False) -> TaskInfo:
     """Mark a task as done. Use force=True to close all open subtasks."""
     repo = get_repo()
     task = repo.resolve_ref(task_ref)
-    repo.finish_task(task, force=force)
+    already_done = task.is_closed
+    forced = repo.finish_task(task, force=force)
     repo.flush_to_disk()
+
+    if not already_done:
+        closed_ids = [task.id]
+        if forced:
+            closed_ids.extend(t.id for t in forced)
+        save_closed_refs(repo, closed_ids)
+
     return TaskInfo.from_task(task)

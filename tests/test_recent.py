@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 
 import pytest
@@ -13,7 +14,10 @@ def _read_recent(tasks_root: Path) -> str | None:
     if not path.exists():
         return None
     text = path.read_text().strip()
-    return text or None
+    if not text:
+        return None
+    data: dict[str, str] = json.loads(text)
+    return data.get("recent")
 
 
 @pytest.fixture()
@@ -96,7 +100,8 @@ def test_recent_written_to_file(tasks_root: Path) -> None:
     ref = create_task("Test story")
     recent_file = tasks_root / ".recent"
     assert recent_file.exists()
-    assert recent_file.read_text().strip() == ref.task_id
+    data = json.loads(recent_file.read_text())
+    assert data["recent"] == ref.task_id
 
 
 def test_gitignore_created_by_init(project_root: Path) -> None:
@@ -118,6 +123,61 @@ def test_gitignore_created_by_auto_init(project_root: Path) -> None:
 
 def test_load_recent_returns_none_when_no_file(tasks_root: Path) -> None:
     assert _read_recent(tasks_root) is None
+
+
+def test_broken_json_recent_is_ignored(tasks_root: Path) -> None:
+    """Corrupted .recent file should not crash, just act as if empty."""
+    create_task("Story one")
+    (tasks_root / ".recent").write_text("{broken json\n")
+    result = assert_invoke(app, ["list"])
+    assert "Story one" in result.output
+
+
+def test_legacy_plain_text_recent_is_read_correctly(tasks_root: Path) -> None:
+    """Old .recent files with just a task ID should still work."""
+    s1 = create_task("Story one").task_id
+    # write legacy format directly
+    (tasks_root / ".recent").write_text(s1 + "\n")
+    # q should resolve to s01
+    assert_invoke(app, ["edit", "q", "--title", "Edited via legacy recent"])
+
+
+def test_recent_file_stores_closed_ids(tasks_root: Path) -> None:
+    s1 = create_task("Story one").task_id
+    t01 = add_subtask(s1, "Task A").task_id
+    assert_invoke(app, ["done", t01])
+    recent_file = tasks_root / ".recent"
+    data = json.loads(recent_file.read_text())
+    assert data["closed"] == [t01]
+
+
+def test_recent_file_closed_replaced_on_next_done(tasks_root: Path) -> None:
+    s1 = create_task("Story one").task_id
+    t01 = add_subtask(s1, "Task A").task_id
+    t02 = add_subtask(s1, "Task B").task_id
+    assert_invoke(app, ["done", t01])
+    assert_invoke(app, ["done", t02])
+    data = json.loads((tasks_root / ".recent").read_text())
+    assert data["closed"] == [t02]
+
+
+def test_recent_file_closed_includes_forced(tasks_root: Path) -> None:
+    s1 = create_task("Story one").task_id
+    t01 = add_subtask(s1, "Task A").task_id
+    t02 = add_subtask(s1, "Task B").task_id
+    assert_invoke(app, ["done", "--force", s1])
+    data = json.loads((tasks_root / ".recent").read_text())
+    assert s1 in data["closed"]
+    assert t01 in data["closed"]
+    assert t02 in data["closed"]
+
+
+def test_cancel_updates_closed(tasks_root: Path) -> None:
+    s1 = create_task("Story one").task_id
+    t01 = add_subtask(s1, "Task A").task_id
+    assert_invoke(app, ["cancel", t01])
+    data = json.loads((tasks_root / ".recent").read_text())
+    assert data["closed"] == [t01]
 
 
 # ---------------------------------------------------------------------------

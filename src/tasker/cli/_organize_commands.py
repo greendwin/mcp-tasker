@@ -7,12 +7,12 @@ from tasker.base_types import is_root_task_id
 from tasker.exceptions import TaskerError, TaskValidateError
 from tasker.parse import detect_task_type
 from tasker.repo import TaskRepo
+from tasker.resolve import resolve_ref, save_recent_for_refs
 from tasker.utils import JsonAppend, console
 
-from ._common import app, complete_task_ref, get_task_repo
+from ._common import app, complete_task_ref, get_task_repo, unarchive_task
 from ._helpers import edit_task_in_editor
 from ._print_utils import format_task_list_item, print_parent_preview
-from ._resolve_task import resolve_ref, save_recent_for_refs, unarchive_task
 
 
 @app.command("arch", hidden=True)

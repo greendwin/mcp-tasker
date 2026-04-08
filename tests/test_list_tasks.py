@@ -29,6 +29,12 @@ def test_list_hides_done_subtask_by_default() -> None:
     task_id = create_task("My story").task_id
     sub_id = add_subtask(task_id, "Done subtask").task_id
     assert_invoke(app, ["done", sub_id])
+
+    # close another task to clear the recently-closed list
+    task2_id = create_task("Other story").task_id
+    sub2_id = add_subtask(task2_id, "Another subtask").task_id
+    assert_invoke(app, ["done", sub2_id])
+
     result = assert_invoke(app, ["list"])
     assert sub_id not in result.output
 
@@ -37,6 +43,12 @@ def test_list_hides_cancelled_subtask_by_default() -> None:
     task_id = create_task("My story").task_id
     sub_id = add_subtask(task_id, "Cancelled subtask").task_id
     assert_invoke(app, ["cancel", sub_id])
+
+    # close another task to clear the recently-closed list
+    task2_id = create_task("Other story").task_id
+    sub2_id = add_subtask(task2_id, "Another subtask").task_id
+    assert_invoke(app, ["done", sub2_id])
+
     result = assert_invoke(app, ["list"])
     assert sub_id not in result.output
 
@@ -107,6 +119,12 @@ def test_list_default_no_cancelled_subtask_in_output() -> None:
     task_id = create_task("My story").task_id
     sub_id = add_subtask(task_id, "Cancelled subtask").task_id
     assert_invoke(app, ["cancel", sub_id])
+
+    # close another task to clear the recently-closed list
+    task2_id = create_task("Other story").task_id
+    sub2_id = add_subtask(task2_id, "Another subtask").task_id
+    assert_invoke(app, ["done", sub2_id])
+
     result = assert_invoke(app, ["list"])
     assert sub_id not in result.output
 
@@ -252,16 +270,15 @@ def test_list_recent_marker_only_on_accessed_task() -> None:
 # (p) marker when (q) is hidden by filters
 
 
-def test_list_shows_p_marker_when_recent_subtask_is_done() -> None:
+def test_list_shows_recently_closed_subtask_with_q_marker() -> None:
     task_id = create_task("My story").task_id
     sub_id = add_subtask(task_id, "Done subtask").task_id
     assert_invoke(app, ["start", sub_id])
-    assert_invoke(app, ["done", sub_id])  # recent = sub_id, now closed
+    assert_invoke(app, ["done", sub_id])  # recent = sub_id, recently closed
     result = assert_invoke(app, ["list"])
-    # sub_id is hidden (closed), parent should show (p)
-    assert sub_id not in result.output
-    task_line = next(ln for ln in result.output.splitlines() if task_id in ln)
-    assert "(p)" in task_line
+    # sub_id is recently closed, so it should be visible with (q) marker
+    sub_line = next(ln for ln in result.output.splitlines() if sub_id in ln)
+    assert "(q)" in sub_line
 
 
 def test_list_shows_pp_marker_when_recent_is_two_levels_deep() -> None:
@@ -270,32 +287,33 @@ def test_list_shows_pp_marker_when_recent_is_two_levels_deep() -> None:
     nested_id = add_subtask(sub_id, "Nested task").task_id
     assert_invoke(app, ["done", "--force", sub_id])  # closes sub + nested
     assert_invoke(app, ["start", nested_id])  # recent = nested_id
+
+    # close a different task so nested_id is no longer recently closed
+    other_id = create_task("Other").task_id
+    other_sub = add_subtask(other_id, "Other sub").task_id
+    assert_invoke(app, ["done", other_sub])
+
+    # set recent back to nested_id (via start) then close it
     assert_invoke(app, ["done", nested_id])  # recent = nested_id, closed again
+
+    # nested_id is recently closed, so it should be visible with (q) marker
     result = assert_invoke(app, ["list"])
-    # both hidden; root should show (pp) — depth 2
-    task_line = next(ln for ln in result.output.splitlines() if task_id in ln)
-    assert "(pp)" in task_line
+    nested_line = next(ln for ln in result.output.splitlines() if nested_id in ln)
+    assert "(q)" in nested_line
 
 
-def test_list_shows_p_marker_on_visible_parent_not_root() -> None:
+def test_list_shows_recently_closed_nested_with_q_marker() -> None:
     task_id = create_task("My story").task_id
     sub_id = add_subtask(task_id, "Open parent", details="d").task_id
     nested_id = add_subtask(sub_id, "Done child").task_id
     add_subtask(sub_id, "Still open")  # keep sub_id open after done
     assert_invoke(app, ["start", nested_id])
-    assert_invoke(app, ["done", nested_id])  # nested closed, parent stays open
+    assert_invoke(app, ["done", nested_id])  # nested closed, recently closed
     result = assert_invoke(app, ["list"])
-    # sub_id is visible (open), nested_id hidden -> sub_id shows (p)
+    # nested_id is recently closed, so it should be visible with (q) marker
     lines = result.output.splitlines()
-    sub_line = next(
-        (ln for ln in lines if sub_id in ln),
-        None,
-    )
-    assert sub_line is not None, f"sub_id={sub_id} not in output:\n{result.output}"
-    assert "(p)" in sub_line
-    # root should NOT show (p) since visible child handles it
-    task_line = next(ln for ln in lines if task_id in ln)
-    assert "(p)" not in task_line
+    nested_line = next(ln for ln in lines if nested_id in ln)
+    assert "(q)" in nested_line
 
 
 def test_list_no_p_marker_with_show_all() -> None:
@@ -311,14 +329,78 @@ def test_list_no_p_marker_with_show_all() -> None:
     assert "(p)" not in task_line
 
 
-def test_list_p_marker_on_cancelled_recent() -> None:
+def test_list_recently_cancelled_subtask_visible_with_q_marker() -> None:
     task_id = create_task("My story").task_id
     sub_id = add_subtask(task_id, "Cancelled subtask").task_id
     assert_invoke(app, ["start", sub_id])
-    assert_invoke(app, ["cancel", sub_id])  # recent = sub_id, cancelled
+    assert_invoke(app, ["cancel", sub_id])  # recent = sub_id, recently closed
     result = assert_invoke(app, ["list"])
-    task_line = next(ln for ln in result.output.splitlines() if task_id in ln)
-    assert "(p)" in task_line
+    # sub_id is recently closed, so it should be visible with (q) marker
+    sub_line = next(ln for ln in result.output.splitlines() if sub_id in ln)
+    assert "(q)" in sub_line
+
+
+# --- recently closed tasks shown in list ---
+
+
+def test_list_shows_recently_done_subtask() -> None:
+    task_id = create_task("My story").task_id
+    sub_id = add_subtask(task_id, "Finished subtask").task_id
+    assert_invoke(app, ["done", sub_id])
+    result = assert_invoke(app, ["list"])
+    assert sub_id in result.output
+
+
+def test_list_shows_recently_cancelled_subtask() -> None:
+    task_id = create_task("My story").task_id
+    sub_id = add_subtask(task_id, "Cancelled subtask").task_id
+    assert_invoke(app, ["cancel", sub_id])
+    result = assert_invoke(app, ["list"])
+    assert sub_id in result.output
+
+
+def test_list_recently_closed_replaced_by_next_done() -> None:
+    task_id = create_task("My story").task_id
+    sub1 = add_subtask(task_id, "First subtask").task_id
+    sub2 = add_subtask(task_id, "Second subtask").task_id
+    assert_invoke(app, ["done", sub1])
+    assert_invoke(app, ["done", sub2])
+    result = assert_invoke(app, ["list"])
+    # only the most recently closed (sub2) should show
+    assert sub1 not in result.output
+    assert sub2 in result.output
+
+
+def test_list_recently_closed_force_shows_all_forced() -> None:
+    task_id = create_task("My story").task_id
+    sub1 = add_subtask(task_id, "Subtask A").task_id
+    sub2 = add_subtask(task_id, "Subtask B").task_id
+    assert_invoke(app, ["done", "--force", task_id])
+    result = assert_invoke(app, ["list"])
+    assert task_id in result.output
+    assert sub1 in result.output
+    assert sub2 in result.output
+
+
+def test_list_recently_closed_shows_parent_chain() -> None:
+    task_id = create_task("My story").task_id
+    sub_id = add_subtask(task_id, "Middle", details="d").task_id
+    nested_id = add_subtask(sub_id, "Nested").task_id
+    # close all other subtasks so parent would normally be hidden
+    assert_invoke(app, ["done", "--force", task_id])
+
+    # close another task to make only nested_id recently closed
+    task2_id = create_task("Other").task_id
+    other_sub = add_subtask(task2_id, "Other sub").task_id
+    assert_invoke(app, ["done", other_sub])
+
+    # now reopen nested_id and close it again
+    assert_invoke(app, ["reset", nested_id])
+    assert_invoke(app, ["done", nested_id])
+    result = assert_invoke(app, ["list"])
+    # nested_id should be visible, along with its parent chain
+    assert nested_id in result.output
+    assert sub_id in result.output
 
 
 def test_list_after_deleting_recent_task_does_not_crash() -> None:

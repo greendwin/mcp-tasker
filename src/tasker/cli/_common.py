@@ -5,10 +5,11 @@ import typer
 from typer_di import TyperDI
 
 from tasker import __version__
+from tasker.base_types import Task, walk_tasks
 from tasker.layout import discover_tasker_dir, get_user_tasker_dir, init_tasker_dir
-from tasker.parse import parse_task_file
+from tasker.parse import parse_task_file, parse_task_ref
 from tasker.repo import TaskRepo
-from tasker.utils import console
+from tasker.utils import JsonAppend, console
 
 app = TyperDI(
     name="tasker",
@@ -95,3 +96,21 @@ def cmd_init(
         f"[green]Initialized tasker in [blue]{tasker_dir}[/blue][/green]",
         context={"tasker_dir": str(tasker_dir)},
     )
+
+
+def unarchive_task(repo: TaskRepo, task: Task) -> bool:
+    if not task.archived:
+        return False
+
+    ref = parse_task_ref(task.id)
+    root_task = repo.resolve_ref(ref.root_id)
+
+    for t in walk_tasks(root_task):
+        t.archived = False
+    repo.flush_to_disk()
+
+    console.print(
+        f"[yellow]Unarchiving [blue]{root_task.ref}[/blue] automatically[/yellow]",
+        context={"unarchived_ref": JsonAppend(ref.root_id)},
+    )
+    return True

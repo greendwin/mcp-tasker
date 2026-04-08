@@ -1,7 +1,7 @@
 ---
 id: s12
 slug: ideas
-status: pending
+status: done
 ---
 
 # Ideas
@@ -14,5 +14,5 @@ status: pending
 - [x] [s12t05](s12t05-discover-tasker-folder-location.md): Discover 'tasker' folder location
 - [x] ~~s12t06: Rename README.md to smth different~~
 - [x] s12t07: REF: rework console.catching_output to decorator
-- [ ] s12t08: Show recently finished task in list command, otherwise it is vanishing from radars as soon as it marks done
+- [x] [s12t08](s12t08-show-recently-finished-task-in.md): Show recently finished task in list command, otherwise it is vanishing from radars as soon as it marks done
 - [x] s12t09: Highlight last two digits in bullet lists

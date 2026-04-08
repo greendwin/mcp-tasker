@@ -6,6 +6,12 @@ from typer_di import Depends
 from tasker.base_types import Task, TaskStatus, is_nonleaf_task
 from tasker.exceptions import TaskHasSubtasksError
 from tasker.repo import TaskRepo
+from tasker.resolve import (
+    ResolvedRef,
+    resolve_ref,
+    save_closed_refs,
+    save_recent_for_refs,
+)
 from tasker.utils import JsonAppend, console
 
 from ._common import app, complete_task_ref, get_task_repo
@@ -16,7 +22,6 @@ from ._print_utils import (
     print_parent_preview,
     print_task,
 )
-from ._resolve_task import ResolvedRef, resolve_ref, save_recent_for_refs
 
 
 @app.command("start", help="Mark task(s) as in-progress.")
@@ -250,6 +255,7 @@ def cmd_cancel_task(
     resolved_tasks = [resolve_ref(repo, ref) for ref in task_refs]
 
     need_preview: list[Task] = []
+    closed_ids: list[str] = []
     for _, task in resolved_tasks:
         already_cancelled = task.status == TaskStatus.CANCELLED
 
@@ -263,6 +269,7 @@ def cmd_cancel_task(
             action = "was already cancelled"
         else:
             action = "cancelled"
+            closed_ids.append(task.id)
 
         console.print(
             f"[green]Task [blue]{task.ref}[/blue] {action}[/green]",
@@ -275,9 +282,11 @@ def cmd_cancel_task(
 
         for t in forced:
             need_preview.append(t)
+            closed_ids.append(t.id)
             console.append_context("forced_task_ids", t.id)
 
     save_recent_for_refs(repo, *resolved_tasks)
+    save_closed_refs(repo, closed_ids)
     print_parent_preview(repo, *need_preview)
 
 
@@ -323,6 +332,7 @@ def cmd_done_task(
     resolved_tasks = [resolve_ref(repo, ref) for ref in task_refs]
 
     need_preview: list[Task] = []
+    closed_ids: list[str] = []
     for _, task in resolved_tasks:
         already_finished = task.status == TaskStatus.DONE
 
@@ -336,6 +346,7 @@ def cmd_done_task(
             action = "was already finished"
         else:
             action = "finished"
+            closed_ids.append(task.id)
 
         console.print(
             f"[green]Task [blue]{task.ref}[/blue] {action}[/green]",
@@ -349,9 +360,11 @@ def cmd_done_task(
 
         for t in forced:
             need_preview.append(t)
+            closed_ids.append(t.id)
             console.append_context("forced_task_ids", t.id)
 
     save_recent_for_refs(repo, *resolved_tasks)
+    save_closed_refs(repo, closed_ids)
     print_parent_preview(repo, *need_preview)
 
 

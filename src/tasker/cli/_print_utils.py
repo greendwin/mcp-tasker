@@ -3,8 +3,8 @@ from dataclasses import dataclass, field
 from itertools import chain
 
 from tasker.base_types import Task, TaskStatus
-from tasker.cli._resolve_task import load_recent_task
 from tasker.repo import TaskRepo
+from tasker.resolve import load_closed_tasks, load_recent_task
 from tasker.utils import console
 
 _STATUS_COLOR = {
@@ -42,37 +42,39 @@ def build_print_entries(
     # whether to show closed tasks
     show_closed: bool,
 ) -> list[PrintEntry]:
-    # list of roots provided by highlights
-    highlight_roots: list[Task] = []
-
-    # tells whether this task has highlight in its childs
-    has_highlight: set[str] = set()
-
     ctx = _CollectContext()
 
-    # iter highlighted tasks and collect common roots for them
     for task in highlight_tasks:
         ctx.highlighted.add(task.id)
 
-        # TBD: should we do this logic here?
+    # list of roots that are forcibly shown
+    force_show_roots: list[Task] = []
+
+    # tells whether this task has forcibly shown child
+    has_force_show: set[str] = set()
+
+    recently_closed = load_closed_tasks(repo)
+
+    # mark task that should be forcibly shown
+    for task in chain(highlight_tasks, recently_closed):
         if parent := repo.get_parent(task):
-            highlight_roots.append(parent)
+            force_show_roots.append(parent)
         else:
-            highlight_roots.append(task)
+            force_show_roots.append(task)
 
         # mark whole parents chain
         cur: Task | None = task
         while cur:
-            has_highlight.add(cur.id)
+            has_force_show.add(cur.id)
             cur = repo.get_parent(cur)
 
     # walk from root tasks down and mark visible tasks
-    for task in chain(root_tasks, highlight_roots):
+    for task in chain(root_tasks, force_show_roots):
         _collect_visible_tasks(
             task,
             ctx.visible,
             show_closed=show_closed,
-            has_highlight=has_highlight,
+            has_force_show=has_force_show,
         )
 
     visible_roots: dict[str, Task] = {}
@@ -103,7 +105,7 @@ class _CollectContext:
 
 
 def _collect_visible_tasks(
-    cur: Task, visible: dict[str, Task], *, show_closed: bool, has_highlight: set[str]
+    cur: Task, visible: dict[str, Task], *, show_closed: bool, has_force_show: set[str]
 ) -> None:
     if cur.id in visible:
         # already processed
@@ -112,14 +114,14 @@ def _collect_visible_tasks(
     visible[cur.id] = cur
 
     for child in cur.subtasks:
-        if child.is_closed and not show_closed and child.id not in has_highlight:
+        if child.is_closed and not show_closed and child.id not in has_force_show:
             continue
 
         _collect_visible_tasks(
             child,
             visible,
             show_closed=show_closed,
-            has_highlight=has_highlight,
+            has_force_show=has_force_show,
         )
 
 
@@ -177,7 +179,7 @@ def print_tree_entries(
             indent=p.indent,
             highlight=p.highlight,
             marker=p.marker,
-            show_subtask_count=False,  # TODO
+            show_subtask_count=False,
         )
         console.print(line)
 

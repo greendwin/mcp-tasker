@@ -6,11 +6,11 @@ from typer_di import Depends
 from tasker.base_types import Task
 from tasker.parse import detect_task_type, parse_task_file
 from tasker.repo import TaskRepo
+from tasker.resolve import ResolvedRef, resolve_ref, save_recent_for_refs
 from tasker.utils import console
 
 from ._common import app, complete_task_ref, get_task_repo
 from ._print_utils import compute_markers, print_task, print_tree
-from ._resolve_task import ResolvedRef, resolve_ref, save_recent_for_refs
 
 
 @app.command("show", hidden=True)
