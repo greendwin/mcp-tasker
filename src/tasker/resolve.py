@@ -5,11 +5,10 @@ from typing import NamedTuple
 
 from .base_types import Task
 from .exceptions import TaskValidateError
+from .layout import RECENT_FILE
 from .parse import find_common_ancestor, make_child_ref, parse_task_ref
 from .repo import TaskRepo
 from .utils import write_text
-
-_RECENT_FILE = ".recent"
 
 
 class ResolvedRef(NamedTuple):
@@ -48,7 +47,7 @@ def _is_direct_ref(task_ref: str) -> bool:
 
 
 def _load_recent_data(repo: TaskRepo) -> RecentData:
-    path = repo.root / _RECENT_FILE
+    path = repo.root / RECENT_FILE
     if not path.exists():
         return RecentData(recent=None, closed=[])
 
@@ -85,7 +84,7 @@ def _update_recent_data(
         obj["recent"] = new_recent
     if new_closed:
         obj["closed"] = new_closed
-    write_text(repo.root / _RECENT_FILE, json.dumps(obj) + "\n")
+    write_text(repo.root / RECENT_FILE, json.dumps(obj) + "\n")
 
 
 def save_recent_for_refs(repo: TaskRepo, *refs: ResolvedRef | Task) -> None:

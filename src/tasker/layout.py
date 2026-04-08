@@ -9,9 +9,10 @@ from .exceptions import TaskerError
 
 TASKER_DIR = "tasker"
 ARCHIVE_DIR = "archive"
-_GITKEEP_FILE = ".gitkeep"
-_GITIGNORE_FILE = ".gitignore"
-_RECENT_FILE = ".recent"
+GITKEEP_FILE = ".gitkeep"
+GITIGNORE_FILE = ".gitignore"
+RECENT_FILE = ".recent"
+TODO_FILE = ".todo"
 _GITIGNORE_HEADER = "# tasker"
 
 
@@ -65,14 +66,17 @@ def init_tasker_dir(project_root: Path | None = None) -> Path:
     tasker_dir = project_root / TASKER_DIR
     tasker_dir.mkdir(parents=True, exist_ok=True)
 
-    gitignore = tasker_dir / _GITIGNORE_FILE
+    gitignore = tasker_dir / GITIGNORE_FILE
     if not gitignore.exists():
-        write_text(gitignore, _GITIGNORE_HEADER + "\n" + _RECENT_FILE + "\n")
+        write_text(
+            gitignore,
+            _GITIGNORE_HEADER + "\n" + RECENT_FILE + "\n" + TODO_FILE + "\n",
+        )
 
     archive_dir = tasker_dir / ARCHIVE_DIR
     archive_dir.mkdir(exist_ok=True)
 
-    gitkeep = archive_dir / _GITKEEP_FILE
+    gitkeep = archive_dir / GITKEEP_FILE
     if not gitkeep.exists():
         write_text(gitkeep, "")
 
@@ -80,10 +84,10 @@ def init_tasker_dir(project_root: Path | None = None) -> Path:
 
 
 def is_tasker_dir(candidate: Path) -> bool:
-    if (candidate / _RECENT_FILE).exists():
+    if (candidate / RECENT_FILE).exists():
         return True
 
-    gitignore = candidate / _GITIGNORE_FILE
+    gitignore = candidate / GITIGNORE_FILE
     if gitignore.is_file():
         try:
             text = read_text(gitignore)
@@ -94,6 +98,19 @@ def is_tasker_dir(candidate: Path) -> bool:
             return True
 
     return False
+
+
+def ensure_gitignore_entry(tasker_dir: Path, entry: str) -> None:
+    gitignore_path = tasker_dir / GITIGNORE_FILE
+    if not gitignore_path.exists():
+        return
+
+    text = read_text(gitignore_path)
+    for line in text.splitlines():
+        if line.strip() == entry:
+            return
+
+    write_text(gitignore_path, text.rstrip("\n") + "\n" + entry + "\n")
 
 
 def _walk_parents(start: Path) -> Iterator[Path]:

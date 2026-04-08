@@ -6,7 +6,36 @@ status: pending
 
 # Support manager dashboard
 
-We need 'todo' dashboard to peak tasks that we're planning to implement.
+Add a personal TODO dashboard to flag tasks for upcoming work.
+
+## Storage
+
+- `.todo` file in `tasker/` dir, next to `.recent`
+- Plain list of task IDs, one per line
+- Git-ignored; `.gitignore` updated lazily on first `tasker todo` write
+
+## CLI Commands
+
+- `tasker todo <task-id>...` — add tasks to `.todo`, resolves refs, idempotent, prints confirmation
+- `tasker untodo <task-id>...` — remove tasks from `.todo`, idempotent, prints confirmation
+- `tasker list --todo` — filter mode, shows only `.todo` tasks, sorted by task ID
+- `tasker list` — shows `(todo)` marker on tasks in `.todo`
+
+## Cleanup
+
+- Auto-remove from `.todo` on `archive`
+- Otherwise manual via `untodo`
+
+## MCP
+
+- `list_tasks` gets a `todo` boolean param for filtering
+- No `todo_task`/`untodo_task` tools — human-only curation
+
+## Behavior
+
+- Refs are resolved (validates existence, supports `q`/`p` shortcuts)
+- Multiple IDs accepted
+- Idempotent (silent on duplicates/missing)
 
 ## Implementation
 
@@ -20,3 +49,13 @@ We need 'todo' dashboard to peak tasks that we're planning to implement.
 * How to cleanup TODO list? This cannot be automatically, since finished tasks in review could be reviewed.
 * We can clean it when archiving a task.
 * We still need `untodo` comman.
+
+## Subtasks
+
+- [x] s25t0201: Add .todo file support (read/write/gitignore)
+- [x] s25t0202: Add `todo` and `untodo` CLI commands
+- [ ] s25t0203: Show (todo) marker in `list` output
+- [ ] s25t0204: Add `list --todo` filter mode
+- [ ] s25t0205: Auto-remove from .todo on archive
+- [ ] s25t0206: Add `todo` param to MCP `list_tasks`
+- [ ] s25t0207: TBD: split _task_commands
