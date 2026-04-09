@@ -1,7 +1,7 @@
 ---
 id: s25t02
 slug: support-manager-dashboard
-status: pending
+status: done
 ---
 
 # Support manager dashboard
@@ -62,4 +62,4 @@ Add a personal TODO dashboard to flag tasks for upcoming work.
 - [x] ~~s25t0208: TBD: should we move print, resolve and etc. packages to core subpackage~~
 - [x] ~~s25t0209: Todo-marked tasks must be shown in default list view same as recently closed~~
 - [x] s25t0210: Support cancel_task in MCP
-- [ ] [s25t0211](s25t0211-return-less-data-on-startcancelreviewdone.md): Return less data on start/cancel/review/done MCP functions -- agent already knows its content
+- [x] [s25t0211](s25t0211-return-less-data-on-startcancelreviewdone.md): Return less data on start/cancel/review/done MCP functions -- agent already knows its content

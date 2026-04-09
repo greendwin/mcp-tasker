@@ -1,7 +1,7 @@
 ---
 id: s25t0211
 slug: return-less-data-on-startcancelreviewdone
-status: pending
+status: done
 ---
 
 # Return less data on start/cancel/review/done MCP functions -- agent already knows its content

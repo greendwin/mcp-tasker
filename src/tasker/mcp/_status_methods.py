@@ -2,7 +2,7 @@ from tasker.base_types import TaskStatus
 from tasker.resolve import save_closed_refs
 
 from ._common import get_repo, mcp
-from ._model import TaskInfo
+from ._model import TaskInfo, TaskPreview
 
 
 @mcp.tool()
@@ -21,27 +21,27 @@ def edit_task(
 
 
 @mcp.tool()
-def start_task(task_ref: str) -> TaskInfo:
+def start_task(task_ref: str) -> TaskPreview:
     """Mark a task as in-progress."""
     repo = get_repo()
     task = repo.resolve_ref(task_ref)
     repo.start_task(task)
     repo.flush_to_disk()
-    return TaskInfo.from_task(task)
+    return TaskPreview.from_task(task)
 
 
 @mcp.tool()
-def review_task(task_ref: str) -> TaskInfo:
+def review_task(task_ref: str) -> TaskPreview:
     """Mark a task as in-review (submit for review)."""
     repo = get_repo()
     task = repo.resolve_ref(task_ref)
     repo.review_task(task)
     repo.flush_to_disk()
-    return TaskInfo.from_task(task)
+    return TaskPreview.from_task(task)
 
 
 @mcp.tool()
-def reset_task(task_ref: str, force: bool = False) -> TaskInfo:
+def reset_task(task_ref: str, force: bool = False) -> TaskPreview:
     """Reset a task back to pending.
 
     Use force=True to reset all non-pending subtasks.
@@ -50,11 +50,11 @@ def reset_task(task_ref: str, force: bool = False) -> TaskInfo:
     task = repo.resolve_ref(task_ref)
     repo.reset_task(task, force=force)
     repo.flush_to_disk()
-    return TaskInfo.from_task(task)
+    return TaskPreview.from_task(task)
 
 
 @mcp.tool()
-def cancel_task(task_ref: str, force: bool = False) -> TaskInfo:
+def cancel_task(task_ref: str, force: bool = False) -> TaskPreview:
     """Cancel a task. Use force=True to cancel all open subtasks."""
     repo = get_repo()
     task = repo.resolve_ref(task_ref)
@@ -68,11 +68,11 @@ def cancel_task(task_ref: str, force: bool = False) -> TaskInfo:
             closed_ids.extend(t.id for t in forced)
         save_closed_refs(repo, closed_ids)
 
-    return TaskInfo.from_task(task)
+    return TaskPreview.from_task(task)
 
 
 @mcp.tool()
-def finish_task(task_ref: str, force: bool = False) -> TaskInfo:
+def finish_task(task_ref: str, force: bool = False) -> TaskPreview:
     """Mark a task as done. Use force=True to close all open subtasks."""
     repo = get_repo()
     task = repo.resolve_ref(task_ref)
@@ -86,4 +86,4 @@ def finish_task(task_ref: str, force: bool = False) -> TaskInfo:
             closed_ids.extend(t.id for t in forced)
         save_closed_refs(repo, closed_ids)
 
-    return TaskInfo.from_task(task)
+    return TaskPreview.from_task(task)

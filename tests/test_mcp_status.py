@@ -106,7 +106,9 @@ def test_reset_task_force_resets_subtasks(story_id: str, leaf_ref: str) -> None:
     start_task(leaf_ref)
     result = reset_task(story_id, force=True)
     assert result.status == TaskStatus.PENDING
-    all_ids = [tid for ids in result.subtasks.values() for tid in ids]
+    # Verify all subtasks are reset by fetching the full task info
+    full_info = resource_task(story_id)
+    all_ids = [tid for ids in full_info.subtasks.values() for tid in ids]
     assert len(all_ids) > 0
     subtask_infos = view_tasks(all_ids)
     assert all(s.status == TaskStatus.PENDING for s in subtask_infos)
@@ -135,7 +137,9 @@ def test_done_task_nonleaf_raises(story_id: str, leaf_ref: str) -> None:
 def test_done_task_force_closes_subtasks(story_id: str, leaf_ref: str) -> None:
     result = finish_task(story_id, force=True)
     assert result.status == TaskStatus.DONE
-    all_ids = [tid for ids in result.subtasks.values() for tid in ids]
+    # Verify all subtasks are closed by fetching the full task info
+    full_info = resource_task(story_id)
+    all_ids = [tid for ids in full_info.subtasks.values() for tid in ids]
     assert len(all_ids) > 0
     subtask_infos = view_tasks(all_ids)
     assert all(s.status == TaskStatus.DONE for s in subtask_infos)
@@ -152,7 +156,9 @@ def test_cancel_task_returns_cancelled(leaf_ref: str) -> None:
 def test_cancel_task_force_cancels_subtasks(story_id: str, leaf_ref: str) -> None:
     result = cancel_task(story_id, force=True)
     assert result.status == TaskStatus.CANCELLED
-    all_ids = [tid for ids in result.subtasks.values() for tid in ids]
+    # Verify all subtasks are cancelled by fetching the full task info
+    full_info = resource_task(story_id)
+    all_ids = [tid for ids in full_info.subtasks.values() for tid in ids]
     subtask_infos = view_tasks(all_ids)
     assert all(s.status == TaskStatus.CANCELLED for s in subtask_infos)
 

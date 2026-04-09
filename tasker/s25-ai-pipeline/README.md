@@ -1,7 +1,7 @@
 ---
 id: s25
 slug: ai-pipeline
-status: pending
+status: done
 ---
 
 # AI Pipeline
@@ -9,4 +9,4 @@ status: pending
 ## Subtasks
 
 - [x] [s25t01](s25t01-support-developerreview-process.md): Support developer-review process
-- [ ] [s25t02](s25t02-support-manager-dashboard/): Support manager dashboard
+- [x] [s25t02](s25t02-support-manager-dashboard/): Support manager dashboard
