@@ -1,6 +1,6 @@
 [project]
 name = "mcp-tasker"
-version = "1.2.0"
+version = "0.0.0"
 description = "Simple file-based task tracker for git repos"
 readme = "README.md"
 license = {file = "LICENSE"}
@@ -25,8 +25,8 @@ include = "tasker"
 from = "src"
 
 [build-system]
-requires = ["poetry-core>=2.0.0,<3.0.0"]
-build-backend = "poetry.core.masonry.api"
+requires = ["poetry-core>=2.0.0,<3.0.0", "poetry-dynamic-versioning>=1.0.0,<2.0.0"]
+build-backend = "poetry_dynamic_versioning.backend"
 
 [tool.poetry.group.dev.dependencies]
 pytest = ">=8.0"
@@ -37,6 +37,11 @@ black = ">=24.0"
 isort = ">=5.13"
 flake8 = ">=7.0"
 pyfakefs = ">=6.1"
+
+[tool.poetry-dynamic-versioning]
+enable = true
+vcs = "git"
+style = "pep440"
 
 [tool.mypy]
 strict = true
