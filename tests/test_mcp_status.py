@@ -3,6 +3,7 @@ import pytest
 from tasker.base_types import TaskStatus
 from tasker.exceptions import TaskHasSubtasksError
 from tasker.mcp import (
+    cancel_task,
     finish_task,
     reset_task,
     resource_task,
@@ -138,3 +139,25 @@ def test_done_task_force_closes_subtasks(story_id: str, leaf_ref: str) -> None:
     assert len(all_ids) > 0
     subtask_infos = view_tasks(all_ids)
     assert all(s.status == TaskStatus.DONE for s in subtask_infos)
+
+
+# --- cancel_task ---
+
+
+def test_cancel_task_returns_cancelled(leaf_ref: str) -> None:
+    result = cancel_task(leaf_ref)
+    assert result.status == TaskStatus.CANCELLED
+
+
+def test_cancel_task_force_cancels_subtasks(story_id: str, leaf_ref: str) -> None:
+    result = cancel_task(story_id, force=True)
+    assert result.status == TaskStatus.CANCELLED
+    all_ids = [tid for ids in result.subtasks.values() for tid in ids]
+    subtask_infos = view_tasks(all_ids)
+    assert all(s.status == TaskStatus.CANCELLED for s in subtask_infos)
+
+
+def test_cancel_task_already_cancelled(leaf_ref: str) -> None:
+    cancel_task(leaf_ref)
+    result = cancel_task(leaf_ref)
+    assert result.status == TaskStatus.CANCELLED

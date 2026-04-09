@@ -61,4 +61,4 @@ Add a personal TODO dashboard to flag tasks for upcoming work.
 - [ ] s25t0207: TBD: split _task_commands
 - [ ] s25t0208: TBD: should we move print, resolve and etc. packages to core subpackage
 - [x] ~~s25t0209: Todo-marked tasks must be shown in default list view same as recently closed~~
-- [ ] s25t0210: Support cancel_task in MCP
+- [x] s25t0210: Support cancel_task in MCP
