@@ -1,7 +1,7 @@
 ---
 id: s12
 slug: ideas
-status: done
+status: pending
 ---
 
 # Ideas
@@ -16,3 +16,4 @@ status: done
 - [x] s12t07: REF: rework console.catching_output to decorator
 - [x] [s12t08](s12t08-show-recently-finished-task-in.md): Show recently finished task in list command, otherwise it is vanishing from radars as soon as it marks done
 - [x] s12t09: Highlight last two digits in bullet lists
+- [ ] s12t10: Migrate from poetry to uv

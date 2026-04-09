@@ -1,8 +1,174 @@
+"""Tests for view commands: show and list."""
+
 import json
 
 from tasker.cli import app
 
 from .helpers import add_subtask, assert_invoke, create_task
+
+# ---------------------------------------------------------------------------
+# show command (from test_show_task.py)
+# ---------------------------------------------------------------------------
+
+
+def test_show_task_prints_title() -> None:
+    task_id = create_task("My important story").task_id
+    result = assert_invoke(app, ["show", task_id])
+    assert "My important story" in result.output
+
+
+def test_show_task_omits_pending_marker() -> None:
+    task_id = create_task("My story").task_id
+    result = assert_invoke(app, ["show", task_id])
+    assert "[ ]" not in result.output
+
+
+def test_show_task_prints_task_id_in_header() -> None:
+    task_id = create_task("My story").task_id
+    result = assert_invoke(app, ["show", task_id])
+    assert task_id in result.output
+
+
+def test_show_task_prints_description() -> None:
+    task_id = create_task("My story").task_id
+    assert_invoke(app, ["edit", task_id, "--details", "Some description here"])
+    result = assert_invoke(app, ["show", task_id])
+    assert "Some description here" in result.output
+
+
+def test_show_task_no_description_section_when_empty() -> None:
+    task_id = create_task("My story").task_id
+    result = assert_invoke(app, ["show", task_id])
+    assert "None" not in result.output
+
+
+def test_show_task_prints_subtasks() -> None:
+    task_id = create_task("My story").task_id
+    sub_id = add_subtask(task_id, "First subtask").task_id
+    result = assert_invoke(app, ["show", task_id])
+    assert sub_id in result.output
+    assert "First subtask" in result.output
+
+
+def test_show_task_prints_subtask_status_marker() -> None:
+    task_id = create_task("My story").task_id
+    sub_id = add_subtask(task_id, "First subtask").task_id
+    assert_invoke(app, ["start", sub_id])
+    result = assert_invoke(app, ["show", task_id])
+    assert "[~]" in result.output
+
+
+def test_show_task_saves_recent() -> None:
+    task_id = create_task("My story").task_id
+    assert_invoke(app, ["show", task_id])
+    result = assert_invoke(app, ["show", "q"])
+    assert "My story" in result.output
+
+
+def test_show_task_json_output_fields() -> None:
+    task_id = create_task("My story").task_id
+    assert_invoke(app, ["edit", task_id, "--details", "Some details"])
+    result = assert_invoke(app, ["--json-output", "show", task_id])
+    data = json.loads(result.output)["task"]
+    assert data["id"] == task_id
+    assert data["title"] == "My story"
+    assert data["status"] == "pending"
+    assert data["description"] == "Some details"
+    assert data["subtasks"] == []
+
+
+def test_show_task_json_output_subtasks() -> None:
+    task_id = create_task("My story").task_id
+    sub_id = add_subtask(task_id, "First subtask").task_id
+    result = assert_invoke(app, ["--json-output", "show", task_id])
+    data = json.loads(result.output)["task"]
+    assert len(data["subtasks"]) == 1
+    assert data["subtasks"][0]["id"] == sub_id
+    assert data["subtasks"][0]["title"] == "First subtask"
+    assert data["subtasks"][0]["status"] == "pending"
+
+
+def test_show_task_json_output_no_description_is_null() -> None:
+    task_id = create_task("My story").task_id
+    result = assert_invoke(app, ["--json-output", "show", task_id])
+    data = json.loads(result.output)["task"]
+    assert data["description"] is None
+
+
+def test_show_task_subtask_count_not_shown_when_no_subtasks() -> None:
+    task_id = create_task("My story").task_id
+    add_subtask(task_id, "Leaf subtask")
+    result = assert_invoke(app, ["show", task_id])
+    assert "subtasks)" not in result.output
+
+
+def test_show_task_subtask_count_shown_when_has_subtasks() -> None:
+    task_id = create_task("My story").task_id
+    sub_id = add_subtask(task_id, "Parent subtask").task_id
+    add_subtask(sub_id, "Nested child", details="child details")
+    result = assert_invoke(app, ["show", task_id])
+    assert "(+1 subtasks)" in result.output
+
+
+def test_show_task_subtask_count_recursive() -> None:
+    task_id = create_task("My story").task_id
+    sub_id = add_subtask(task_id, "Parent subtask").task_id
+    child_id = add_subtask(sub_id, "Child", details="d1").task_id
+    add_subtask(child_id, "Grandchild", details="d2")
+    result = assert_invoke(app, ["show", task_id])
+    assert "(+2 subtasks)" in result.output
+
+
+def test_show_task_marks_recent_task() -> None:
+    task_id = create_task("My story").task_id
+    assert_invoke(app, ["start", task_id])
+    result = assert_invoke(app, ["show", task_id])
+    line = result.output.splitlines()[0]
+    assert "(q)" in line
+
+
+def test_show_task_marks_recent_subtask() -> None:
+    task_id = create_task("My story").task_id
+    sub_id = add_subtask(task_id, "My subtask").task_id
+    assert_invoke(app, ["start", sub_id])
+
+    # note: use relative ref to avoid resetting 'recent'
+    result = assert_invoke(app, ["show", "p"])
+    sub_line = next(ln for ln in result.output.splitlines() if sub_id in ln)
+    assert "(q)" in sub_line
+
+    # in case of direct ref recent will b set to story
+    result = assert_invoke(app, ["show", task_id])
+    assert "(q)" in result.output.splitlines()[0]
+
+
+def test_show_task_p_marker_when_recent_is_nested() -> None:
+    task_id = create_task("My story").task_id
+    sub_id = add_subtask(task_id, "Parent sub", details="d").task_id
+    nested_id = add_subtask(sub_id, "Nested").task_id
+    assert_invoke(app, ["start", nested_id])
+
+    # use relativ link, otherwise recent will be reset
+    result = assert_invoke(app, ["show", "pp"])
+    # nested_id is not a direct subtask, so sub_id should show (p)
+    sub_line = next(ln for ln in result.output.splitlines() if sub_id in ln)
+    assert "(p)" in sub_line
+
+
+def test_show_task_no_marker_on_unrelated_subtask() -> None:
+    task_id = create_task("My story").task_id
+    sub1_id = add_subtask(task_id, "First subtask").task_id
+    sub2_id = add_subtask(task_id, "Second subtask").task_id
+    assert_invoke(app, ["start", sub1_id])
+    result = assert_invoke(app, ["show", task_id])
+    sub2_line = next(ln for ln in result.output.splitlines() if sub2_id in ln)
+    assert "(q)" not in sub2_line
+    assert "(p)" not in sub2_line
+
+
+# ---------------------------------------------------------------------------
+# list command (from test_list_tasks.py)
+# ---------------------------------------------------------------------------
 
 
 def test_list_shows_task_title() -> None:
@@ -59,13 +225,8 @@ def test_list_closed_json_output() -> None:
     assert_invoke(app, ["done", sub_id])
     result = assert_invoke(app, ["--json-output", "list"])
     data = json.loads(result.output)
-    # Without --closed, JSON subtasks only show open ones... but _task_to_json
-    # includes all subtasks. This is existing behavior.
     task_data = data["tasks"][0]
     assert task_data["id"] == task_id
-
-
-# --all shows full depth and closed
 
 
 def test_list_all_shows_nested_subtask() -> None:
@@ -102,15 +263,11 @@ def test_list_all_shows_closed_nested_subtask() -> None:
     assert nested_id in result.output
 
 
-# cancelled subtasks shown full gray (no blue ID)
-
-
 def test_list_all_cancelled_subtask_has_no_blue_id() -> None:
     task_id = create_task("My story").task_id
     sub_id = add_subtask(task_id, "Cancelled subtask").task_id
     assert_invoke(app, ["cancel", sub_id])
     result = assert_invoke(app, ["list", "--all"])
-    # cancelled line should not show the ID in blue
     assert "[blue]" not in next(ln for ln in result.output.splitlines() if sub_id in ln)
     assert sub_id in result.output
 
@@ -129,9 +286,6 @@ def test_list_default_no_cancelled_subtask_in_output() -> None:
     assert sub_id not in result.output
 
 
-# --all always shows status marker (even for pending)
-
-
 def test_list_all_shows_pending_marker() -> None:
     task_id = create_task("My story").task_id
     add_subtask(task_id, "Pending subtask").task_id
@@ -144,9 +298,6 @@ def test_list_default_no_pending_marker_for_subtask() -> None:
     add_subtask(task_id, "Pending subtask").task_id
     result = assert_invoke(app, ["list"])
     assert "[ ]" not in result.output
-
-
-# accept args to filter subtrees
 
 
 def test_list_args_shows_only_specified_task() -> None:
@@ -172,9 +323,6 @@ def test_list_args_multiple_tasks() -> None:
     assert task1_id in result.output
     assert task2_id not in result.output
     assert task3_id in result.output
-
-
-# --- --archived lists archived tasks ---
 
 
 def test_list_archived_shows_archived_task() -> None:
@@ -226,16 +374,12 @@ def test_list_all_indents_nested_subtasks() -> None:
     sub_id = add_subtask(task_id, "Sub", details="desc").task_id
     nested_id = add_subtask(sub_id, "Nested subtask").task_id
     result = assert_invoke(app, ["list", "--all"])
-    # nested subtask line should have deeper indentation than direct subtask
     lines = result.output.splitlines()
     sub_line = next(ln for ln in lines if sub_id in ln)
     nested_line = next(ln for ln in lines if nested_id in ln)
     sub_indent = len(sub_line) - len(sub_line.lstrip())
     nested_indent = len(nested_line) - len(nested_line.lstrip())
     assert nested_indent > sub_indent
-
-
-# recent task marker in list
 
 
 def test_list_marks_recent_root_task() -> None:
@@ -267,16 +411,12 @@ def test_list_recent_marker_only_on_accessed_task() -> None:
     assert "q" not in task2_line
 
 
-# (p) marker when (q) is hidden by filters
-
-
 def test_list_shows_recently_closed_subtask_with_q_marker() -> None:
     task_id = create_task("My story").task_id
     sub_id = add_subtask(task_id, "Done subtask").task_id
     assert_invoke(app, ["start", sub_id])
     assert_invoke(app, ["done", sub_id])  # recent = sub_id, recently closed
     result = assert_invoke(app, ["list"])
-    # sub_id is recently closed, so it should be visible with (q) marker
     sub_line = next(ln for ln in result.output.splitlines() if sub_id in ln)
     assert "(q)" in sub_line
 
@@ -310,7 +450,6 @@ def test_list_shows_recently_closed_nested_with_q_marker() -> None:
     assert_invoke(app, ["start", nested_id])
     assert_invoke(app, ["done", nested_id])  # nested closed, recently closed
     result = assert_invoke(app, ["list"])
-    # nested_id is recently closed, so it should be visible with (q) marker
     lines = result.output.splitlines()
     nested_line = next(ln for ln in lines if nested_id in ln)
     assert "(q)" in nested_line
@@ -322,7 +461,6 @@ def test_list_no_p_marker_with_show_all() -> None:
     assert_invoke(app, ["start", sub_id])
     assert_invoke(app, ["done", sub_id])
     result = assert_invoke(app, ["list", "--all"])
-    # with --all, subtask is visible and shows (q), no (p) needed
     sub_line = next(ln for ln in result.output.splitlines() if sub_id in ln)
     assert "(q)" in sub_line
     task_line = next(ln for ln in result.output.splitlines() if task_id in ln)
@@ -335,12 +473,8 @@ def test_list_recently_cancelled_subtask_visible_with_q_marker() -> None:
     assert_invoke(app, ["start", sub_id])
     assert_invoke(app, ["cancel", sub_id])  # recent = sub_id, recently closed
     result = assert_invoke(app, ["list"])
-    # sub_id is recently closed, so it should be visible with (q) marker
     sub_line = next(ln for ln in result.output.splitlines() if sub_id in ln)
     assert "(q)" in sub_line
-
-
-# --- recently closed tasks shown in list ---
 
 
 def test_list_shows_recently_done_subtask() -> None:

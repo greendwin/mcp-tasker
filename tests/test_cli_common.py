@@ -1,12 +1,86 @@
 import json
 from pathlib import Path
+from unittest.mock import MagicMock
 
 import pytest
 
 from tasker.cli import app
+from tasker.cli._common import complete_task_ref
 from tasker.layout import TASKER_DIR, init_tasker_dir
 
 from .helpers import add_subtask, assert_invoke, create_task
+
+# ---------------------------------------------------------------------------
+# complete_task_ref
+# ---------------------------------------------------------------------------
+
+
+def _complete(incomplete: str = "") -> list[tuple[str, str]]:
+    ctx = MagicMock()
+    return complete_task_ref(ctx, [], incomplete)
+
+
+def test_returns_empty_when_no_tasker_dir(project_root: object) -> None:
+    # tasks_root fixture NOT used here so no tasker/ dir exists
+    assert _complete() == []
+
+
+def test_returns_task_ref(tasks_root: object) -> None:
+    ref = create_task("Story one")
+    completions = _complete()
+    values = [v for v, _ in completions]
+    assert ref.task_ref in values
+
+
+def test_returns_task_title_as_help(tasks_root: object) -> None:
+    create_task("Story one")
+    completions = _complete()
+    assert any(h == "Story one" for _, h in completions)
+
+
+def test_returns_multiple_tasks(tasks_root: object) -> None:
+    ref1 = create_task("Story one")
+    ref2 = create_task("Story two")
+    values = [v for v, _ in _complete()]
+    assert ref1.task_ref in values
+    assert ref2.task_ref in values
+
+
+def test_filters_by_incomplete_prefix(tasks_root: object) -> None:
+    ref1 = create_task("Story one")
+    ref2 = create_task("Story two")
+    values = [v for v, _ in _complete(ref1.task_id)]
+    assert ref1.task_ref in values
+    assert ref2.task_ref not in values
+
+
+def test_returns_inline_subtasks(tasks_root: object) -> None:
+    root = create_task("Story one")
+    child = add_subtask(root.task_id, "Subtask one")
+    completions = _complete()
+    values = [v for v, _ in completions]
+    assert child.task_ref in values
+
+
+def test_filters_subtasks_by_incomplete_prefix(tasks_root: object) -> None:
+    root = create_task("Story one")
+    child = add_subtask(root.task_id, "Subtask one")
+    values = [v for v, _ in _complete(child.task_id)]
+    assert child.task_ref in values
+    assert root.task_ref not in values
+
+
+def test_empty_incomplete_returns_all(tasks_root: object) -> None:
+    root = create_task("Story one")
+    child = add_subtask(root.task_id, "Subtask one")
+    values = [v for v, _ in _complete("")]
+    assert root.task_ref in values
+    assert child.task_ref in values
+
+
+# ---------------------------------------------------------------------------
+# .recent file helpers
+# ---------------------------------------------------------------------------
 
 
 def _read_recent(tasks_root: Path) -> str | None:
@@ -451,7 +525,7 @@ def test_p_digits_does_not_update_recent(s1: str, tasks_root: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# add/add-many with shortcuts must not overwrite 'recent' (s15t07)
+# add/add-many with shortcuts must not overwrite 'recent'
 # ---------------------------------------------------------------------------
 
 
@@ -478,7 +552,7 @@ def test_add_many_with_q_shortcut_does_not_override_recent(
 
 
 # ---------------------------------------------------------------------------
-# Multiple tasks update recent to common ancestor (s09t12)
+# Multiple tasks update recent to common ancestor
 # ---------------------------------------------------------------------------
 
 
@@ -513,7 +587,7 @@ def test_reset_multiple_saves_common_ancestor(s1: str, tasks_root: Path) -> None
 
 
 # ---------------------------------------------------------------------------
-# q-refs must not break when multiple tasks are passed (s09t12)
+# q-refs must not break when multiple tasks are passed
 # ---------------------------------------------------------------------------
 
 
