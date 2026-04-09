@@ -7,6 +7,8 @@ from tasker.base_types import TaskStatus
 from tasker.cli import app
 from tasker.layout import ARCHIVE_DIR
 from tasker.parse import parse_task_file
+from tasker.repo import TaskRepo
+from tasker.todo import load_todo_ids
 
 from .helpers import GetTaskFile, add_subtask, assert_invoke, create_task
 
@@ -14,6 +16,11 @@ from .helpers import GetTaskFile, add_subtask, assert_invoke, create_task
 @pytest.fixture()
 def story_id() -> str:
     return create_task("My story").task_id
+
+
+@pytest.fixture()
+def repo(tasks_root: Path) -> TaskRepo:
+    return TaskRepo(tasks_root)
 
 
 # --- basic archive ---
@@ -484,3 +491,26 @@ def test_archive_closed_with_explicit_ids(story_id: str) -> None:
     assert story_id in result.output
     # story2_id was open but passed explicitly with --force
     assert story2_id in result.output
+
+
+# --- auto-remove from .todo on archive ---
+
+
+def test_archive_removes_story_from_todo(story_id: str, repo: TaskRepo) -> None:
+    assert_invoke(app, ["todo", story_id])
+    assert story_id in load_todo_ids(repo)
+    assert_invoke(app, ["done", "--force", story_id])
+    assert_invoke(app, ["archive", story_id])
+    assert story_id not in load_todo_ids(repo)
+
+
+def test_archive_removes_subtasks_from_todo(story_id: str, repo: TaskRepo) -> None:
+    t01 = add_subtask(story_id, "Task one").task_id
+    t02 = add_subtask(story_id, "Task two").task_id
+    assert_invoke(app, ["todo", t01, t02])
+    assert t01 in load_todo_ids(repo)
+    assert_invoke(app, ["done", "--force", story_id])
+    assert_invoke(app, ["archive", story_id])
+    todo = load_todo_ids(repo)
+    assert t01 not in todo
+    assert t02 not in todo

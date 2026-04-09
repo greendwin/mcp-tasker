@@ -3,11 +3,12 @@ from typing import Annotated, Optional
 import typer
 from typer_di import Depends
 
-from tasker.base_types import is_root_task_id
+from tasker.base_types import Task, is_root_task_id, walk_tasks
 from tasker.exceptions import TaskerError, TaskValidateError
 from tasker.parse import detect_task_type
 from tasker.repo import TaskRepo
 from tasker.resolve import resolve_ref, save_recent_for_refs
+from tasker.todo import load_todo_ids, save_todo_ids
 from tasker.utils import JsonAppend, console
 
 from ._common import app, complete_task_ref, get_task_repo, unarchive_task
@@ -76,6 +77,7 @@ def cmd_archive_task(
             )
 
         forced = repo.archive_root_task(ref.task, force=force)
+        _remove_archived_from_todo(repo, ref.task)
 
         console.print(
             f"[green]Task [blue]{ref.task_ref}[/blue] archived[/green]",
@@ -89,6 +91,17 @@ def cmd_archive_task(
                     format_task_list_item(t, indent=1),
                     context={"forced_task_ids": JsonAppend(t.id)},
                 )
+
+
+def _remove_archived_from_todo(repo: TaskRepo, task: Task) -> None:
+    todo_ids = load_todo_ids(repo)
+    if not todo_ids:
+        return
+
+    task_ids = {t.id for t in walk_tasks(task)}
+    updated = todo_ids - task_ids
+    if updated != todo_ids:
+        save_todo_ids(repo, updated)
 
 
 @app.command("unarch", hidden=True)
