@@ -57,8 +57,9 @@ Add a personal TODO dashboard to flag tasks for upcoming work.
 - [x] [s25t0203](s25t0203-show-todo-marker-in-list.md): Show (todo) marker in `list` output
 - [x] [s25t0204](s25t0204-add-list-todo-filter-mode.md): Add `list --todo` filter mode
 - [x] s25t0205: Auto-remove from .todo on archive
-- [ ] s25t0206: Add `todo` param to MCP `list_tasks`
+- [x] s25t0206: Add `todo` param to MCP `list_tasks`
 - [ ] s25t0207: TBD: split _task_commands
 - [ ] s25t0208: TBD: should we move print, resolve and etc. packages to core subpackage
 - [x] ~~s25t0209: Todo-marked tasks must be shown in default list view same as recently closed~~
 - [x] s25t0210: Support cancel_task in MCP
+- [ ] s25t0211: Return less data on start/cancel/review/done MCP functions -- agent already knows its content

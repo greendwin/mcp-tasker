@@ -1,6 +1,7 @@
 import pytest
 
 from tasker.base_types import TaskStatus
+from tasker.cli import app
 from tasker.exceptions import TaskValidateError
 from tasker.mcp import (
     TaskInfo,
@@ -11,7 +12,7 @@ from tasker.mcp import (
     view_tasks,
 )
 
-from .helpers import add_subtask, create_task
+from .helpers import add_subtask, assert_invoke, create_task
 
 
 def test_list_tasks_returns_empty() -> None:
@@ -116,3 +117,21 @@ def test_view_tasks_returns_task_info_instances() -> None:
     task_id = create_task("Story").task_id
     results = view_tasks([task_id])
     assert isinstance(results[0], TaskInfo)
+
+
+# --- list_tasks with todo filter ---
+
+
+def test_list_tasks_todo_returns_todo_tasks() -> None:
+    s1 = create_task("Story one").task_id
+    create_task("Story two")
+    assert_invoke(app, ["todo", s1])
+    result = list_tasks(todo=True)
+    assert len(result) == 1
+    assert result[0].id == s1
+
+
+def test_list_tasks_todo_empty() -> None:
+    create_task("Story one")
+    result = list_tasks(todo=True)
+    assert result == []

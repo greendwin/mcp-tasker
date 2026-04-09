@@ -1,8 +1,18 @@
 from tasker.parse import parse_task_file
 from tasker.repo import TaskRepo
+from tasker.todo import load_todo_ids
 
 from ._common import get_repo, mcp
 from ._model import TaskInfo, TaskPreview
+
+
+def _list_todo_previews(repo: TaskRepo) -> list[TaskPreview]:
+    todo_ids = load_todo_ids(repo)
+    r: list[TaskPreview] = []
+    for task_id in sorted(todo_ids):
+        task = repo.resolve_ref(task_id)
+        r.append(TaskPreview.from_task(task))
+    return r
 
 
 def _list_root_previews(repo: TaskRepo) -> list[TaskPreview]:
@@ -19,9 +29,15 @@ def _load_task_info(repo: TaskRepo, ref: str) -> TaskInfo:
 
 
 @mcp.tool()
-def list_tasks() -> list[TaskPreview]:
-    """List all root tasks (id, title, status)."""
+def list_tasks(todo: bool = False) -> list[TaskPreview]:
+    """List all root tasks (id, title, status).
+
+    Args:
+        todo: If True, list only tasks from the TODO list.
+    """
     repo = get_repo()
+    if todo:
+        return _list_todo_previews(repo)
     return _list_root_previews(repo)
 
 
