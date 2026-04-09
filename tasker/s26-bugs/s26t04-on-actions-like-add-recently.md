@@ -1,7 +1,7 @@
 ---
 id: s26t04
 slug: on-actions-like-add-recently
-status: pending
+status: done
 ---
 
 # On actions like 'add' recently closed should not be shown

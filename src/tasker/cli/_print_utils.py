@@ -44,6 +44,8 @@ def build_print_entries(
     highlight_tasks: Sequence[Task],
     # whether to show closed tasks
     show_closed: bool,
+    # whether to include recently-closed tasks in force-show
+    show_recently_closed: bool,
 ) -> list[PrintEntry]:
     ctx = _CollectContext()
 
@@ -53,7 +55,9 @@ def build_print_entries(
     # tells whether this task has forcibly shown child
     has_force_show: set[str] = set()
 
-    recently_closed = load_closed_tasks(repo)
+    recently_closed = []
+    if show_recently_closed:
+        recently_closed = load_closed_tasks(repo)
 
     # list of roots that are forcibly shown
     shown_roots: list[Task] = []
@@ -341,12 +345,14 @@ def print_tree(
     show_tasks: Sequence[Task] = (),
     highlight_tasks: Sequence[Task] = (),
     show_all: bool,
+    show_recently_closed: bool,
 ) -> None:
     entries = build_print_entries(
         repo,
         show_tasks=show_tasks,
         highlight_tasks=highlight_tasks,
         show_closed=show_all,
+        show_recently_closed=show_recently_closed,
     )
 
     print_tree_entries(entries, show_all=show_all)
@@ -359,4 +365,9 @@ def print_parent_preview(repo: TaskRepo, *tasks: Task) -> None:
     # TODO: move this line outside
     console.print("")
 
-    print_tree(repo, highlight_tasks=tasks, show_all=False)
+    print_tree(
+        repo,
+        highlight_tasks=tasks,
+        show_all=False,
+        show_recently_closed=False,
+    )

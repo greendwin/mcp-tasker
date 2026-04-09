@@ -88,7 +88,14 @@ def cmd_list_tasks(
         console.print("[dim]No tasks to show.[/dim]", context={"tasks": []})
         return
 
-    print_tree(repo, show_tasks=show_tasks, show_all=show_all)
+    show_recently_closed = not (archived or task_refs or todo)
+
+    print_tree(
+        repo,
+        show_tasks=show_tasks,
+        show_all=show_all,
+        show_recently_closed=show_recently_closed,
+    )
 
     for task in show_tasks:
         console.append_context("tasks", _task_to_json(task))

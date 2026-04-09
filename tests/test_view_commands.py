@@ -544,3 +544,84 @@ def test_list_after_deleting_recent_task_does_not_crash() -> None:
     assert_invoke(app, ["move", sub_id, "--delete"])
     result = assert_invoke(app, ["list"])
     assert task_id in result.output
+
+
+def test_list_archived_hides_recently_closed_non_archived_tasks() -> None:
+    task_id = create_task("My story").task_id
+    sub_id = add_subtask(task_id, "Subtask").task_id
+    assert_invoke(app, ["done", sub_id])  # recently closed, non-archived
+
+    archived_id = create_task("Archived story").task_id
+    assert_invoke(app, ["done", "--force", archived_id])
+    assert_invoke(app, ["archive", archived_id])
+
+    result = assert_invoke(app, ["list", "--archived"])
+    assert archived_id in result.output
+    assert sub_id not in result.output  # should not show non-archived closed tasks
+
+
+def test_list_archived_with_explicit_task_refs_shows_those_tasks() -> None:
+    task_id = create_task("My story").task_id
+    sub_id = add_subtask(task_id, "Subtask").task_id
+    assert_invoke(app, ["done", sub_id])
+
+    archived_id = create_task("Archived story").task_id
+    assert_invoke(app, ["done", "--force", archived_id])
+    assert_invoke(app, ["archive", archived_id])
+
+    result = assert_invoke(app, ["list", "--archived", task_id])
+    assert archived_id in result.output
+    assert task_id in result.output  # explicit task_ref should be shown
+
+
+def test_list_with_task_ref_hides_recently_closed_other_tasks() -> None:
+    task1_id = create_task("First story").task_id
+    task2_id = create_task("Second story").task_id
+    sub2_id = add_subtask(task2_id, "Subtask of second").task_id
+    assert_invoke(app, ["done", sub2_id])  # recently closed, but in task2
+
+    result = assert_invoke(app, ["list", task1_id])
+    assert task1_id in result.output
+    assert (
+        sub2_id not in result.output
+    )  # should not show recently-closed from other task
+
+
+def test_list_with_todo_hides_recently_closed() -> None:
+    task_id = create_task("My story").task_id
+    sub_id = add_subtask(task_id, "Subtask").task_id
+    assert_invoke(app, ["done", sub_id])  # recently closed
+
+    assert_invoke(app, ["todo", task_id])
+
+    result = assert_invoke(app, ["list", "--todo"])
+    assert task_id in result.output
+    assert (
+        sub_id not in result.output
+    )  # should not show recently-closed when using --todo
+
+
+def test_list_with_all_hides_recently_closed_outside_tree() -> None:
+    task1_id = create_task("First story").task_id
+    task2_id = create_task("Second story").task_id
+    sub2_id = add_subtask(task2_id, "Subtask of second").task_id
+    assert_invoke(app, ["done", sub2_id])  # recently closed
+
+    result = assert_invoke(app, ["list", "--all", task1_id])
+    assert task1_id in result.output
+    assert (
+        sub2_id not in result.output
+    )  # should not add recently-closed outside the specified tree
+
+
+def test_add_command_hides_recently_closed_in_parent_preview() -> None:
+    task1_id = create_task("Parent task").task_id
+    task2_id = create_task("Other task").task_id
+    sub2_id = add_subtask(task2_id, "Recently closed sub").task_id
+    assert_invoke(app, ["done", sub2_id])  # recently closed
+
+    result = assert_invoke(app, ["add", task1_id, "New subtask"])
+    # Should not show recently-closed tasks from other trees in parent preview
+    assert task1_id in result.output
+    assert "New subtask" in result.output
+    assert sub2_id not in result.output
