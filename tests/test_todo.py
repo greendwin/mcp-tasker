@@ -124,6 +124,48 @@ def test_untodo_removes_file_when_empty(story_id: str, tasks_root: Path) -> None
     assert not (tasks_root / ".todo").exists()
 
 
+# --- (todo) marker in list ---
+
+
+def test_list_shows_todo_marker(story_id: str) -> None:
+    assert_invoke(app, ["todo", story_id])
+    result = assert_invoke(app, ["list"])
+    assert "(todo)" in result.output
+
+
+def test_list_no_todo_marker_without_todo(story_id: str) -> None:
+    result = assert_invoke(app, ["list"])
+    assert "(todo)" not in result.output
+
+
+def test_list_todo_marker_not_on_children(story_id: str) -> None:
+    t01 = add_subtask(story_id, "Child task").task_id
+    assert_invoke(app, ["todo", story_id])
+    result = assert_invoke(app, ["list"])
+    # marker should be on the story line, not the child line
+    for line in result.output.splitlines():
+        if t01 in line:
+            assert "(todo)" not in line
+
+
+def test_view_shows_todo_marker(story_id: str) -> None:
+    assert_invoke(app, ["todo", story_id])
+    result = assert_invoke(app, ["view", story_id])
+    assert "(todo)" in result.output
+
+
+def test_list_todo_and_recent_markers_coexist(story_id: str) -> None:
+    assert_invoke(app, ["todo", story_id])
+    assert_invoke(app, ["view", story_id])
+    result = assert_invoke(app, ["list"])
+    for line in result.output.splitlines():
+        if story_id in line:
+            assert "(todo)" in line
+            assert "(q)" in line
+            # (todo) before (q)
+            assert line.index("(todo)") < line.index("(q)")
+
+
 # --- .todo file format ---
 
 

@@ -54,8 +54,10 @@ Add a personal TODO dashboard to flag tasks for upcoming work.
 
 - [x] s25t0201: Add .todo file support (read/write/gitignore)
 - [x] s25t0202: Add `todo` and `untodo` CLI commands
-- [ ] s25t0203: Show (todo) marker in `list` output
+- [x] [s25t0203](s25t0203-show-todo-marker-in-list.md): Show (todo) marker in `list` output
 - [ ] s25t0204: Add `list --todo` filter mode
 - [ ] s25t0205: Auto-remove from .todo on archive
 - [ ] s25t0206: Add `todo` param to MCP `list_tasks`
 - [ ] s25t0207: TBD: split _task_commands
+- [ ] s25t0208: TBD: should we move print, resolve and etc. packages to core subpackage
+- [ ] s25t0209: Todo-marked tasks must be shown in default list view same as recently closed

@@ -1,10 +1,13 @@
+from collections import defaultdict
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 from itertools import chain
+from typing import TypeAlias
 
 from tasker.base_types import Task, TaskStatus
 from tasker.repo import TaskRepo
 from tasker.resolve import load_closed_tasks, load_recent_task
+from tasker.todo import load_todo_ids
 from tasker.utils import console
 
 _STATUS_COLOR = {
@@ -28,7 +31,7 @@ _STATUS_MARKER = {
 class PrintEntry:
     task: Task
     indent: int
-    marker: str | None
+    markers: list[str] | None
     highlight: bool
 
 
@@ -96,12 +99,15 @@ def build_print_entries(
     return ctx.entries
 
 
+MarkersDict: TypeAlias = dict[str, list[str]]
+
+
 @dataclass
 class _CollectContext:
     entries: list[PrintEntry] = field(default_factory=list)
     visible: dict[str, Task] = field(default_factory=dict)
     highlighted: set[str] = field(default_factory=set)
-    markers: dict[str, str] = field(default_factory=dict)
+    markers: MarkersDict = field(default_factory=dict)
 
 
 def _collect_visible_tasks(
@@ -125,26 +131,41 @@ def _collect_visible_tasks(
         )
 
 
-def compute_markers(repo: TaskRepo, *visible: Task) -> dict[str, str]:
+def compute_markers(repo: TaskRepo, *visible: Task) -> MarkersDict:
+    markers: MarkersDict = defaultdict(list)
+
+    todo_ids = load_todo_ids(repo)
+    for t in visible:
+        if t.id in todo_ids:
+            markers[t.id].append("(todo)")
+
     recent = load_recent_task(repo)
-    if not recent:
-        return {}
+    if recent:
+        visible_ids = {t.id for t in visible}
+        recent_marker = _find_recent_marker(repo, recent, visible_ids)
+        if recent_marker:
+            task_id, marker = recent_marker
+            markers[task_id].append(marker)
 
-    visible_ids = {t.id for t in visible}
+    return markers
 
+
+def _find_recent_marker(
+    repo: TaskRepo, recent: Task, visible_ids: set[str]
+) -> tuple[str, str] | None:
     if recent.id in visible_ids:
-        return {recent.id: "(q)"}
+        return recent.id, "(q)"
 
     parent = repo.get_parent(recent)
     depth = 1
     while parent:
         if parent.id in visible_ids:
-            return {parent.id: f"({'p' * depth})"}
+            return parent.id, f"({'p' * depth})"
 
         parent = repo.get_parent(parent)
         depth += 1
 
-    return {}
+    return None
 
 
 def _collect_print_entries(
@@ -158,7 +179,7 @@ def _collect_print_entries(
     entry = PrintEntry(
         task=task,
         indent=indent,
-        marker=ctx.markers.get(task.id),
+        markers=ctx.markers.get(task.id),
         highlight=task.id in ctx.highlighted,
     )
     ctx.entries.append(entry)
@@ -178,7 +199,7 @@ def print_tree_entries(
             show_all=show_all,
             indent=p.indent,
             highlight=p.highlight,
-            marker=p.marker,
+            markers=p.markers,
             show_subtask_count=False,
         )
         console.print(line)
@@ -191,7 +212,7 @@ def format_task_list_item(
     show_all: bool = False,
     indent: int = 0,
     highlight: bool = False,
-    marker: str | None = None,
+    markers: list[str] | None = None,
     show_subtask_count: bool = False,
 ) -> str:
     r = []
@@ -253,8 +274,9 @@ def format_task_list_item(
     if highlight:
         r.append(" [bright_yellow]<<<[/bright_yellow]")
 
-    if marker:
-        r.append(f" [cyan]{marker}[/cyan]")
+    if markers:
+        for mark in markers:
+            r.append(f" [cyan]{mark}[/cyan]")
 
     return "".join(r)
 
@@ -276,12 +298,12 @@ def _count_subtasks(task: Task) -> int:
     return count
 
 
-def print_task(task: Task, *, markers: dict[str, str], preview: bool) -> None:
+def print_task(task: Task, *, markers: MarkersDict, preview: bool) -> None:
     item = format_task_list_item(
         task,
         show_task_id=not preview,
         show_all=preview,
-        marker=markers.get(task.id),
+        markers=markers.get(task.id),
     )
 
     if preview:
@@ -308,7 +330,7 @@ def print_task(task: Task, *, markers: dict[str, str], preview: bool) -> None:
             subtask,
             indent=1,
             show_subtask_count=True,
-            marker=markers.get(subtask.id),
+            markers=markers.get(subtask.id),
         )
         console.print(item)
 
