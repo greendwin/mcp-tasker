@@ -39,7 +39,7 @@ def build_print_entries(
     repo: TaskRepo,
     *,
     # list of tasks which subtrees must be shown (aka top-to-bottom)
-    root_tasks: Sequence[Task],
+    show_tasks: Sequence[Task],
     # list of tasks that must be shown and highlighted (aka bottom-to-top)
     highlight_tasks: Sequence[Task],
     # whether to show closed tasks
@@ -50,20 +50,20 @@ def build_print_entries(
     for task in highlight_tasks:
         ctx.highlighted.add(task.id)
 
-    # list of roots that are forcibly shown
-    force_show_roots: list[Task] = []
-
     # tells whether this task has forcibly shown child
     has_force_show: set[str] = set()
 
     recently_closed = load_closed_tasks(repo)
 
+    # list of roots that are forcibly shown
+    shown_roots: list[Task] = []
+
     # mark task that should be forcibly shown
-    for task in chain(highlight_tasks, recently_closed):
+    for task in chain(show_tasks, highlight_tasks, recently_closed):
         if parent := repo.get_parent(task):
-            force_show_roots.append(parent)
+            shown_roots.append(parent)
         else:
-            force_show_roots.append(task)
+            shown_roots.append(task)
 
         # mark whole parents chain
         cur: Task | None = task
@@ -72,7 +72,7 @@ def build_print_entries(
             cur = repo.get_parent(cur)
 
     # walk from root tasks down and mark visible tasks
-    for task in chain(root_tasks, force_show_roots):
+    for task in shown_roots:
         _collect_visible_tasks(
             task,
             ctx.visible,
@@ -271,12 +271,12 @@ def format_task_list_item(
         if total > 0:
             r.append(f" [dim](+{total} subtasks)[/dim]")
 
-    if highlight:
-        r.append(" [bright_yellow]<<<[/bright_yellow]")
-
     if markers:
         for mark in markers:
             r.append(f" [cyan]{mark}[/cyan]")
+
+    if highlight:
+        r.append(" [bright_yellow]<<<[/bright_yellow]")
 
     return "".join(r)
 
@@ -338,14 +338,14 @@ def print_task(task: Task, *, markers: MarkersDict, preview: bool) -> None:
 def print_tree(
     repo: TaskRepo,
     *,
-    roots: Sequence[Task],
-    highlight: Sequence[Task],
+    show_tasks: Sequence[Task] = (),
+    highlight_tasks: Sequence[Task] = (),
     show_all: bool,
 ) -> None:
     entries = build_print_entries(
         repo,
-        root_tasks=roots,
-        highlight_tasks=highlight,
+        show_tasks=show_tasks,
+        highlight_tasks=highlight_tasks,
         show_closed=show_all,
     )
 
@@ -359,4 +359,4 @@ def print_parent_preview(repo: TaskRepo, *tasks: Task) -> None:
     # TODO: move this line outside
     console.print("")
 
-    print_tree(repo, roots=(), highlight=tasks, show_all=False)
+    print_tree(repo, highlight_tasks=tasks, show_all=False)

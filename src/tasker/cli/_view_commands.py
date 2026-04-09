@@ -7,6 +7,7 @@ from tasker.base_types import Task
 from tasker.parse import detect_task_type, parse_task_file
 from tasker.repo import TaskRepo
 from tasker.resolve import ResolvedRef, resolve_ref, save_recent_for_refs
+from tasker.todo import load_todo_ids
 from tasker.utils import console
 
 from ._common import app, complete_task_ref, get_task_repo
@@ -57,35 +58,39 @@ def cmd_list_tasks(
             "--archived", "--arch", help="List archived tasks instead of active ones."
         ),
     ] = False,
+    todo: Annotated[
+        bool,
+        typer.Option("--todo", help="Show only tasks from the TODO list."),
+    ] = False,
     repo: TaskRepo = Depends(get_task_repo),
 ) -> None:
+    show_tasks: list[Task] = []
+
+    if todo:
+        todo_ids = load_todo_ids(repo)
+        for task_id in sorted(todo_ids):
+            show_tasks.append(repo.resolve_ref(task_id))
+
     if archived:
-        all_tasks = _load_root_tasks(repo, archived=True, shallow=not show_all)
-    elif not task_refs:
-        all_tasks = _load_root_tasks(repo, archived=False, shallow=False)
-    else:
-        all_tasks = []
+        show_tasks.extend(_load_root_tasks(repo, archived=True, shallow=not show_all))
+    elif not todo and not task_refs:
+        show_tasks.extend(_load_root_tasks(repo, archived=False, shallow=False))
 
     resolved: list[ResolvedRef] = []
     for ref in task_refs:
         r = resolve_ref(repo, ref)
-        all_tasks.append(r.task)
+        show_tasks.append(r.task)
         resolved.append(r)
 
     save_recent_for_refs(repo, *resolved)
 
-    if not all_tasks:
+    if not show_tasks:
         console.print("[dim]No tasks to show.[/dim]", context={"tasks": []})
         return
 
-    print_tree(
-        repo,
-        roots=all_tasks,
-        highlight=(),
-        show_all=show_all,
-    )
+    print_tree(repo, show_tasks=show_tasks, show_all=show_all)
 
-    for task in all_tasks:
+    for task in show_tasks:
         console.append_context("tasks", _task_to_json(task))
 
 

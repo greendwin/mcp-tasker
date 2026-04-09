@@ -177,3 +177,69 @@ def test_todo_file_sorted_by_id(story_id: str, tasks_root: Path) -> None:
     content = (tasks_root / ".todo").read_text()
     lines = [line for line in content.splitlines() if line.strip()]
     assert lines == sorted(lines)
+
+
+# --- list --todo ---
+
+
+def test_list_todo_shows_todo_tasks(story_id: str) -> None:
+    assert_invoke(app, ["todo", story_id])
+    result = assert_invoke(app, ["list", "--todo"])
+    assert story_id in result.output
+    assert "My story" in result.output
+
+
+def test_list_todo_empty_shows_no_tasks() -> None:
+    result = assert_invoke(app, ["list", "--todo"])
+    assert "No tasks to show" in result.output
+
+
+def test_list_todo_shows_parent_context(story_id: str) -> None:
+    t01 = add_subtask(story_id, "Child task").task_id
+    assert_invoke(app, ["todo", t01])
+    result = assert_invoke(app, ["list", "--todo"])
+    # parent story shown as context
+    assert story_id in result.output
+    assert t01 in result.output
+
+
+def test_list_todo_merges_common_parents(story_id: str) -> None:
+    t01 = add_subtask(story_id, "Task one").task_id
+    t02 = add_subtask(story_id, "Task two").task_id
+    assert_invoke(app, ["todo", t01, t02])
+    result = assert_invoke(app, ["list", "--todo"])
+    # parent line appears once, both children shown
+    parent_lines = [
+        line for line in result.output.splitlines() if line.startswith(story_id)
+    ]
+    assert len(parent_lines) == 1
+    assert t01 in result.output
+    assert t02 in result.output
+
+
+def test_list_todo_with_task_refs(story_id: str) -> None:
+    s2 = create_task("Other story").task_id
+    assert_invoke(app, ["todo", story_id])
+    result = assert_invoke(app, ["list", "--todo", s2])
+    assert story_id in result.output
+    assert s2 in result.output
+
+
+def test_list_todo_and_archived_combined(story_id: str) -> None:
+    assert_invoke(app, ["todo", story_id])
+    result = assert_invoke(app, ["list", "--todo", "--archived"])
+    assert story_id in result.output
+
+
+def test_list_todo_no_highlight_marker(story_id: str) -> None:
+    assert_invoke(app, ["todo", story_id])
+    result = assert_invoke(app, ["list", "--todo"])
+    assert "<<<" not in result.output
+
+
+def test_list_todo_json_output(story_id: str) -> None:
+    assert_invoke(app, ["todo", story_id])
+    result = assert_invoke(app, ["--json-output", "list", "--todo"])
+    data = json.loads(result.output)
+    task_ids = [t["id"] for t in data["tasks"]]
+    assert story_id in task_ids
