@@ -259,6 +259,10 @@ tasker done <task-id>...
 # Force close even with open subtasks
 tasker done <task-id> --force
 
+# Close every currently in-review task in one call (combines with explicit IDs)
+tasker done --reviewed
+tasker done --rev
+
 # Cancel a task
 tasker cancel <task-id>...
 
@@ -293,7 +297,27 @@ tasker list -a
 # List archived tasks
 tasker list --archived
 tasker list --arch
+
+# Show only tasks pinned to the TODO list
+tasker list --todo
 ```
+
+### TODO list
+
+Pin tasks you're actively working on so they are easy to retrieve. The list is stored in `tasker/.todo` (git-ignored) and auto-populated / pruned on archive operations.
+
+```bash
+# Pin one or more tasks to the TODO list
+tasker todo <task-id>...
+
+# Remove tasks from the TODO list
+tasker untodo <task-id>...
+
+# Show only pinned tasks (combine with --all to include closed)
+tasker list --todo
+```
+
+Pinned tasks are marked with `(todo)` in `list` output. Archiving a story auto-removes it (and its descendants) from the TODO list.
 
 ### Edit tasks
 
@@ -456,13 +480,14 @@ tasker mcp --port 8080
 | Tool | Parameters | Description |
 |---|---|---|
 | `create_task` | `title`, `parent?`, `description?` | Create a root task or subtask |
-| `list_tasks` | — | List all root tasks |
+| `list_tasks` | `todo?` | List all root tasks (`todo=true` returns only pinned tasks) |
 | `view_tasks` | `task_refs` | View tasks by IDs: title, status, description, and subtask IDs |
 | `edit_task` | `task_ref`, `title?`, `description?`, `slug?` | Update a task's title, description, or slug |
 | `start_task` | `task_ref` | Mark task in-progress |
 | `review_task` | `task_ref` | Mark task in-review (submit for review) |
 | `reset_task` | `task_ref`, `force?` | Reset task to pending (`force` resets non-pending subtasks) |
 | `finish_task` | `task_ref`, `force?` | Mark task done (`force` closes open subtasks) |
+| `cancel_task` | `task_ref`, `force?` | Cancel a task (`force` cancels open subtasks) |
 
 ### Resources
 

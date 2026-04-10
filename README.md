@@ -2,7 +2,7 @@
 
 [![tests](https://github.com/greendwin/mcp-tasker/actions/workflows/ci.yml/badge.svg)](https://github.com/greendwin/mcp-tasker/actions/workflows/ci.yml)
 
-A simple file-based task tracker for git repositories. Tasks are stored as plain Markdown files inside a `tasker/` directory, tracked alongside your code with git.
+A Markdown task tracker designed to live in git alongside your code. Tasks are plain Markdown files inside a `tasker/` directory, with hierarchical stories and subtasks, a CLI for humans, and an MCP server so AI agents can manage the same task list.
 
 ## Installation
 
@@ -31,6 +31,9 @@ uv sync --group dev
 ```bash
 # Initialize tasker (or let it auto-detect from any subdirectory)
 tasker init
+
+# Or initialize a user-level tasker in your home data directory
+tasker init --user
 
 # Create a story
 tasker new "Build authentication"
@@ -80,6 +83,7 @@ tasker add-many <parent-id>                 # add multiple subtasks interactivel
 
 ```bash
 tasker start <task-id>...     # mark in-progress
+tasker review <task-id>...    # submit leaf task for review
 tasker done <task-id>...      # mark done
 tasker cancel <task-id>...    # cancel
 tasker reset <task-id>...     # reset to pending
@@ -87,6 +91,9 @@ tasker reset <task-id> --force  # force reset non-pending subtasks
 
 # Force-close a parent with open subtasks
 tasker done <task-id> --force
+
+# Close every in-review task along with any explicitly listed ones
+tasker done --reviewed
 ```
 
 ### View tasks
@@ -94,9 +101,20 @@ tasker done <task-id> --force
 ```bash
 tasker list                   # all open root tasks
 tasker list -a                # include closed tasks
+tasker list --todo            # only tasks from the TODO list
 tasker list --archived        # list archived tasks
 tasker list <task-id>         # subtasks of a specific task
 tasker view <task-id>         # full task details
+```
+
+### TODO list
+
+Pin tasks you're actively focused on. The list lives in `tasker/.todo` (git-ignored), and archived tasks are removed automatically.
+
+```bash
+tasker todo <task-id>...      # pin task(s) to the TODO list
+tasker untodo <task-id>...    # remove from the TODO list
+tasker list --todo            # show only pinned tasks
 ```
 
 ### Edit tasks
@@ -114,6 +132,7 @@ tasker edit <task-id> --slug new-slug
 tasker move <task-id> --parent <new-parent>  # reparent
 tasker move <task-id> --root                 # promote to story
 tasker move <task-id> --delete               # delete a task
+tasker move <task-id> --parent <p> --editor  # reparent and open in editor
 tasker archive <task-id>                     # archive completed story
 tasker archive --closed                      # archive all closed stories
 tasker unarchive <task-id>                   # restore from archive
@@ -188,12 +207,14 @@ Once connected, the MCP server exposes:
 | Tool | Description |
 |---|---|
 | `create_task` | Create a root task or subtask |
-| `list_tasks` | List all root tasks |
+| `list_tasks` | List all root tasks (pass `todo=true` for only pinned tasks) |
 | `view_tasks` | View detailed info for multiple tasks |
 | `edit_task` | Update a task's title, description, or slug |
 | `start_task` | Mark task in-progress |
+| `review_task` | Mark task in-review (submit for review) |
 | `reset_task` | Reset task to pending |
 | `finish_task` | Mark task done |
+| `cancel_task` | Cancel a task |
 
 ## Development
 
@@ -219,6 +240,21 @@ uv run isort src tests
 - Python >= 3.10
 
 ## Release Notes
+
+### 1.3.0
+- `in-review` status and `tasker review` command for submitting leaf tasks
+- `done --reviewed` closes every currently in-review task in one call
+- `todo` / `untodo` commands to pin tasks, and `list --todo` / `(todo)` marker
+- Archived tasks are auto-removed from the TODO list
+- `init --user` creates a user-level tasker directory (respects `XDG_DATA_HOME` / `LOCALAPPDATA`)
+- `move --editor` to open the moved task after reparenting
+- `new` and `add` accept unquoted titles (extra words are joined automatically)
+- Recently closed tasks are shown at the end of `list` output
+- Last two digits of subtask IDs are highlighted in bullet lists
+- MCP: added `cancel_task` tool, `todo` parameter on `list_tasks`
+- MCP: status tools return smaller previews on `start` / `cancel` / `review` / `done`
+- Build: migrated from `poetry` to `uv`
+- Bug fixes: `[text]` escaping in task output, stale `(q)` reference to deleted tasks, `tasker` directory resolution, recently closed task suppressed on narrow terminals
 
 ### 1.2.0
 - `init` command and automatic `tasker/` directory discovery (walks up to git root)
