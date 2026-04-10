@@ -18,12 +18,12 @@ Or with pip:
 pip install mcp-tasker
 ```
 
-For development (requires [Poetry](https://python-poetry.org/)):
+For development (requires [uv](https://docs.astral.sh/uv/getting-started/installation/)):
 
 ```bash
 git clone https://github.com/greendwin/mcp-tasker.git
 cd mcp-tasker
-poetry install --with dev
+uv sync --group dev
 ```
 
 ## Quick Start
@@ -160,13 +160,13 @@ claude mcp add tasker -- tasker mcp
 }
 ```
 
-If running from a Poetry project:
+If running from a checkout:
 
 ```json
 {
   "mcpServers": {
     "tasker": {
-      "command": "poetry",
+      "command": "uv",
       "args": ["run", "tasker", "mcp"]
     }
   }
@@ -198,20 +198,20 @@ Once connected, the MCP server exposes:
 ## Development
 
 ```bash
-poetry install --with dev
+uv sync --group dev
 
 # Run all checks (lint + tests)
-poetry run tox
+uv run tox
 
 # Run tests only
-poetry run tox -e test
+uv run tox -e test
 
 # Lint (black, isort, flake8, mypy)
-poetry run tox -e lint
+uv run tox -e lint
 
 # Format code
-black src tests
-isort src tests
+uv run black src tests
+uv run isort src tests
 ```
 
 ## Requirements

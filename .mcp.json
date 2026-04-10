@@ -1,7 +1,7 @@
 {
   "mcpServers": {
     "tasker": {
-      "command": "poetry",
+      "command": "uv",
       "args": ["run", "tasker", "mcp"]
     }
   }
