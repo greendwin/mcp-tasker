@@ -1,12 +1,15 @@
+from collections.abc import Iterator
 from typing import Annotated, NoReturn
 
 import typer
 from typer_di import Depends
 
-from tasker.base_types import Task, TaskStatus, is_nonleaf_task
+from tasker.base_types import Task, TaskStatus, is_nonleaf_task, walk_tasks
 from tasker.exceptions import TaskHasSubtasksError
+from tasker.parse import detect_task_type
 from tasker.repo import TaskRepo
 from tasker.resolve import (
+    ResolvedRef,
     resolve_ref,
     save_closed_refs,
     save_recent_for_refs,
@@ -320,14 +323,37 @@ def cmd_done_task(
         typer.Argument(
             help="Task ID(s) to mark done.", autocompletion=complete_task_ref
         ),
-    ],
+    ] = [],
     force: Annotated[
         bool,
         typer.Option("--force", help="Force close all open subtasks."),
     ] = False,
+    reviewed: Annotated[
+        bool,
+        typer.Option(
+            "--reviewed",
+            "--rev",
+            help="Also close every currently in-review task.",
+        ),
+    ] = False,
     repo: TaskRepo = Depends(get_task_repo),
 ) -> None:
     resolved_tasks = [resolve_ref(repo, ref) for ref in task_refs]
+
+    if reviewed:
+        mentioned_tasks = {t.task.id for t in resolved_tasks}
+        for t in _iter_in_review_tasks(repo):
+            if t.id not in mentioned_tasks:
+                resolved_tasks.append(ResolvedRef("--review", t))
+
+    if not resolved_tasks:
+        console.print("[yellow]No tasks to close.[/yellow]")
+        open_leaves = list(_iter_open_leaf_tasks(repo))
+        if open_leaves:
+            console.print("\nOpen tasks:")
+            for t in open_leaves:
+                console.print(format_task_list_item(t, indent=1))
+        return
 
     need_preview: list[Task] = []
     closed_ids: list[str] = []
@@ -364,6 +390,24 @@ def cmd_done_task(
     save_recent_for_refs(repo, *resolved_tasks)
     save_closed_refs(repo, closed_ids)
     print_parent_preview(repo, *need_preview)
+
+
+def _iter_in_review_tasks(repo: TaskRepo) -> Iterator[Task]:
+    for task_path in repo.list_root_tasks(archived=False):
+        tp = detect_task_type(task_path)
+        root = repo.resolve_ref(tp.task_ref)
+        for t in walk_tasks(root):
+            if t.status == TaskStatus.IN_REVIEW:
+                yield t
+
+
+def _iter_open_leaf_tasks(repo: TaskRepo) -> Iterator[Task]:
+    for task_path in repo.list_root_tasks(archived=False):
+        tp = detect_task_type(task_path)
+        root = repo.resolve_ref(tp.task_ref)
+        for t in walk_tasks(root):
+            if not t.is_closed and not is_nonleaf_task(t):
+                yield t
 
 
 def _fail_finishing_nonleaf_task(task: Task) -> NoReturn:

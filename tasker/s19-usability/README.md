@@ -1,7 +1,7 @@
 ---
 id: s19
 slug: usability
-status: pending
+status: done
 ---
 
 # Usability
@@ -23,4 +23,4 @@ Improve user experience
 - [x] [s19t13](s19t13-show-subtasks-subtasks-count.md): Show subtasks subtasks count
 - [x] [s19t14](s19t14-by-default-create-tasker-repo.md): Support user-level tasks in ~/.local/tasker
 - [x] [s19t15](s19t15-support-e-option-for-move.md): Support -e option for 'move' command (i.e. edit after move)
-- [ ] s19t16: Support done --review to close in-review tasks
+- [x] [s19t16](s19t16-support-done-review-to-close.md): Support done --reviewed to close in-review tasks

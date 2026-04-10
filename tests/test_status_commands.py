@@ -1500,3 +1500,154 @@ def test_json_done_nonexistent_outputs_error() -> None:
     result = assert_invoke(app, ["--json-output", "done", "s99t01"], expect_error=True)
     data = _parse_json(result.output)
     assert "error" in data
+
+
+# ---------------------------------------------------------------------------
+# done --reviewed / --rev (bulk close in-review tasks)
+# ---------------------------------------------------------------------------
+
+
+def test_done_reviewed_closes_in_review_task(
+    story_id: str, get_task_file: GetTaskFile
+) -> None:
+    task_id = add_subtask(story_id, "Leaf task").task_id
+    assert_invoke(app, ["review", task_id])
+    assert_invoke(app, ["done", "--reviewed"])
+    task_file = get_task_file(story_id)
+    result = parse_task_file(task_file)
+    assert result.subtasks[0].status == TaskStatus.DONE
+
+
+def test_done_reviewed_leaves_non_in_review_tasks_untouched(
+    story_id: str, get_task_file: GetTaskFile
+) -> None:
+    in_review = add_subtask(story_id, "Reviewed task").task_id
+    pending = add_subtask(story_id, "Pending task").task_id
+    in_progress = add_subtask(story_id, "In-progress task").task_id
+    assert_invoke(app, ["review", in_review])
+    assert_invoke(app, ["start", in_progress])
+    assert_invoke(app, ["done", "--reviewed"])
+    task_file = get_task_file(story_id)
+    result = parse_task_file(task_file)
+    by_id = {s.id: s for s in result.subtasks}
+    assert by_id[in_review].status == TaskStatus.DONE
+    assert by_id[pending].status == TaskStatus.PENDING
+    assert by_id[in_progress].status == TaskStatus.IN_PROGRESS
+
+
+def test_done_reviewed_unions_with_explicit_refs(
+    story_id: str, get_task_file: GetTaskFile
+) -> None:
+    in_review = add_subtask(story_id, "Reviewed task").task_id
+    explicit = add_subtask(story_id, "Explicit task").task_id
+    add_subtask(story_id, "Untouched task")
+    assert_invoke(app, ["review", in_review])
+    assert_invoke(app, ["done", "--reviewed", explicit])
+    task_file = get_task_file(story_id)
+    result = parse_task_file(task_file)
+    by_id = {s.id: s for s in result.subtasks}
+    assert by_id[in_review].status == TaskStatus.DONE
+    assert by_id[explicit].status == TaskStatus.DONE
+
+
+def test_done_reviewed_empty_queue_prints_info(story_id: str) -> None:
+    add_subtask(story_id, "Pending task")
+    result = assert_invoke(app, ["done", "--reviewed"])
+    assert "No tasks to close" in result.output
+
+
+def test_done_empty_lists_open_leaf_tasks(story_id: str) -> None:
+    t01 = add_subtask(story_id, "Pending task").task_id
+    t02 = add_subtask(story_id, "Started task").task_id
+    assert_invoke(app, ["start", t02])
+    result = assert_invoke(app, ["done"])
+    assert "No tasks to close" in result.output
+    assert t01 in result.output
+    assert t02 in result.output
+    assert "Pending task" in result.output
+    assert "Started task" in result.output
+
+
+def test_done_empty_without_open_tasks_skips_open_section(story_id: str) -> None:
+    add_subtask(story_id, "Some task")
+    assert_invoke(app, ["done", "--force", story_id])
+    result = assert_invoke(app, ["done"])
+    assert "No tasks to close" in result.output
+    assert "Open tasks" not in result.output
+
+
+def test_done_empty_skips_closed_tasks(story_id: str) -> None:
+    t01 = add_subtask(story_id, "Done task").task_id
+    t02 = add_subtask(story_id, "Pending task").task_id
+    assert_invoke(app, ["done", t01])
+    result = assert_invoke(app, ["done"])
+    assert t01 not in result.output
+    assert t02 in result.output
+
+
+def test_done_empty_skips_nonleaf_tasks(story_id: str) -> None:
+    sub = add_subtask(story_id, "Leaf task").task_id
+    result = assert_invoke(app, ["done"])
+    assert sub in result.output
+    assert "My story" not in result.output
+
+
+def test_done_reviewed_with_ref_when_queue_empty_closes_ref(
+    story_id: str, get_task_file: GetTaskFile
+) -> None:
+    task_id = add_subtask(story_id, "Pending task").task_id
+    assert_invoke(app, ["done", "--reviewed", task_id])
+    task_file = get_task_file(story_id)
+    result = parse_task_file(task_file)
+    assert result.subtasks[0].status == TaskStatus.DONE
+
+
+def test_done_reviewed_skips_archived_roots(
+    tasks_root: Path, tasks_archive_root: Path
+) -> None:
+    archived_id = create_task("Archived story").task_id
+    archived_sub = add_subtask(archived_id, "Archived task").task_id
+    assert_invoke(app, ["review", archived_sub])
+    archived_file = next(tasks_root.glob(f"{archived_id}-*.md"))
+    archived_file.rename(tasks_archive_root / archived_file.name)
+
+    live_id = create_task("Live story").task_id
+    live_task = add_subtask(live_id, "Live task").task_id
+    assert_invoke(app, ["review", live_task])
+
+    assert_invoke(app, ["done", "--reviewed"])
+
+    live_file = next(tasks_root.glob(f"{live_id}-*.md"))
+    live_parsed = parse_task_file(live_file)
+    assert live_parsed.subtasks[0].status == TaskStatus.DONE
+
+    moved_file = tasks_archive_root / archived_file.name
+    archived_parsed = parse_task_file(moved_file)
+    assert archived_parsed.subtasks[0].status == TaskStatus.IN_REVIEW
+
+
+def test_done_rev_alias_closes_in_review_task(
+    story_id: str, get_task_file: GetTaskFile
+) -> None:
+    task_id = add_subtask(story_id, "Leaf task").task_id
+    assert_invoke(app, ["review", task_id])
+    assert_invoke(app, ["done", "--rev"])
+    task_file = get_task_file(story_id)
+    result = parse_task_file(task_file)
+    assert result.subtasks[0].status == TaskStatus.DONE
+
+
+def test_done_reviewed_spans_multiple_roots(tasks_root: Path) -> None:
+    s1_id = create_task("Story one").task_id
+    s2_id = create_task("Story two").task_id
+    t1 = add_subtask(s1_id, "Task one").task_id
+    t2 = add_subtask(s2_id, "Task two").task_id
+    assert_invoke(app, ["review", t1])
+    assert_invoke(app, ["review", t2])
+
+    assert_invoke(app, ["done", "--reviewed"])
+
+    s1_file = next(tasks_root.glob(f"{s1_id}-*.md"))
+    s2_file = next(tasks_root.glob(f"{s2_id}-*.md"))
+    assert parse_task_file(s1_file).subtasks[0].status == TaskStatus.DONE
+    assert parse_task_file(s2_file).subtasks[0].status == TaskStatus.DONE
