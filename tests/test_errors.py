@@ -16,6 +16,11 @@ def test_tasker_error_no_traceback_by_default() -> None:
     assert "Traceback" not in result.output
 
 
+def test_tasker_error_escapes_markup_in_message() -> None:
+    result = assert_invoke(app, ["show", "[red]bad[/red]"], expect_error=True)
+    assert "[red]bad[/red]" in result.output
+
+
 def test_debug_flag_propagates_exception() -> None:
     with pytest.raises(TaskerError):
         assert_invoke(app, ["--debug", "add", "s99", "Some task"])

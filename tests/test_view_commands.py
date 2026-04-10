@@ -4,7 +4,7 @@ import json
 
 from tasker.cli import app
 
-from .helpers import add_subtask, assert_invoke, create_task
+from .helpers import GetTaskFile, add_subtask, assert_invoke, create_task
 
 # ---------------------------------------------------------------------------
 # show command (from test_show_task.py)
@@ -15,6 +15,12 @@ def test_show_task_prints_title() -> None:
     task_id = create_task("My important story").task_id
     result = assert_invoke(app, ["show", task_id])
     assert "My important story" in result.output
+
+
+def test_show_task_prints_title_with_brackets_literally() -> None:
+    task_id = create_task("Story [red]urgent[/red] case").task_id
+    result = assert_invoke(app, ["show", task_id])
+    assert "Story [red]urgent[/red] case" in result.output
 
 
 def test_show_task_omits_pending_marker() -> None:
@@ -34,6 +40,26 @@ def test_show_task_prints_description() -> None:
     assert_invoke(app, ["edit", task_id, "--details", "Some description here"])
     result = assert_invoke(app, ["show", task_id])
     assert "Some description here" in result.output
+
+
+def test_show_task_prints_description_with_brackets_literally() -> None:
+    task_id = create_task("My story").task_id
+    assert_invoke(
+        app, ["edit", task_id, "--details", "fails when [red]config[/red] missing"]
+    )
+    result = assert_invoke(app, ["show", task_id])
+    assert "Fails when [red]config[/red] missing" in result.output
+
+
+def test_show_task_prints_extra_sections_with_brackets_literally(
+    get_task_file: GetTaskFile,
+) -> None:
+    task_id = create_task("My story").task_id
+    task_file = get_task_file(task_id)
+    content = task_file.read_text()
+    task_file.write_text(content + "\n## Examples\n\n- see [red]warning[/red] path\n")
+    result = assert_invoke(app, ["show", task_id])
+    assert "see [red]warning[/red] path" in result.output
 
 
 def test_show_task_no_description_section_when_empty() -> None:

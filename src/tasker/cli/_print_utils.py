@@ -8,7 +8,7 @@ from tasker.base_types import Task, TaskStatus
 from tasker.repo import TaskRepo
 from tasker.resolve import load_closed_tasks, load_recent_task
 from tasker.todo import load_todo_ids
-from tasker.utils import console
+from tasker.utils import console, escape_markup
 
 _STATUS_COLOR = {
     TaskStatus.PENDING: "white",
@@ -265,7 +265,7 @@ def format_task_list_item(
     if task.status == TaskStatus.IN_REVIEW:
         r.append("[bold cyan]**review**[/bold cyan] ")
 
-    r.append(task.title)
+    r.append(escape_markup(task.title))
 
     if color_override:
         r.append(f"[/{color_override}]")
@@ -312,18 +312,18 @@ def print_task(task: Task, *, markers: MarkersDict, preview: bool) -> None:
 
     if preview:
         console.print("")
-    console.print(f"{item}")
+    console.print(item)
 
     # note: show description and extra section in compact way
     if task.description:
         if not preview:
             console.print("")
-        console.print(f"{task.description}")
+        console.print(escape_markup(task.description))
 
     if task.extra_sections:
         if task.description or not preview:
             console.print("")
-        console.print(f"{task.extra_sections}")
+        console.print(escape_markup(task.extra_sections))
 
     if preview or not task.subtasks:
         return

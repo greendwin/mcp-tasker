@@ -6,8 +6,15 @@ from typing import Any, ParamSpec
 
 import typer
 from rich.console import Console
+from rich.markup import escape as _rich_escape
 
 from .exceptions import TaskerError
+
+
+def escape_markup(text: str) -> str:
+    # escape `[tag]`-like sequences so rich prints them literally
+    return _rich_escape(text)
+
 
 _P = ParamSpec("_P")
 
@@ -64,7 +71,7 @@ class OutputContext:
                 if not self.json_output:
                     if self.debug:
                         raise
-                    console.print(f"[red]Error:[/red] {ex}")
+                    console.print(f"[red]Error:[/red] {escape_markup(str(ex))}")
                     raise typer.Exit(1) from ex
 
                 self._json_output_obj = {"error": str(ex)}
