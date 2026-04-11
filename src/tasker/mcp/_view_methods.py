@@ -1,18 +1,13 @@
 from tasker.parse import parse_task_file
 from tasker.repo import TaskRepo
-from tasker.todo import load_todo_ids
+from tasker.todo import load_todo_tasks
 
 from ._common import get_repo, mcp
 from ._model import TaskInfo, TaskPreview
 
 
 def _list_todo_previews(repo: TaskRepo) -> list[TaskPreview]:
-    todo_ids = load_todo_ids(repo)
-    r: list[TaskPreview] = []
-    for task_id in sorted(todo_ids):
-        task = repo.resolve_ref(task_id)
-        r.append(TaskPreview.from_task(task))
-    return r
+    return [TaskPreview.from_task(task) for task in load_todo_tasks(repo)]
 
 
 def _list_root_previews(repo: TaskRepo) -> list[TaskPreview]:

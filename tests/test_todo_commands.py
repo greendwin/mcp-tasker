@@ -225,12 +225,6 @@ def test_list_todo_with_task_refs(story_id: str) -> None:
     assert s2 in result.output
 
 
-def test_list_todo_and_archived_combined(story_id: str) -> None:
-    assert_invoke(app, ["todo", story_id])
-    result = assert_invoke(app, ["list", "--todo", "--archived"])
-    assert story_id in result.output
-
-
 def test_list_todo_no_highlight_marker(story_id: str) -> None:
     assert_invoke(app, ["todo", story_id])
     result = assert_invoke(app, ["list", "--todo"])

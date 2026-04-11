@@ -1,7 +1,7 @@
 import pytest
 
 from tasker.base_types import TaskStatus
-from tasker.cli import app
+from tasker.cli import app, get_task_repo
 from tasker.exceptions import TaskValidateError
 from tasker.mcp import (
     TaskInfo,
@@ -11,6 +11,7 @@ from tasker.mcp import (
     start_task,
     view_tasks,
 )
+from tasker.todo import load_todo_ids, save_todo_ids
 
 from .helpers import add_subtask, assert_invoke, create_task
 
@@ -135,3 +136,16 @@ def test_list_tasks_todo_empty() -> None:
     create_task("Story one")
     result = list_tasks(todo=True)
     assert result == []
+
+
+def test_list_tasks_todo_silently_skips_and_prunes_stale_ids() -> None:
+    s1 = create_task("Story one").task_id
+    repo = get_task_repo()
+    save_todo_ids(repo, {s1, "s99t99"})
+
+    result = list_tasks(todo=True)
+    assert len(result) == 1
+    assert result[0].id == s1
+
+    remaining = load_todo_ids(repo)
+    assert remaining == {s1}

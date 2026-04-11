@@ -1,3 +1,4 @@
+from itertools import chain
 from typing import Annotated, Any
 
 import typer
@@ -6,12 +7,23 @@ from typer_di import Depends
 from tasker.base_types import Task
 from tasker.parse import detect_task_type, parse_task_file
 from tasker.repo import TaskRepo
-from tasker.resolve import ResolvedRef, resolve_ref, save_recent_for_refs
-from tasker.todo import load_todo_ids
+from tasker.resolve import (
+    ResolvedRef,
+    load_closed_tasks,
+    resolve_ref,
+    save_recent_for_refs,
+)
+from tasker.todo import load_todo_tasks
 from tasker.utils import console
 
 from ._common import app, complete_task_ref, get_task_repo
-from ._print_utils import compute_markers, print_task, print_tree
+from ._print_utils import (
+    ShowChildrenMode,
+    ShowTaskConfig,
+    compute_markers,
+    print_task,
+    print_tree,
+)
 
 
 @app.command("show", hidden=True)
@@ -64,40 +76,57 @@ def cmd_list_tasks(
     ] = False,
     repo: TaskRepo = Depends(get_task_repo),
 ) -> None:
-    show_tasks: list[Task] = []
+    if todo and archived:
+        raise typer.BadParameter("--todo and --archived cannot be used together")
+
+    tasks: list[Task] = []
 
     if todo:
-        todo_ids = load_todo_ids(repo)
-        for task_id in sorted(todo_ids):
-            show_tasks.append(repo.resolve_ref(task_id))
+        tasks.extend(load_todo_tasks(repo))
 
     if archived:
-        show_tasks.extend(_load_root_tasks(repo, archived=True, shallow=not show_all))
+        tasks.extend(_load_root_tasks(repo, archived=True, shallow=not show_all))
     elif not todo and not task_refs:
-        show_tasks.extend(_load_root_tasks(repo, archived=False, shallow=False))
+        tasks.extend(_load_root_tasks(repo, archived=False, shallow=False))
 
     resolved: list[ResolvedRef] = []
     for ref in task_refs:
         r = resolve_ref(repo, ref)
-        show_tasks.append(r.task)
+        tasks.append(r.task)
         resolved.append(r)
 
     save_recent_for_refs(repo, *resolved)
 
-    if not show_tasks:
+    if not tasks:
         console.print("[dim]No tasks to show.[/dim]", context={"tasks": []})
         return
 
-    show_recently_closed = not (archived or task_refs or todo)
+    closed_tasks: list[Task] = []
+    if not (archived or task_refs or todo):
+        closed_tasks = load_closed_tasks(repo)
 
-    print_tree(
-        repo,
-        show_tasks=show_tasks,
-        show_all=show_all,
-        show_recently_closed=show_recently_closed,
+    show_children_mode = ShowChildrenMode.SHOW_OPENED
+    if show_all:
+        show_children_mode = ShowChildrenMode.SHOW_ALL
+
+    config = ShowTaskConfig(
+        show_task_id=True,
+        show_pending_marker=show_all,
     )
 
-    for task in show_tasks:
+    for task in chain(tasks, closed_tasks):
+        config.show_task(
+            task,
+            show_children_mode=show_children_mode,
+        )
+
+        if parent := repo.get_parent(task):
+            # note: no children mode for parent, just show the parent node
+            config.show_task(parent)
+
+    print_tree(repo, config)
+
+    for task in tasks:
         console.append_context("tasks", _task_to_json(task))
 
 

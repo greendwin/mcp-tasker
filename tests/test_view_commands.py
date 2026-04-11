@@ -2,7 +2,8 @@
 
 import json
 
-from tasker.cli import app
+from tasker.cli import app, get_task_repo
+from tasker.todo import load_todo_ids, save_todo_ids
 
 from .helpers import GetTaskFile, add_subtask, assert_invoke, create_task
 
@@ -638,6 +639,158 @@ def test_list_with_all_hides_recently_closed_outside_tree() -> None:
     assert (
         sub2_id not in result.output
     )  # should not add recently-closed outside the specified tree
+
+
+def test_list_todo_silently_skips_stale_ids() -> None:
+    story_id = create_task("My story").task_id
+    todo_sub = add_subtask(story_id, "Live todo").task_id
+
+    repo = get_task_repo()
+    save_todo_ids(repo, {todo_sub, "s99t99"})
+
+    result = assert_invoke(app, ["list", "--todo"])
+    assert todo_sub in result.output
+    assert "s99t99" not in result.output
+
+
+def test_list_todo_prunes_stale_ids_on_disk() -> None:
+    story_id = create_task("My story").task_id
+    todo_sub = add_subtask(story_id, "Live todo").task_id
+
+    repo = get_task_repo()
+    save_todo_ids(repo, {todo_sub, "s99t99"})
+
+    assert_invoke(app, ["list", "--todo"])
+
+    remaining = load_todo_ids(repo)
+    assert remaining == {todo_sub}
+
+
+def test_list_todo_lists_closed_todo_task() -> None:
+    story_id = create_task("My story").task_id
+    todo_sub = add_subtask(story_id, "Closed todo").task_id
+    assert_invoke(app, ["todo", todo_sub])
+    assert_invoke(app, ["done", todo_sub])
+
+    result = assert_invoke(app, ["list", "--todo"])
+    assert todo_sub in result.output
+
+
+def test_list_todo_with_archived_rejects() -> None:
+    create_task("My story")
+    result = assert_invoke(app, ["list", "--todo", "--archived"], expect_error=True)
+    assert "--todo" in result.output
+    assert "--archived" in result.output
+
+
+def test_list_todo_with_ref_is_additive_and_narrow() -> None:
+    story1 = create_task("Story one").task_id
+    todo_sub = add_subtask(story1, "Todo subtask").task_id
+    sibling_of_todo = add_subtask(story1, "Sibling of todo").task_id
+
+    story2 = create_task("Story two").task_id
+    ref_sub = add_subtask(story2, "Ref subtask").task_id
+    sibling_of_ref = add_subtask(story2, "Sibling of ref").task_id
+
+    assert_invoke(app, ["todo", todo_sub])
+
+    result = assert_invoke(app, ["list", "--todo", ref_sub])
+    assert todo_sub in result.output
+    assert ref_sub in result.output
+    assert story1 in result.output
+    assert story2 in result.output
+    assert sibling_of_todo not in result.output
+    assert sibling_of_ref not in result.output
+
+
+def test_list_ref_hides_non_ref_siblings() -> None:
+    story_id = create_task("My story").task_id
+    target_sub = add_subtask(story_id, "Target subtask").task_id
+    other_sub = add_subtask(story_id, "Other subtask").task_id
+
+    result = assert_invoke(app, ["list", target_sub])
+    assert target_sub in result.output
+    assert story_id in result.output
+    assert other_sub not in result.output
+
+
+def test_list_todo_all_expands_closed_children_of_todo_task() -> None:
+    story_id = create_task("My story").task_id
+    todo_sub = add_subtask(story_id, "Todo subtask", details="d").task_id
+    nested_done = add_subtask(todo_sub, "Nested done").task_id
+    assert_invoke(app, ["done", nested_done])
+    assert_invoke(app, ["todo", todo_sub])
+
+    # close another task to clear the recently-closed list
+    other_story = create_task("Other").task_id
+    other_sub = add_subtask(other_story, "Other sub").task_id
+    assert_invoke(app, ["done", other_sub])
+
+    without_all = assert_invoke(app, ["list", "--todo"])
+    assert nested_done not in without_all.output
+
+    with_all = assert_invoke(app, ["list", "--todo", "--all"])
+    assert nested_done in with_all.output
+
+
+def test_list_todo_expands_open_children_of_todo_task() -> None:
+    story_id = create_task("My story").task_id
+    todo_sub = add_subtask(story_id, "Todo subtask", details="d").task_id
+    nested_open = add_subtask(todo_sub, "Nested open").task_id
+    assert_invoke(app, ["todo", todo_sub])
+
+    result = assert_invoke(app, ["list", "--todo"])
+    assert todo_sub in result.output
+    assert nested_open in result.output
+
+
+def test_list_todo_hides_non_todo_siblings() -> None:
+    story_id = create_task("My story").task_id
+    todo_sub = add_subtask(story_id, "Todo subtask").task_id
+    other_sub = add_subtask(story_id, "Other open subtask").task_id
+    assert_invoke(app, ["todo", todo_sub])
+
+    result = assert_invoke(app, ["list", "--todo"])
+    assert todo_sub in result.output
+    assert story_id in result.output
+    assert other_sub not in result.output
+
+
+def test_list_todo_closed_todo_hides_non_todo_open_siblings() -> None:
+    story_id = create_task("My story").task_id
+    todo_sub = add_subtask(story_id, "Todo subtask").task_id
+    other_sub = add_subtask(story_id, "Other open subtask").task_id
+    assert_invoke(app, ["todo", todo_sub])
+    assert_invoke(app, ["done", todo_sub])
+
+    result = assert_invoke(app, ["list", "--todo"])
+    assert todo_sub in result.output
+    assert story_id in result.output
+    assert other_sub not in result.output
+
+
+def test_list_todo_multi_story_hides_non_todo_siblings() -> None:
+    story1 = create_task("Story one").task_id
+    todo1 = add_subtask(story1, "Todo one").task_id
+    other1 = add_subtask(story1, "Open sibling one").task_id
+
+    story2 = create_task("Story two").task_id
+    todo2 = add_subtask(story2, "Todo two").task_id
+    other2a = add_subtask(story2, "Open sibling two-a").task_id
+    other2b = add_subtask(story2, "Open sibling two-b").task_id
+
+    assert_invoke(app, ["todo", todo1])
+    assert_invoke(app, ["todo", todo2])
+    assert_invoke(app, ["done", todo2])
+
+    result = assert_invoke(app, ["list", "--todo"])
+    assert story1 in result.output
+    assert story2 in result.output
+    assert todo1 in result.output
+    assert todo2 in result.output
+    assert other1 not in result.output
+    assert other2a not in result.output
+    assert other2b not in result.output
 
 
 def test_add_command_hides_recently_closed_in_parent_preview() -> None:

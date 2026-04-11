@@ -1,3 +1,5 @@
+from .base_types import Task
+from .exceptions import TaskValidateError
 from .layout import TODO_FILE, ensure_gitignore_entry
 from .repo import TaskRepo
 from .utils import read_text, write_text
@@ -36,6 +38,28 @@ def add_todo(repo: TaskRepo, task_id: str) -> bool:
     todo_ids.add(task_id)
     save_todo_ids(repo, todo_ids)
     return True
+
+
+def load_todo_tasks(repo: TaskRepo) -> list[Task]:
+    todo_ids = load_todo_ids(repo)
+    if not todo_ids:
+        return []
+
+    live: list[Task] = []
+    live_ids: set[str] = set()
+    for task_id in sorted(todo_ids):
+        try:
+            task = repo.resolve_ref(task_id)
+        except TaskValidateError:
+            continue
+
+        live.append(task)
+        live_ids.add(task.id)
+
+    if live_ids != todo_ids:
+        save_todo_ids(repo, live_ids)
+
+    return live
 
 
 def remove_todo(repo: TaskRepo, task_id: str) -> bool:

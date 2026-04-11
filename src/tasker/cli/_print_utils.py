@@ -1,12 +1,11 @@
 from collections import defaultdict
-from collections.abc import Sequence
 from dataclasses import dataclass, field
-from itertools import chain
+from enum import IntEnum
 from typing import TypeAlias
 
 from tasker.base_types import Task, TaskStatus
 from tasker.repo import TaskRepo
-from tasker.resolve import load_closed_tasks, load_recent_task
+from tasker.resolve import load_recent_task
 from tasker.todo import load_todo_ids
 from tasker.utils import console, escape_markup
 
@@ -35,72 +34,40 @@ class PrintEntry:
     highlight: bool
 
 
-def build_print_entries(
-    repo: TaskRepo,
-    *,
-    # list of tasks which subtrees must be shown (aka top-to-bottom)
-    show_tasks: Sequence[Task],
-    # list of tasks that must be shown and highlighted (aka bottom-to-top)
-    highlight_tasks: Sequence[Task],
-    # whether to show closed tasks
-    show_closed: bool,
-    # whether to include recently-closed tasks in force-show
-    show_recently_closed: bool,
-) -> list[PrintEntry]:
-    ctx = _CollectContext()
+# note: higher values expand more children
+class ShowChildrenMode(IntEnum):
+    MANUAL = 1
+    SHOW_OPENED = 2
+    SHOW_ALL = 3
 
-    for task in highlight_tasks:
-        ctx.highlighted.add(task.id)
 
-    # tells whether this task has forcibly shown child
-    has_force_show: set[str] = set()
+class ShowTaskConfig:
+    def __init__(
+        self,
+        *,
+        show_task_id: bool,
+        show_pending_marker: bool,
+    ) -> None:
+        self.tasks: dict[str, Task] = {}
+        self.highlight: set[str] = set()
+        self.show_children_mode: dict[str, ShowChildrenMode] = {}
+        self.show_task_id = show_task_id
+        self.show_pending_marker = show_pending_marker
 
-    recently_closed = []
-    if show_recently_closed:
-        recently_closed = load_closed_tasks(repo)
+    def show_task(
+        self,
+        task: Task,
+        show_children_mode: ShowChildrenMode = ShowChildrenMode.MANUAL,
+        *,
+        highlight: bool = False,
+    ) -> None:
+        self.tasks[task.id] = task
+        if highlight:
+            self.highlight.add(task.id)
 
-    # list of roots that are forcibly shown
-    shown_roots: list[Task] = []
-
-    # mark task that should be forcibly shown
-    for task in chain(show_tasks, highlight_tasks, recently_closed):
-        if parent := repo.get_parent(task):
-            shown_roots.append(parent)
-        else:
-            shown_roots.append(task)
-
-        # mark whole parents chain
-        cur: Task | None = task
-        while cur:
-            has_force_show.add(cur.id)
-            cur = repo.get_parent(cur)
-
-    # walk from root tasks down and mark visible tasks
-    for task in shown_roots:
-        _collect_visible_tasks(
-            task,
-            ctx.visible,
-            show_closed=show_closed,
-            has_force_show=has_force_show,
-        )
-
-    visible_roots: dict[str, Task] = {}
-    for task in ctx.visible.values():
-        cur = task
-        while True:
-            parent = repo.get_parent(cur)
-            if parent is None or parent.id not in ctx.visible:
-                visible_roots[cur.id] = cur
-                break
-
-            cur = parent
-
-    ctx.markers = compute_markers(repo, *ctx.visible.values())
-
-    for root in sorted(visible_roots.values(), key=lambda p: p.id):
-        _collect_print_entries(ctx, root, indent=0)
-
-    return ctx.entries
+        prev_mode = self.show_children_mode.get(task.id)
+        if prev_mode is None or show_children_mode > prev_mode:
+            self.show_children_mode[task.id] = show_children_mode
 
 
 MarkersDict: TypeAlias = dict[str, list[str]]
@@ -110,29 +77,8 @@ MarkersDict: TypeAlias = dict[str, list[str]]
 class _CollectContext:
     entries: list[PrintEntry] = field(default_factory=list)
     visible: dict[str, Task] = field(default_factory=dict)
-    highlighted: set[str] = field(default_factory=set)
+    highlight: set[str] = field(default_factory=set)
     markers: MarkersDict = field(default_factory=dict)
-
-
-def _collect_visible_tasks(
-    cur: Task, visible: dict[str, Task], *, show_closed: bool, has_force_show: set[str]
-) -> None:
-    if cur.id in visible:
-        # already processed
-        return
-
-    visible[cur.id] = cur
-
-    for child in cur.subtasks:
-        if child.is_closed and not show_closed and child.id not in has_force_show:
-            continue
-
-        _collect_visible_tasks(
-            child,
-            visible,
-            show_closed=show_closed,
-            has_force_show=has_force_show,
-        )
 
 
 def compute_markers(repo: TaskRepo, *visible: Task) -> MarkersDict:
@@ -172,6 +118,91 @@ def _find_recent_marker(
     return None
 
 
+def print_tree(repo: TaskRepo, config: ShowTaskConfig) -> None:
+    entries = _build_print_entries(repo, config)
+
+    _print_tree_entries(
+        entries,
+        show_task_id=config.show_task_id,
+        show_pending_marker=config.show_pending_marker,
+    )
+
+
+def _build_print_entries(repo: TaskRepo, config: ShowTaskConfig) -> list[PrintEntry]:
+    ctx = _CollectContext(
+        highlight=config.highlight,
+    )
+
+    has_force_show: set[str] = set()
+    for task in config.tasks.values():
+        cur: Task | None = task
+        while cur:
+            has_force_show.add(cur.id)
+            cur = repo.get_parent(cur)
+
+    walked: set[str] = set()
+    for task in config.tasks.values():
+        _collect_visible_tasks(
+            task,
+            config.show_children_mode.get(task.id, ShowChildrenMode.MANUAL),
+            ctx.visible,
+            walked,
+            has_force_show=has_force_show,
+        )
+
+    visible_roots: dict[str, Task] = {}
+    for task in ctx.visible.values():
+        cur = task
+        while True:
+            parent = repo.get_parent(cur)
+            if parent is None or parent.id not in ctx.visible:
+                visible_roots[cur.id] = cur
+                break
+
+            cur = parent
+
+    ctx.markers = compute_markers(repo, *ctx.visible.values())
+
+    for root in sorted(visible_roots.values(), key=lambda p: p.id):
+        _collect_print_entries(ctx, root, indent=0)
+
+    return ctx.entries
+
+
+def _collect_visible_tasks(
+    cur: Task,
+    mode: ShowChildrenMode,
+    visible: dict[str, Task],
+    walked: set[str],
+    *,
+    has_force_show: set[str],
+) -> None:
+    if cur.id in walked:
+        return
+
+    walked.add(cur.id)
+    visible[cur.id] = cur
+
+    for child in cur.subtasks:
+        if child.id not in has_force_show:
+            match mode:
+                case ShowChildrenMode.MANUAL:
+                    continue
+                case ShowChildrenMode.SHOW_OPENED:
+                    if child.is_closed:
+                        continue
+                case _:
+                    assert mode == ShowChildrenMode.SHOW_ALL
+
+        _collect_visible_tasks(
+            child,
+            mode,
+            visible,
+            walked,
+            has_force_show=has_force_show,
+        )
+
+
 def _collect_print_entries(
     ctx: _CollectContext,
     task: Task,
@@ -184,7 +215,7 @@ def _collect_print_entries(
         task=task,
         indent=indent,
         markers=ctx.markers.get(task.id),
-        highlight=task.id in ctx.highlighted,
+        highlight=task.id in ctx.highlight,
     )
     ctx.entries.append(entry)
 
@@ -193,14 +224,17 @@ def _collect_print_entries(
             _collect_print_entries(ctx, child, indent=indent + 1)
 
 
-def print_tree_entries(
-    entries: list[PrintEntry], *, show_all: bool, show_task_id: bool = True
+def _print_tree_entries(
+    entries: list[PrintEntry],
+    *,
+    show_task_id: bool,
+    show_pending_marker: bool,
 ) -> None:
     for p in entries:
         line = format_task_list_item(
             p.task,
             show_task_id=show_task_id,
-            show_all=show_all,
+            show_pending_marker=show_pending_marker,
             indent=p.indent,
             highlight=p.highlight,
             markers=p.markers,
@@ -213,7 +247,7 @@ def format_task_list_item(
     task: Task,
     *,
     show_task_id: bool = True,
-    show_all: bool = False,
+    show_pending_marker: bool = False,
     indent: int = 0,
     highlight: bool = False,
     markers: list[str] | None = None,
@@ -249,7 +283,7 @@ def format_task_list_item(
         r.append(": ")
 
     # note: omit `[ ]` for pending tasks unless when `--all` is used
-    show_marker = show_all or task.status != TaskStatus.PENDING
+    show_marker = show_pending_marker or task.status != TaskStatus.PENDING
 
     color_override: str | None = None
     if task.status == TaskStatus.CANCELLED:
@@ -306,7 +340,7 @@ def print_task(task: Task, *, markers: MarkersDict, preview: bool) -> None:
     item = format_task_list_item(
         task,
         show_task_id=not preview,
-        show_all=preview,
+        show_pending_marker=preview,
         markers=markers.get(task.id),
     )
 
@@ -339,25 +373,6 @@ def print_task(task: Task, *, markers: MarkersDict, preview: bool) -> None:
         console.print(item)
 
 
-def print_tree(
-    repo: TaskRepo,
-    *,
-    show_tasks: Sequence[Task] = (),
-    highlight_tasks: Sequence[Task] = (),
-    show_all: bool,
-    show_recently_closed: bool,
-) -> None:
-    entries = build_print_entries(
-        repo,
-        show_tasks=show_tasks,
-        highlight_tasks=highlight_tasks,
-        show_closed=show_all,
-        show_recently_closed=show_recently_closed,
-    )
-
-    print_tree_entries(entries, show_all=show_all)
-
-
 def print_parent_preview(repo: TaskRepo, *tasks: Task) -> None:
     if not tasks:
         return
@@ -365,9 +380,22 @@ def print_parent_preview(repo: TaskRepo, *tasks: Task) -> None:
     # TODO: move this line outside
     console.print("")
 
-    print_tree(
-        repo,
-        highlight_tasks=tasks,
-        show_all=False,
-        show_recently_closed=False,
+    config = ShowTaskConfig(
+        show_task_id=True,
+        show_pending_marker=False,
     )
+
+    for task in tasks:
+        config.show_task(
+            task,
+            ShowChildrenMode.SHOW_OPENED,
+            highlight=True,
+        )
+
+        if parent := repo.get_parent(task):
+            config.show_task(
+                parent,
+                ShowChildrenMode.SHOW_OPENED,
+            )
+
+    print_tree(repo, config)
