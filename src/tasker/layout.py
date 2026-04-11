@@ -13,6 +13,7 @@ GITKEEP_FILE = ".gitkeep"
 GITIGNORE_FILE = ".gitignore"
 RECENT_FILE = ".recent"
 TODO_FILE = ".todo"
+CLOSED_FILE = ".closed"
 _GITIGNORE_HEADER = "# tasker"
 
 
@@ -70,7 +71,14 @@ def init_tasker_dir(project_root: Path | None = None) -> Path:
     if not gitignore.exists():
         write_text(
             gitignore,
-            _GITIGNORE_HEADER + "\n" + RECENT_FILE + "\n" + TODO_FILE + "\n",
+            _GITIGNORE_HEADER
+            + "\n"
+            + RECENT_FILE
+            + "\n"
+            + TODO_FILE
+            + "\n"
+            + CLOSED_FILE
+            + "\n",
         )
 
     archive_dir = tasker_dir / ARCHIVE_DIR

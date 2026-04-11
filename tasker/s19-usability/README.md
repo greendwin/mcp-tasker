@@ -1,7 +1,7 @@
 ---
 id: s19
 slug: usability
-status: pending
+status: done
 ---
 
 # Usability
@@ -24,4 +24,4 @@ Improve user experience
 - [x] [s19t14](s19t14-by-default-create-tasker-repo.md): Support user-level tasks in ~/.local/tasker
 - [x] [s19t15](s19t15-support-e-option-for-move.md): Support -e option for 'move' command (i.e. edit after move)
 - [x] [s19t16](s19t16-support-done-review-to-close.md): Support done --reviewed to close in-review tasks
-- [ ] [s19t17](s19t17-rework-lastclosed-to-clossed-flag.md): Rework `last_closed` to --clossed flag that show ~5 recently closeed tasks
+- [x] [s19t17](s19t17-rework-lastclosed-to-clossed-flag.md): Rework implicit closed display to explicit `--closed` flag

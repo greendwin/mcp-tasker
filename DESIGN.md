@@ -300,7 +300,13 @@ tasker list --arch
 
 # Show only tasks pinned to the TODO list
 tasker list --todo
+
+# Show up to 5 most recently closed tasks
+# (mutually exclusive with --archived, --todo, and positional task refs)
+tasker list --closed
 ```
+
+Closed-task history is tracked in `tasker/.closed` (git-ignored) as a plain-text list of task IDs, newest last. The file grows as `done` / `cancel` append the user-specified refs (forced-closed children are not appended), is capped at 30 entries, and deduplicates on re-close so a reopened-and-closed task moves to the newest position. Stale IDs (deleted tasks) are pruned lazily whenever `list --closed` reads the file; `list --closed` keeps reading deeper into the history to surface 5 live tasks even if some entries have become stale.
 
 ### TODO list
 

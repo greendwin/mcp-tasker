@@ -103,6 +103,7 @@ tasker list                   # all open root tasks
 tasker list -a                # include closed tasks
 tasker list --todo            # only tasks from the TODO list
 tasker list --archived        # list archived tasks
+tasker list --closed          # show 5 most recently closed tasks
 tasker list <task-id>         # subtasks of a specific task
 tasker view <task-id>         # full task details
 ```

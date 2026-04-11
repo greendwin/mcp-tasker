@@ -283,7 +283,6 @@ def cmd_cancel_task(
 
         for t in forced:
             need_preview.append(t)
-            closed_ids.append(t.id)
             console.append_context("forced_task_ids", t.id)
 
     save_recent_for_refs(repo, *resolved_tasks)
@@ -384,7 +383,6 @@ def cmd_done_task(
 
         for t in forced:
             need_preview.append(t)
-            closed_ids.append(t.id)
             console.append_context("forced_task_ids", t.id)
 
     save_recent_for_refs(repo, *resolved_tasks)

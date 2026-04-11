@@ -1,31 +1,19 @@
-import json
 import re
-from enum import Enum
 from typing import NamedTuple
 
 from .base_types import Task
 from .exceptions import TaskValidateError
-from .layout import RECENT_FILE
+from .layout import CLOSED_FILE, RECENT_FILE, ensure_gitignore_entry
 from .parse import find_common_ancestor, make_child_ref, parse_task_ref
 from .repo import TaskRepo
 from .utils import write_text
+
+CLOSED_HISTORY_CAP = 30
 
 
 class ResolvedRef(NamedTuple):
     task_ref: str  # original task ref, could be recent link aka `qNN`
     task: Task  # resolved task
-
-
-class RecentData(NamedTuple):
-    recent: str | None
-    closed: list[str]
-
-
-class _Keep(Enum):
-    KEEP = "keep"
-
-
-_KEEP = _Keep.KEEP
 
 
 def resolve_ref(
@@ -46,45 +34,37 @@ def _is_direct_ref(task_ref: str) -> bool:
     return task_ref.startswith("s")
 
 
-def _load_recent_data(repo: TaskRepo) -> RecentData:
+def _load_recent_id(repo: TaskRepo) -> str | None:
     path = repo.root / RECENT_FILE
     if not path.exists():
-        return RecentData(recent=None, closed=[])
+        return None
 
     text = path.read_text().strip()
-    if not text:
-        return RecentData(recent=None, closed=[])
+    if not text or text.startswith("{"):
+        # empty or legacy JSON — ignore
+        return None
 
-    if text.startswith("{"):
-        try:
-            data = json.loads(text)
-        except json.JSONDecodeError:
-            return RecentData(recent=None, closed=[])
-        return RecentData(
-            recent=data.get("recent"),
-            closed=data.get("closed", []),
-        )
-
-    # legacy plain-text format
-    return RecentData(recent=text, closed=[])
+    return text
 
 
-def _update_recent_data(
-    repo: TaskRepo,
-    *,
-    recent: str | None | _Keep = _KEEP,
-    closed: list[str] | _Keep = _KEEP,
-) -> None:
-    data = _load_recent_data(repo)
-    new_recent = data.recent if isinstance(recent, _Keep) else recent
-    new_closed = data.closed if isinstance(closed, _Keep) else closed
+def _write_recent_id(repo: TaskRepo, task_id: str) -> None:
+    write_text(repo.root / RECENT_FILE, task_id + "\n")
 
-    obj: dict[str, str | list[str]] = {}
-    if new_recent:
-        obj["recent"] = new_recent
-    if new_closed:
-        obj["closed"] = new_closed
-    write_text(repo.root / RECENT_FILE, json.dumps(obj) + "\n")
+
+def _load_closed_ids(repo: TaskRepo) -> list[str]:
+    path = repo.root / CLOSED_FILE
+    if not path.exists():
+        return []
+
+    return [line.strip() for line in path.read_text().splitlines() if line.strip()]
+
+
+def _write_closed_ids(repo: TaskRepo, ids: list[str]) -> None:
+    path = repo.root / CLOSED_FILE
+    new_file = not path.exists()
+    write_text(path, "".join(line + "\n" for line in ids))
+    if new_file:
+        ensure_gitignore_entry(repo.root, CLOSED_FILE)
 
 
 def save_recent_for_refs(repo: TaskRepo, *refs: ResolvedRef | Task) -> None:
@@ -100,31 +80,56 @@ def save_recent_for_refs(repo: TaskRepo, *refs: ResolvedRef | Task) -> None:
         return
 
     task_id = find_common_ancestor(direct_refs)
-    _update_recent_data(repo, recent=task_id)
+    _write_recent_id(repo, task_id)
 
 
 def save_closed_refs(repo: TaskRepo, closed_ids: list[str]) -> None:
-    _update_recent_data(repo, closed=closed_ids)
+    if not closed_ids:
+        return
+
+    existing = _load_closed_ids(repo)
+
+    # dedup: move re-closed IDs to the newest end
+    new_set = set(closed_ids)
+    merged = [p for p in existing if p not in new_set]
+    merged.extend(closed_ids)
+
+    # cap at the rolling history limit (keep newest)
+    if len(merged) > CLOSED_HISTORY_CAP:
+        merged = merged[-CLOSED_HISTORY_CAP:]
+
+    _write_closed_ids(repo, merged)
 
 
-def load_closed_tasks(repo: TaskRepo) -> list[Task]:
-    data = _load_recent_data(repo)
+def load_closed_tasks(repo: TaskRepo, *, limit: int) -> list[Task]:
+    stored = _load_closed_ids(repo)
     tasks: list[Task] = []
-    for task_id in data.closed:
+    stale: set[str] = set()
+
+    # iterate newest → oldest
+    for task_id in reversed(stored):
+        if len(tasks) >= limit:
+            break
+
         try:
             tasks.append(repo.resolve_ref(task_id))
         except TaskValidateError:
-            pass
+            stale.add(task_id)
+
+    if stale:
+        pruned = [p for p in stored if p not in stale]
+        _write_closed_ids(repo, pruned)
+
     return tasks
 
 
 def load_recent_task(repo: TaskRepo) -> Task | None:
-    data = _load_recent_data(repo)
-    if not data.recent:
+    recent_id = _load_recent_id(repo)
+    if not recent_id:
         return None
 
     try:
-        return repo.resolve_ref(data.recent)
+        return repo.resolve_ref(recent_id)
     except TaskValidateError:
         return None
 
@@ -134,18 +139,20 @@ def _resolve_recent(repo: TaskRepo, task_ref: str) -> str:
         # resolve as-is, try to resolve in repo
         return task_ref
 
-    recent_ref = _load_recent(repo, task_ref)
+    recent_id = _load_recent_id(repo)
+    if not recent_id:
+        raise TaskValidateError("Recent task was not set yet", task_ref=task_ref)
 
     if task_ref == "q":
-        return recent_ref
+        return recent_id
 
     # links like q0102
     if m := re.fullmatch(r"q((?:\d{2})+)", task_ref):
-        return make_child_ref(recent_ref, m.group(1))
+        return make_child_ref(recent_id, m.group(1))
 
     # links like p, p01, pp, pp0102
     if m := re.fullmatch(r"(p+)((?:\d{2})+)?", task_ref):
-        ancestor_id = recent_ref
+        ancestor_id = recent_id
         for _ in range(len(m.group(1))):
             ancestor_id = parse_task_ref(ancestor_id).parent_id
         digits = m.group(2)
@@ -155,11 +162,3 @@ def _resolve_recent(repo: TaskRepo, task_ref: str) -> str:
         return ancestor_id
 
     raise TaskValidateError(f"Invalid recent reference {task_ref!r}", task_ref=task_ref)
-
-
-def _load_recent(repo: TaskRepo, task_ref: str) -> str:
-    data = _load_recent_data(repo)
-    if not data.recent:
-        raise TaskValidateError("Recent task was not set yet", task_ref=task_ref)
-
-    return data.recent

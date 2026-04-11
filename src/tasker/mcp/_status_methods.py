@@ -59,14 +59,11 @@ def cancel_task(task_ref: str, force: bool = False) -> TaskPreview:
     repo = get_repo()
     task = repo.resolve_ref(task_ref)
     already_cancelled = task.status == TaskStatus.CANCELLED
-    forced = repo.cancel_task(task, force=force)
+    repo.cancel_task(task, force=force)
     repo.flush_to_disk()
 
     if not already_cancelled:
-        closed_ids = [task.id]
-        if forced:
-            closed_ids.extend(t.id for t in forced)
-        save_closed_refs(repo, closed_ids)
+        save_closed_refs(repo, [task.id])
 
     return TaskPreview.from_task(task)
 
@@ -77,13 +74,10 @@ def finish_task(task_ref: str, force: bool = False) -> TaskPreview:
     repo = get_repo()
     task = repo.resolve_ref(task_ref)
     already_done = task.is_closed
-    forced = repo.finish_task(task, force=force)
+    repo.finish_task(task, force=force)
     repo.flush_to_disk()
 
     if not already_done:
-        closed_ids = [task.id]
-        if forced:
-            closed_ids.extend(t.id for t in forced)
-        save_closed_refs(repo, closed_ids)
+        save_closed_refs(repo, [task.id])
 
     return TaskPreview.from_task(task)

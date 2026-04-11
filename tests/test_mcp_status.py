@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import pytest
 
 from tasker.base_types import TaskStatus
@@ -167,3 +169,31 @@ def test_cancel_task_already_cancelled(leaf_ref: str) -> None:
     cancel_task(leaf_ref)
     result = cancel_task(leaf_ref)
     assert result.status == TaskStatus.CANCELLED
+
+
+# --- .closed history via MCP ---
+
+
+def test_mcp_finish_task_appends_to_closed(leaf_ref: str, tasks_root: Path) -> None:
+    result = finish_task(leaf_ref)
+    stored = (tasks_root / ".closed").read_text().splitlines()
+    assert result.id in stored
+
+
+def test_mcp_cancel_task_appends_to_closed(leaf_ref: str, tasks_root: Path) -> None:
+    result = cancel_task(leaf_ref)
+    stored = (tasks_root / ".closed").read_text().splitlines()
+    assert result.id in stored
+
+
+def test_mcp_finish_task_force_excludes_forced_children(
+    story_id: str, leaf_ref: str, tasks_root: Path
+) -> None:
+    finish_task(story_id, force=True)
+    stored = (tasks_root / ".closed").read_text().splitlines()
+    assert story_id in stored
+    full = resource_task(story_id)
+    child_ids = [tid for ids in full.subtasks.values() for tid in ids]
+    assert child_ids  # sanity
+    for cid in child_ids:
+        assert cid not in stored

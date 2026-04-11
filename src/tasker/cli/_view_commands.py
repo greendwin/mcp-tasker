@@ -1,4 +1,3 @@
-from itertools import chain
 from typing import Annotated, Any
 
 import typer
@@ -24,6 +23,8 @@ from ._print_utils import (
     print_task,
     print_tree,
 )
+
+DEFAULT_CLOSED_LIMIT = 5
 
 
 @app.command("show", hidden=True)
@@ -74,19 +75,35 @@ def cmd_list_tasks(
         bool,
         typer.Option("--todo", help="Show only tasks from the TODO list."),
     ] = False,
+    closed: Annotated[
+        bool,
+        typer.Option(
+            "--closed",
+            help=(
+                f"Show up to {DEFAULT_CLOSED_LIMIT} recently closed tasks."
+                " Mutually exclusive with --archived, --todo, and task refs."
+            ),
+        ),
+    ] = False,
     repo: TaskRepo = Depends(get_task_repo),
 ) -> None:
     if todo and archived:
         raise typer.BadParameter("--todo and --archived cannot be used together")
+    if closed and (archived or todo or task_refs):
+        raise typer.BadParameter(
+            "--closed cannot be combined with --archived, --todo, or task refs"
+        )
 
     tasks: list[Task] = []
 
-    if todo:
+    if closed:
+        tasks.extend(load_closed_tasks(repo, limit=DEFAULT_CLOSED_LIMIT))
+    elif todo:
         tasks.extend(load_todo_tasks(repo))
 
     if archived:
         tasks.extend(_load_root_tasks(repo, archived=True, shallow=not show_all))
-    elif not todo and not task_refs:
+    elif not closed and not todo and not task_refs:
         tasks.extend(_load_root_tasks(repo, archived=False, shallow=False))
 
     resolved: list[ResolvedRef] = []
@@ -101,10 +118,6 @@ def cmd_list_tasks(
         console.print("[dim]No tasks to show.[/dim]", context={"tasks": []})
         return
 
-    closed_tasks: list[Task] = []
-    if not (archived or task_refs or todo):
-        closed_tasks = load_closed_tasks(repo)
-
     show_children_mode = ShowChildrenMode.SHOW_OPENED
     if show_all:
         show_children_mode = ShowChildrenMode.SHOW_ALL
@@ -114,7 +127,7 @@ def cmd_list_tasks(
         show_pending_marker=show_all,
     )
 
-    for task in chain(tasks, closed_tasks):
+    for task in tasks:
         config.show_task(
             task,
             show_children_mode=show_children_mode,
