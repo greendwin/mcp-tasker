@@ -171,9 +171,11 @@ pyrightconfig.json
 
 # End of https://www.toptal.com/developers/gitignore/api/python
 
+# local configs
+*.local.json
+
 # IDE Configs
 .vscode
 
 # Locally mapped files
-.claude
 sandbox
