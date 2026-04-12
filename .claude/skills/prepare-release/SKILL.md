@@ -17,14 +17,12 @@ Optional argument: `major`, `minor`, `patch`, or an explicit `X.Y.Z` — pre-see
 1. Pre-flight checks
 2. Detect baseline tag
 3. Read commits since baseline
-4. GATE 1: propose version, get approval
-5. Draft README patch notes
-6. Check DESIGN.md drift, draft edits if implicated
-7. GATE 2: approve notes + design together
-8. Write pyproject.toml, README.md, DESIGN.md
-9. uv lock --upgrade
-10. uv run tox (with one retry on skill-caused failures)
-11. Print final output with suggested git commands
+4. Draft README patch notes + check DESIGN.md drift
+5. GATE: propose version, show notes + design edits, get approval
+6. Write pyproject.toml, README.md, DESIGN.md
+7. uv lock --upgrade
+8. uv run tox (with one retry on skill-caused failures)
+9. Print final output with suggested git commands
 ```
 
 Every step has a stop condition. When a stop condition fires, leave whatever has been written on disk, print why, and exit. Do not attempt to roll back file changes — the user will review via `git diff`.
@@ -65,48 +63,15 @@ Run `git log --no-merges --format="%H %s" <baseline>..HEAD` to get the commit li
 
 Store the commit list — you'll need the subjects for version reasoning and the full messages (+ optional diffs) for ambiguous cases and DESIGN drift detection.
 
-## 4. GATE 1 — propose a version
+## 4. Draft README patch notes + check DESIGN.md drift
 
-Goal: decide major / minor / patch, propose a specific `X.Y.Z`, justify it in prose, get explicit user approval.
+This step prepares all content before showing the gate. Nothing is written to disk yet.
 
-**Reasoning approach:**
-- Read all commit subjects.
-- For commits with vague prefixes (`ref:`, `chore:`, `update`, no prefix), read the commit body or run `git show --stat <hash>` to understand what actually changed.
-- Apply standard semver: breaking changes → major; new user-visible features → minor; bug fixes + internal refactors → patch.
-- Watch for hidden breaking changes: dependency bumps that drop support for a Python version, CLI flag removals, file format changes, MCP tool signature changes. A commit titled `ref:` can still break users.
-- If the user passed an argument (`major` / `minor` / `patch` / `X.Y.Z`), use it and skip the reasoning — but still show a one-line summary of commits and wait for approval.
+### README patch notes
 
-**Prefix tally as sanity check:** count prefixes (`feat:`, `fix:`, etc.). If the tally disagrees with the proposed bump (e.g., 5 `feat:` commits but proposing patch), flag the disagreement in the reasoning rather than silently overriding.
+Goal: produce a new `### X.Y.Z` section for `README.md`'s `## Release Notes` that matches the house style.
 
-**Output format for the gate:**
-
-```
-Commits since v1.3.0 (2):
-  - ref: implicit closed display to explicit --closed flag
-  - fix: don't show non-todo tasks on list --todo
-
-Proposed: 1.3.1 (patch)
-Reasoning: One bug fix and one refactor of an existing CLI flag.
-The --closed change is additive (new explicit flag), not a removal,
-so existing invocations still work. No user-visible new features,
-no breaking changes. Patch bump fits.
-
-Approve [1.3.1], or override (e.g., "1.4.0", "minor", "major")?
-```
-
-**Override validation:**
-- Lower than current → refuse. "Cannot bump to X.Y.Z — not greater than current A.B.C."
-- Already has a tag (`git rev-parse vX.Y.Z` succeeds) → refuse. "Version X.Y.Z already released."
-- Prerelease format (`1.4.0a1`, `2.0.0rc2`) → allow but warn: "Prereleases are not typically added to README release notes. Write a `### X.Y.Z` section anyway? [y/N]". If no, skip README patch notes for this run but still bump pyproject.
-- Any valid greater stable semver → accept.
-
-Always ask, even when an argument was passed. No silent auto-accept.
-
-## 5. Draft README patch notes
-
-Goal: produce a new `### X.Y.Z` section in `README.md`'s `## Release Notes` that matches the house style.
-
-**Learn the style:** read the two most recent release sections (`### 1.3.0` and `### 1.2.0` at time of writing) to calibrate voice, bullet phrasing, grouping conventions, and prefixes.
+**Learn the style:** read the two most recent release sections to calibrate voice, bullet phrasing, grouping conventions, and prefixes.
 
 **House style observed (verify by reading — this may drift):**
 - Flat bullet list, no sub-headings.
@@ -120,7 +85,7 @@ Goal: produce a new `### X.Y.Z` section in `README.md`'s `## Release Notes` that
 - Group bug fixes under a single `Bug fixes:` bullet with comma-separated items, matching the existing pattern.
 - Keep bullets short — one line each is the norm.
 
-## 6. DESIGN.md drift check
+### DESIGN.md drift check
 
 Goal: keep `DESIGN.md` honest about the current app state, but only touch sections this release actually affects.
 
@@ -142,13 +107,31 @@ Do **not** rewrite whole sections. Do **not** "improve" prose that is merely dat
 
 **Scope discipline:** only check drift caused by *this release's* commits. A full DESIGN.md vs source audit is a separate concern and out of scope for this skill.
 
-## 7. GATE 2 — approve notes + design together
+## 5. GATE — propose version, show notes + design edits
 
-Show the drafted README section and the proposed DESIGN.md edits in one combined gate. Do not write files yet.
+Goal: present everything in one consolidated view, get explicit user approval.
+
+**Version reasoning approach:**
+- Read all commit subjects.
+- For commits with vague prefixes (`ref:`, `chore:`, `update`, no prefix), read the commit body or run `git show --stat <hash>` to understand what actually changed.
+- Apply standard semver: breaking changes → major; new user-visible features → minor; bug fixes + internal refactors → patch.
+- Watch for hidden breaking changes: dependency bumps that drop support for a Python version, CLI flag removals, file format changes, MCP tool signature changes. A commit titled `ref:` can still break users.
+- If the user passed an argument (`major` / `minor` / `patch` / `X.Y.Z`), use it and skip the reasoning — but still show a one-line summary of commits and wait for approval.
+
+**Prefix tally as sanity check:** count prefixes (`feat:`, `fix:`, etc.). If the tally disagrees with the proposed bump (e.g., 5 `feat:` commits but proposing patch), flag the disagreement in the reasoning rather than silently overriding.
 
 **Output format:**
 
 ```
+Commits since v1.3.0 (2):
+  - ref: implicit closed display to explicit --closed flag
+  - fix: don't show non-todo tasks on list --todo
+
+Proposed: 1.3.1 (patch)
+Reasoning: One bug fix and one refactor of an existing CLI flag.
+The --closed change is additive (new explicit flag), not a removal,
+so existing invocations still work. No breaking changes.
+
 === README.md ===
 
 ### 1.3.1
@@ -159,37 +142,43 @@ Show the drafted README section and the proposed DESIGN.md edits in one combined
 
 No drift detected for this release.
 
-Approve both, revise (say what to change), or reject?
+Approve [1.3.1], override version, or revise notes?
 ```
 
-**Revision handling:**
-- On specific feedback ("group MCP separately", "don't mention the flag rename, it's internal") → redraft and show the gate again.
-- After 2 redrafts on the same gate, stop and say: "Deferring to manual edit — write the notes/design changes yourself, then re-run /prepare-release to continue from the file-write step." The skill's idempotency (see §9) will resume correctly.
-- On outright rejection → stop with the same manual-edit deferral.
+**User responses:**
+- Approve → proceed to file writes.
+- Version override (e.g., `"1.4.0"`, `"minor"`, `"major"`) → re-draft notes with new version header, re-show the gate.
+- Revision feedback (e.g., "group MCP separately", "drop the flag mention") → re-draft and re-show the gate.
 
-## 8. Write the files
+**Override validation:**
+- Lower than current → refuse. "Cannot bump to X.Y.Z — not greater than current A.B.C."
+- Already has a tag (`git rev-parse vX.Y.Z` succeeds) → refuse. "Version X.Y.Z already released."
+- Prerelease format (`1.4.0a1`, `2.0.0rc2`) → allow but warn: "Prereleases are not typically added to README release notes. Write a `### X.Y.Z` section anyway? [y/N]". If no, skip README patch notes for this run but still bump pyproject.
+- Any valid greater stable semver → accept.
 
-Only after both gates are approved:
+Always ask, even when an argument was passed. No silent auto-accept.
+
+## 6. Write the files
+
+Only after the gate is approved:
 1. Update `pyproject.toml`: change the `version = "X.Y.Z"` line under `[project]`. Do not touch anything else in that file.
 2. Prepend the new `### X.Y.Z` section to `README.md`'s `## Release Notes` (directly above the previous release entry).
 3. Apply the DESIGN.md edits if any.
 
-## 9. Idempotent re-run detection
+## 7. Idempotent re-run detection
 
 The skill may be re-invoked mid-flow — e.g., tox failed, user fixed something, runs `/prepare-release` again. Detect this at **step 1** and adapt:
 
 **In-progress release signal:** `pyproject.toml` version is greater than the highest stable tag *and* `README.md` already has a `### <that version>` section.
 
 When detected:
-- Skip GATE 1 (version already decided).
-- Skip README drafting unless the user asks to revise it.
-- Skip DESIGN.md drafting unless they asked to revise that too.
+- Skip the gate (version already decided, notes already written).
 - Resume at `uv lock --upgrade` → `tox` → final output.
 - Announce clearly: "Detected in-progress release X.Y.Z — resuming from lockfile step."
 
 The user can force a fresh run by manually reverting `pyproject.toml` before re-invoking.
 
-## 10. Refresh dependencies
+## 8. Refresh dependencies
 
 Run `uv lock --upgrade`. This refreshes `uv.lock` against the newest versions allowed by the existing constraints in `pyproject.toml`.
 
@@ -197,7 +186,7 @@ Run `uv lock --upgrade`. This refreshes `uv.lock` against the newest versions al
 
 **Stop condition:** if `uv lock --upgrade` fails (resolution conflict, network error, etc.), stop immediately. Print the error. "Release blocked by dep resolution. Fix constraints manually and re-run."
 
-## 11. Run tox
+## 9. Run tox
 
 Run `uv run tox`. This is the acceptance gate.
 
@@ -211,7 +200,7 @@ Run `uv run tox`. This is the acceptance gate.
 
 Never skip hooks, never `--no-verify`, never edit `tox.ini` to quiet errors.
 
-## 12. Final output
+## 10. Final output
 
 On success, print a single summary block:
 
@@ -249,8 +238,7 @@ Do **not** execute any `git` command. Print and stop.
 | Baseline ambiguous and user cannot resolve | Stop, ask what they want |
 | Zero commits since baseline | Stop, "nothing to release" |
 | User overrides to version ≤ current or already tagged | Refuse override, ask again |
-| User rejects GATE 1 outright | Stop |
-| GATE 2 hits 2-redraft limit or outright rejection | Stop, defer to manual edit |
+| User rejects gate outright | Stop |
 | `uv lock --upgrade` fails | Stop, report error |
 | Tox fails and cause is not skill-caused | Stop, "fix pre-existing and re-run" |
 | Tox still fails after one auto-fix retry | Stop, report remaining issues |
