@@ -242,6 +242,10 @@ uv run isort src tests
 
 ## Release Notes
 
+### 1.3.1
+- `list --closed` flag to explicitly show recently closed tasks (previously shown implicitly at the end of `list`)
+- Bug fixes: `list --todo` no longer shows non-TODO tasks
+
 ### 1.3.0
 - `in-review` status and `tasker review` command for submitting leaf tasks
 - `done --reviewed` closes every currently in-review task in one call
