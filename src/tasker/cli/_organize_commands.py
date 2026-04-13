@@ -18,7 +18,6 @@ from ._print_utils import format_task_list_item, print_parent_preview
 
 @app.command("arch", hidden=True)
 @app.command("archive", help="Archive a completed root task.")
-@console.catching_output
 def cmd_archive_task(
     *,
     task_refs: Annotated[
@@ -106,7 +105,6 @@ def _remove_archived_from_todo(repo: TaskRepo, task: Task) -> None:
 
 @app.command("unarch", hidden=True)
 @app.command("unarchive", help="Restore an archived root task.")
-@console.catching_output
 def cmd_unarchive_task(
     *,
     task_refs: Annotated[
@@ -151,7 +149,6 @@ def cmd_unarchive_task(
 
 
 @app.command("move", help="Move a task under a new parent or to root level.")
-@console.catching_output
 def cmd_move_task(
     *,
     task_refs: Annotated[

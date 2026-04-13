@@ -25,3 +25,4 @@ Improve user experience
 - [x] [s19t15](s19t15-support-e-option-for-move.md): Support -e option for 'move' command (i.e. edit after move)
 - [x] [s19t16](s19t16-support-done-review-to-close.md): Support done --reviewed to close in-review tasks
 - [x] [s19t17](s19t17-rework-lastclosed-to-clossed-flag.md): Rework implicit closed display to explicit `--closed` flag
+- [x] ~~[s19t18](s19t18-support-inreview-state-for-nonleaf.md): Support 'in-review' state for non-leaf tasks~~

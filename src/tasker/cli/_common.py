@@ -2,6 +2,7 @@ from typing import Annotated
 
 import click
 import typer
+from typer.core import TyperGroup
 from typer_di import TyperDI
 
 from tasker import __version__
@@ -11,8 +12,16 @@ from tasker.parse import parse_task_file, parse_task_ref
 from tasker.repo import TaskRepo
 from tasker.utils import JsonAppend, console
 
+
+class _TaskerGroup(TyperGroup):
+    def invoke(self, ctx: click.Context) -> None:
+        with console.catching_errors():
+            super().invoke(ctx)
+
+
 app = TyperDI(
     name="tasker",
+    cls=_TaskerGroup,
     help="File-based task tracker for git repos.",
     no_args_is_help=True,
     pretty_exceptions_show_locals=False,
@@ -80,7 +89,6 @@ def get_task_repo() -> TaskRepo:
 
 
 @app.command("init", help="Initialize tasker in the current directory or user home.")
-@console.catching_output
 def cmd_init(
     user: Annotated[
         bool,

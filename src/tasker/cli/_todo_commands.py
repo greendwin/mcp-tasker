@@ -14,7 +14,6 @@ from ._print_utils import print_parent_preview
 
 
 @app.command("todo", help="Add task(s) to the TODO list.")
-@console.catching_output
 def cmd_todo(
     *,
     task_refs: Annotated[
@@ -46,7 +45,6 @@ def cmd_todo(
 
 
 @app.command("untodo", help="Remove task(s) from the TODO list.")
-@console.catching_output
 def cmd_untodo(
     *,
     task_refs: Annotated[

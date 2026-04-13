@@ -26,7 +26,6 @@ from ._print_utils import (
 
 
 @app.command("start", help="Mark task(s) as in-progress.")
-@console.catching_output
 def cmd_start_task(
     *,
     task_refs: Annotated[
@@ -71,7 +70,6 @@ def cmd_start_task(
 
 
 @app.command("review", help="Mark task(s) as in-review.")
-@console.catching_output
 def cmd_review_task(
     *,
     task_refs: Annotated[
@@ -169,7 +167,6 @@ def _fail_starting_nonleaf_task(task: Task) -> NoReturn:
 
 
 @app.command("reset", help="Reset task(s) back to pending.")
-@console.catching_output
 def cmd_reset_task(
     *,
     task_refs: Annotated[
@@ -240,7 +237,6 @@ def _fail_resetting_nonleaf_task(task: Task) -> NoReturn:
 
 
 @app.command("cancel", help="Cancel task(s).")
-@console.catching_output
 def cmd_cancel_task(
     *,
     task_refs: Annotated[
@@ -314,7 +310,6 @@ def _fail_cancelling_nonleaf_task(task: Task) -> NoReturn:
 
 @app.command("finish", hidden=True)
 @app.command("done", help="Mark task(s) as done.")
-@console.catching_output
 def cmd_done_task(
     *,
     task_refs: Annotated[

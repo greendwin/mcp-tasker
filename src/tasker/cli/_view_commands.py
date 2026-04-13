@@ -29,7 +29,6 @@ DEFAULT_CLOSED_LIMIT = 5
 
 @app.command("show", hidden=True)
 @app.command("view", help="Print task content.")
-@console.catching_output
 def cmd_show_task(
     *,
     task_ref: Annotated[
@@ -51,7 +50,6 @@ def cmd_show_task(
 
 
 @app.command("list", help="List open tasks with their pending subtasks.")
-@console.catching_output
 def cmd_list_tasks(
     *,
     task_refs: Annotated[

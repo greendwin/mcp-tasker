@@ -14,3 +14,4 @@ status: done
 - [x] [s26t04](s26t04-on-actions-like-add-recently.md): On actions like 'add' recently closed should not be shown
 - [x] [s26t05](s26t05-titles-and-description-any-user.md): Titles and description (any user text) can contain [words] that are incorrectly printed by rich
 - [x] [s26t06](s26t06-bug-list-todo-should-not.md): BUG: list --todo should not show non-todo opened tasks
+- [x] [s26t07](s26t07-valid-error-when-tasker-dir.md): Valid error when tasker dir not found

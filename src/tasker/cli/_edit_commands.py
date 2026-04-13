@@ -17,7 +17,6 @@ from ._print_utils import compute_markers, print_task
 
 
 @app.command("edit", help="Edit task properties (title, details, slug).")
-@console.catching_output
 def cmd_edit_task(
     *,
     task_ref: Annotated[

@@ -1,10 +1,9 @@
-import functools
 import traceback
-from collections.abc import Callable
+from collections.abc import Iterator
+from contextlib import contextmanager
 from pathlib import Path
-from typing import Any, ParamSpec
+from typing import Any
 
-import typer
 from rich.console import Console
 from rich.markup import escape as _rich_escape
 
@@ -14,9 +13,6 @@ from .exceptions import TaskerError
 def escape_markup(text: str) -> str:
     # escape `[tag]`-like sequences so rich prints them literally
     return _rich_escape(text)
-
-
-_P = ParamSpec("_P")
 
 
 class JsonAppend:
@@ -61,38 +57,35 @@ class OutputContext:
         assert isinstance(arr, list), f"json_output key {key!r} is not a list"
         arr.append(value)
 
-    def catching_output(self, fn: Callable[_P, None]) -> Callable[_P, None]:
-        @functools.wraps(fn)
-        def wrapper(*args: _P.args, **kwargs: _P.kwargs) -> None:
-            self._json_output_obj = {}
-            try:
-                fn(*args, **kwargs)
-            except TaskerError as ex:
-                if not self.json_output:
-                    if self.debug:
-                        raise
-                    console.print(f"[red]Error:[/red] {escape_markup(str(ex))}")
-                    raise typer.Exit(1) from ex
-
-                self._json_output_obj = {"error": str(ex)}
-                self._json_output_obj.update(ex.json_output)
+    @contextmanager
+    def catching_errors(self) -> Iterator[None]:
+        self._json_output_obj = {}
+        try:
+            yield
+        except TaskerError as ex:
+            if not self.json_output:
                 if self.debug:
-                    self._json_output_obj["traceback"] = traceback.format_exc()
-                raise typer.Exit(1) from ex
-            except Exception as ex:
-                if not self.json_output:
                     raise
+                self.print(f"[red]Error:[/red] {escape_markup(str(ex))}")
+                raise SystemExit(1) from ex
 
-                self._json_output_obj = {
-                    "error": str(ex),
-                    "traceback": traceback.format_exc(),
-                }
-                raise typer.Exit(1) from ex
-            finally:
-                if self.json_output:
-                    self._console.print_json(data=self._json_output_obj)
+            self._json_output_obj = {"error": str(ex)}
+            self._json_output_obj.update(ex.json_output)
+            if self.debug:
+                self._json_output_obj["traceback"] = traceback.format_exc()
+            raise SystemExit(1) from ex
+        except Exception as ex:
+            if not self.json_output:
+                raise
 
-        return wrapper
+            self._json_output_obj = {
+                "error": str(ex),
+                "traceback": traceback.format_exc(),
+            }
+            raise SystemExit(1) from ex
+        finally:
+            if self.json_output:
+                self._console.print_json(data=self._json_output_obj)
 
 
 console = OutputContext()

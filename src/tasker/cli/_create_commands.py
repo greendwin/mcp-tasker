@@ -14,7 +14,6 @@ from ._print_utils import print_parent_preview
 
 
 @app.command("new", help="Create a new top-level task.")
-@console.catching_output
 def cmd_new_task(
     *,
     title: Annotated[str, typer.Argument(help="Task title.")],
@@ -58,7 +57,6 @@ def cmd_new_task(
 
 
 @app.command("add", help="Add a subtask to an existing task.")
-@console.catching_output
 def cmd_add_task(
     *,
     parent_ref: Annotated[
@@ -103,7 +101,6 @@ def cmd_add_task(
 
 
 @app.command("add-many", help="Interactively add multiple subtasks.")
-@console.catching_output
 def cmd_add_many_tasks(
     *,
     parent_ref: Annotated[
