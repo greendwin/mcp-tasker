@@ -7,7 +7,7 @@ description: Prepare a new mcp-tasker release: bump version, update README/DESIG
 
 A **tier-1** release skill: mutate files, run checks, print next steps. Never run `git commit`, `git tag`, or `git push`. The user reviews the diff and ships manually.
 
-Optional argument: `major`, `minor`, `patch`, or an explicit `X.Y.Z` — pre-seeds the version decision. If absent, reason about the bump from commits.
+Optional argument: `major`, `minor`, `patch`, or an explicit `X.Y.Z` — sets the version directly. If absent, the skill reasons about the bump from commits and picks automatically.
 
 ---
 
@@ -17,8 +17,8 @@ Optional argument: `major`, `minor`, `patch`, or an explicit `X.Y.Z` — pre-see
 1. Pre-flight checks
 2. Detect baseline tag
 3. Read commits since baseline
-4. Draft README patch notes + check DESIGN.md drift
-5. GATE: propose version, show notes + design edits, get approval
+4. Decide version
+5. Draft README patch notes + check DESIGN.md drift
 6. Write pyproject.toml, README.md, DESIGN.md
 7. uv lock --upgrade
 8. uv run tox (with one retry on skill-caused failures)
@@ -63,9 +63,28 @@ Run `git log --no-merges --format="%H %s" <baseline>..HEAD` to get the commit li
 
 Store the commit list — you'll need the subjects for version reasoning and the full messages (+ optional diffs) for ambiguous cases and DESIGN drift detection.
 
-## 4. Draft README patch notes + check DESIGN.md drift
+## 4. Decide version
 
-This step prepares all content before showing the gate. Nothing is written to disk yet.
+Determine the version bump before drafting notes.
+
+**Version reasoning approach:**
+- Read all commit subjects.
+- For commits with vague prefixes (`ref:`, `chore:`, `update`, no prefix), read the commit body or run `git show --stat <hash>` to understand what actually changed.
+- Apply standard semver: breaking changes → major; new user-visible features → minor; bug fixes + internal refactors → patch.
+- Watch for hidden breaking changes: dependency bumps that drop support for a Python version, CLI flag removals, file format changes, MCP tool signature changes. A commit titled `ref:` can still break users.
+- If the user passed an argument (`major` / `minor` / `patch` / `X.Y.Z`), use that version. Still note what the skill would have chosen for transparency in the final report.
+
+**Prefix tally as sanity check:** count prefixes (`feat:`, `fix:`, etc.). If the tally disagrees with the proposed bump (e.g., 5 `feat:` commits but proposing patch), note the disagreement in the version reasoning.
+
+**Validation (for explicit version arguments):**
+- Lower than current → stop. "Cannot bump to X.Y.Z — not greater than current A.B.C."
+- Already has a tag (`git rev-parse vX.Y.Z` succeeds) → stop. "Version X.Y.Z already released."
+- Prerelease format (`1.4.0a1`, `2.0.0rc2`) → allow but skip README patch notes (only bump pyproject).
+- Any valid greater stable semver → accept.
+
+## 5. Draft README patch notes + check DESIGN.md drift
+
+Nothing is written to disk yet.
 
 ### README patch notes
 
@@ -107,62 +126,11 @@ Do **not** rewrite whole sections. Do **not** "improve" prose that is merely dat
 
 **Scope discipline:** only check drift caused by *this release's* commits. A full DESIGN.md vs source audit is a separate concern and out of scope for this skill.
 
-## 5. GATE — propose version, show notes + design edits
-
-Goal: present everything in one consolidated view, get explicit user approval.
-
-**Version reasoning approach:**
-- Read all commit subjects.
-- For commits with vague prefixes (`ref:`, `chore:`, `update`, no prefix), read the commit body or run `git show --stat <hash>` to understand what actually changed.
-- Apply standard semver: breaking changes → major; new user-visible features → minor; bug fixes + internal refactors → patch.
-- Watch for hidden breaking changes: dependency bumps that drop support for a Python version, CLI flag removals, file format changes, MCP tool signature changes. A commit titled `ref:` can still break users.
-- If the user passed an argument (`major` / `minor` / `patch` / `X.Y.Z`), use it and skip the reasoning — but still show a one-line summary of commits and wait for approval.
-
-**Prefix tally as sanity check:** count prefixes (`feat:`, `fix:`, etc.). If the tally disagrees with the proposed bump (e.g., 5 `feat:` commits but proposing patch), flag the disagreement in the reasoning rather than silently overriding.
-
-**Output format:**
-
-```
-Commits since v1.3.0 (2):
-  - ref: implicit closed display to explicit --closed flag
-  - fix: don't show non-todo tasks on list --todo
-
-Proposed: 1.3.1 (patch)
-Reasoning: One bug fix and one refactor of an existing CLI flag.
-The --closed change is additive (new explicit flag), not a removal,
-so existing invocations still work. No breaking changes.
-
-=== README.md ===
-
-### 1.3.1
-- `list --closed` flag to explicitly show recently closed tasks (previously implicit)
-- Bug fixes: `list --todo` no longer shows non-TODO tasks
-
-=== DESIGN.md ===
-
-No drift detected for this release.
-
-Approve [1.3.1], override version, or revise notes?
-```
-
-**User responses:**
-- Approve → proceed to file writes.
-- Version override (e.g., `"1.4.0"`, `"minor"`, `"major"`) → re-draft notes with new version header, re-show the gate.
-- Revision feedback (e.g., "group MCP separately", "drop the flag mention") → re-draft and re-show the gate.
-
-**Override validation:**
-- Lower than current → refuse. "Cannot bump to X.Y.Z — not greater than current A.B.C."
-- Already has a tag (`git rev-parse vX.Y.Z` succeeds) → refuse. "Version X.Y.Z already released."
-- Prerelease format (`1.4.0a1`, `2.0.0rc2`) → allow but warn: "Prereleases are not typically added to README release notes. Write a `### X.Y.Z` section anyway? [y/N]". If no, skip README patch notes for this run but still bump pyproject.
-- Any valid greater stable semver → accept.
-
-Always ask, even when an argument was passed. No silent auto-accept.
-
 ## 6. Write the files
 
-Only after the gate is approved:
+After drafting, write immediately — no approval gate:
 1. Update `pyproject.toml`: change the `version = "X.Y.Z"` line under `[project]`. Do not touch anything else in that file.
-2. Prepend the new `### X.Y.Z` section to `README.md`'s `## Release Notes` (directly above the previous release entry).
+2. Prepend the new `### X.Y.Z` section to `README.md`'s `## Release Notes` (directly above the previous release entry). Skip this for prerelease versions.
 3. Apply the DESIGN.md edits if any.
 
 ## 7. Idempotent re-run detection
@@ -172,7 +140,7 @@ The skill may be re-invoked mid-flow — e.g., tox failed, user fixed something,
 **In-progress release signal:** `pyproject.toml` version is greater than the highest stable tag *and* `README.md` already has a `### <that version>` section.
 
 When detected:
-- Skip the gate (version already decided, notes already written).
+- Skip version decision and file writes (already done).
 - Resume at `uv lock --upgrade` → `tox` → final output.
 - Announce clearly: "Detected in-progress release X.Y.Z — resuming from lockfile step."
 
@@ -202,10 +170,28 @@ Never skip hooks, never `--no-verify`, never edit `tox.ini` to quiet errors.
 
 ## 10. Final output
 
-On success, print a single summary block:
+On success, print a single summary block. This is where all the information that was previously shown at the gate is presented — the user reviews everything after the work is done.
 
 ```
 Release prep complete: vX.Y.Z
+
+Commits since v<baseline> (<N>):
+  - <commit subject 1>
+  - <commit subject 2>
+
+Version: X.Y.Z (patch|minor|major)
+Reasoning: <brief explanation of why this bump level was chosen,
+including any uncertainty or prefix-tally disagreements>
+
+=== README.md (written) ===
+
+### X.Y.Z
+- <release note 1>
+- <release note 2>
+
+=== DESIGN.md ===
+
+<edits applied, or "No drift detected for this release.">
 
 Changed files:
   pyproject.toml       <N> +, <M> -
@@ -222,6 +208,8 @@ Suggested next steps (run yourself):
   git push && git push --tags
 ```
 
+If the user passed an explicit version that differs from what the skill would have chosen, include a note: "User-specified version X.Y.Z (commits suggest <bump level>)."
+
 **Commit message style:** read the most recent release commit (search `git log` for the commit that last bumped the version in `pyproject.toml`) and match its phrasing. At time of writing, the style is `update to version X.Y.Z` — verify this is still current rather than assuming.
 
 Do **not** execute any `git` command. Print and stop.
@@ -237,8 +225,7 @@ Do **not** execute any `git` command. Print and stop.
 | No baseline tag found | Stop, "first releases must be cut manually" |
 | Baseline ambiguous and user cannot resolve | Stop, ask what they want |
 | Zero commits since baseline | Stop, "nothing to release" |
-| User overrides to version ≤ current or already tagged | Refuse override, ask again |
-| User rejects gate outright | Stop |
+| Explicit version ≤ current or already tagged | Stop, report invalid version |
 | `uv lock --upgrade` fails | Stop, report error |
 | Tox fails and cause is not skill-caused | Stop, "fix pre-existing and re-run" |
 | Tox still fails after one auto-fix retry | Stop, report remaining issues |
@@ -250,5 +237,4 @@ Do **not** execute any `git` command. Print and stop.
 - Never touches `tox.ini` or CI configuration.
 - Never uses `--no-verify`, `--no-gpg-sign`, or equivalent skip-hook flags.
 - Never rewrites DESIGN.md sections that aren't implicated by this release.
-- Never silently auto-accepts a version bump — always asks.
 - Never edits files outside: `pyproject.toml`, `uv.lock`, `README.md`, `DESIGN.md`.
