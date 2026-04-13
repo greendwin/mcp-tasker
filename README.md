@@ -242,6 +242,9 @@ uv run isort src tests
 
 ## Release Notes
 
+### 1.3.2
+- Bug fixes: proper error handling for exceptions raised in dependency-injection callbacks (e.g. missing `tasker/` directory)
+
 ### 1.3.1
 - `list --closed` flag to explicitly show recently closed tasks (previously shown implicitly at the end of `list`)
 - Bug fixes: `list --todo` no longer shows non-TODO tasks
