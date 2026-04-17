@@ -1,0 +1,34 @@
+name: tasker
+
+services:
+  claude-code:
+    build:
+      context: ..
+      dockerfile: sandbox/Dockerfile
+      args:
+        - UID=${UID:-1000}
+        - GID=${GID:-1000}
+        - USERNAME=${USER}
+    stdin_open: true   # keep stdin open for docker attach
+    tty: true          # allocate a TTY
+    volumes:
+      # Mount the parent project directory into /work
+      - ..:/work
+      # Mount agents repo
+      - ~/agents:/home/${USER}/agents
+      # Persistent npm global cache (speeds up future installs)
+      - npm-cache:/home/${USER}/.npm
+      # Mount tmux config from sandbox (readonly)
+      - ./tmux.conf:/home/${USER}/.tmux.conf:ro
+      # Mount zsh config from sandbox (readonly)
+      - ./zshrc:/home/${USER}/.zshrc:ro
+      # Claude Code auth and config
+      - ~/.claude:/home/${USER}/.claude
+      - ~/.claude.json:/home/${USER}/.claude.json
+    working_dir: /work
+    environment:
+      - TERM=xterm-256color
+
+volumes:
+  # Caches npm packages
+  npm-cache:

@@ -176,6 +176,3 @@ pyrightconfig.json
 
 # IDE Configs
 .vscode
-
-# Locally mapped files
-sandbox
