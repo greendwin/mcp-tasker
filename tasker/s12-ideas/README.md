@@ -17,3 +17,4 @@ status: done
 - [x] [s12t08](s12t08-show-recently-finished-task-in.md): Show recently finished task in list command, otherwise it is vanishing from radars as soon as it marks done
 - [x] s12t09: Highlight last two digits in bullet lists
 - [x] [s12t10](s12t10-migrate-from-poetry-to-uv.md): Migrate from poetry to uv
+- [x] [s12t11](s12t11-when-finishing-task-go-up.md): When finishing task -- go up in preview until show first non-finished ancestor

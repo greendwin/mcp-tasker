@@ -938,6 +938,16 @@ def test_cancel_json_does_not_show_parent(story_id: str) -> None:
     assert "parent" not in data
 
 
+def test_cancel_walks_up_past_closed_parent_to_grandparent(story_id: str) -> None:
+    """When cancelling last open subtask closes parent, preview shows grandparent."""
+    sub = add_subtask(story_id, "Sub-story").task_id
+    leaf = add_subtask(sub, "Only leaf").task_id
+    add_subtask(story_id, "Other task")
+    result = assert_invoke(app, ["cancel", leaf])
+    assert "My story" in result.output
+    assert "Other task" in result.output
+
+
 def test_cancel_idempotent_flushes_corrected_statuses(
     story_id: str, get_task_file: GetTaskFile
 ) -> None:
@@ -1211,6 +1221,42 @@ def test_done_json_does_not_show_parent(story_id: str) -> None:
     assert data["task_refs"] == [task_id]
     # No parent info in JSON output
     assert "parent" not in data
+
+
+def test_done_shows_open_root_tasks_when_story_closes() -> None:
+    s1 = create_task("Story one").task_id
+    leaf = add_subtask(s1, "Only task").task_id
+    s2 = create_task("Story two").task_id
+    add_subtask(s2, "Remaining work")
+    result = assert_invoke(app, ["done", leaf])
+    # Story one is fully closed; should show other open stories
+    assert "Story two" in result.output
+
+
+def test_done_no_fallback_when_mixed_stories() -> None:
+    s1 = create_task("Story one").task_id
+    leaf1 = add_subtask(s1, "Only task").task_id
+    s2 = create_task("Story two").task_id
+    leaf2 = add_subtask(s2, "Task A").task_id
+    add_subtask(s2, "Task B")
+    s3 = create_task("Story three").task_id
+    add_subtask(s3, "Unrelated")
+    result = assert_invoke(app, ["done", leaf1, leaf2])
+    # Story one closed entirely, but Story two still has open ancestor
+    # Should NOT show Story three (the fallback listing)
+    assert "Story three" not in result.output
+    # But should show Story two (non-closed ancestor)
+    assert "Story two" in result.output
+
+
+def test_done_walks_up_past_closed_parent_to_grandparent(story_id: str) -> None:
+    sub = add_subtask(story_id, "Sub-story").task_id
+    leaf = add_subtask(sub, "Only leaf").task_id
+    add_subtask(story_id, "Other task")
+    result = assert_invoke(app, ["done", leaf])
+    # Should show grandparent "My story" since parent "Sub-story" auto-closed
+    assert "My story" in result.output
+    assert "Other task" in result.output
 
 
 # ---------------------------------------------------------------------------
