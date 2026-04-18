@@ -242,6 +242,10 @@ uv run isort src tests
 
 ## Release Notes
 
+### 1.3.3
+- Task preview after `done`/`cancel` walks up to the first non-closed ancestor, showing the full picture of remaining work
+- When closing a task completes the entire story, nearby open stories are shown as a "what's next?" hint
+
 ### 1.3.2
 - Bug fixes: proper error handling for exceptions raised in dependency-injection callbacks (e.g. missing `tasker/` directory)
 
