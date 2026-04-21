@@ -9,11 +9,11 @@ class TaskerError(Exception):
         self,
         message: str,
         *,
-        json_output: dict[str, Any],
+        json_output: dict[str, Any] | None = None,
         file_path: Path | None = None,
     ) -> None:
         super().__init__(message)
-        self.json_output = json_output
+        self.json_output = json_output or {}
         self.file_path = file_path
 
 

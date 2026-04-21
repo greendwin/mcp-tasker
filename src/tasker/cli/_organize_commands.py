@@ -37,7 +37,7 @@ def cmd_archive_task(
     repo: TaskRepo = Depends(get_task_repo),
 ) -> None:
     if not task_refs and not all_closed:
-        raise TaskerError("Specify <task_ref> or --closed.", json_output={})
+        raise TaskerError("Specify <task_ref> or --closed.")
 
     if not task_refs:
         task_refs = []
@@ -180,17 +180,13 @@ def cmd_move_task(
 ) -> None:
     flags = sum([parent_ref is not None, root, delete])
     if flags > 1:
-        raise TaskerError(
-            "Specify only one of --parent, --root, or --delete.", json_output={}
-        )
+        raise TaskerError("Specify only one of --parent, --root, or --delete.")
 
     if flags == 0:
-        raise TaskerError(
-            "Specify --parent <ref>, --root, or --delete.", json_output={}
-        )
+        raise TaskerError("Specify --parent <ref>, --root, or --delete.")
 
     if editor and delete:
-        raise TaskerError("--editor cannot be used with --delete.", json_output={})
+        raise TaskerError("--editor cannot be used with --delete.")
 
     new_parent = None
     if parent_ref is not None:
