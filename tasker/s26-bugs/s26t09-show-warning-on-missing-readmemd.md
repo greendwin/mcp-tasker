@@ -1,7 +1,7 @@
 ---
 id: s26t09
 slug: show-warning-on-missing-readmemd
-status: pending
+status: done
 ---
 
 # Show warning on missing README.md in a directory

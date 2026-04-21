@@ -144,12 +144,16 @@ def cmd_list_tasks(
 def _load_root_tasks(repo: TaskRepo, *, shallow: bool, archived: bool) -> list[Task]:
     tasks: list[Task] = []
     for task_path in repo.list_root_tasks(archived=archived):
+        tp = detect_task_type(task_path)
+        if tp is None:
+            # skip broken files
+            continue
+
         if shallow:
             task, _ = parse_task_file(task_path)
             tasks.append(task)
             continue
 
-        tp = detect_task_type(task_path)
         tasks.append(repo.resolve_ref(tp.task_ref))
 
     return tasks

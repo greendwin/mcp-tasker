@@ -1,9 +1,10 @@
 import re
 from dataclasses import dataclass
 from pathlib import Path
-from typing import NamedTuple
+from typing import Literal, NamedTuple, overload
 
-from tasker.utils import read_text
+from tasker.layout import discover_tasker_dir
+from tasker.utils import console, escape_markup, read_text
 
 from .base_types import EXTENDED_TASK_FILENAME, Task, TaskStatus, build_task_ref
 from .exceptions import TaskValidateError
@@ -126,11 +127,37 @@ class TaskDetectResult:
     content_path: Path
 
 
-def detect_task_type(task_path: Path) -> TaskDetectResult:
+@overload
+def detect_task_type(
+    task_path: Path, *, require_valid: Literal[False] = False
+) -> TaskDetectResult | None: ...
+
+
+@overload
+def detect_task_type(
+    task_path: Path, *, require_valid: Literal[True]
+) -> TaskDetectResult: ...
+
+
+def detect_task_type(
+    task_path: Path, *, require_valid: bool = False
+) -> TaskDetectResult | None:
     if task_path.is_dir():
         extended = True
         task_ref = task_path.name
         content_path = task_path / EXTENDED_TASK_FILENAME
+
+        if not content_path.exists():
+            if not require_valid:
+                warn_broken_task(content_path)
+                return None
+
+            raise TaskValidateError(
+                f"Invalid task {task_ref}: missing {EXTENDED_TASK_FILENAME}",
+                task_ref=task_ref,
+                file_path=content_path,
+            )
+
     else:
         extended = False
         task_ref = task_path.stem
@@ -148,6 +175,16 @@ def detect_task_type(task_path: Path) -> TaskDetectResult:
         slug=normalize_slug(ref.slug),
         extended=extended,
         content_path=content_path,
+    )
+
+
+def warn_broken_task(task_path: Path) -> None:
+    root = discover_tasker_dir()
+    path = str(task_path.relative_to(root))
+
+    console.print(
+        "[yellow]Warning:[/yellow] Missing file "
+        f"[magenta]{escape_markup(path)}[/magenta], skipping"
     )
 
 
@@ -200,7 +237,7 @@ def parse_task(
 
 
 def parse_task_file(path: Path) -> ParseTaskResult:
-    tt = detect_task_type(path)
+    tt = detect_task_type(path, require_valid=True)
     content = read_text(tt.content_path)
     return parse_task(content, task_id=tt.task_id, slug=tt.slug, extended=tt.extended)
 

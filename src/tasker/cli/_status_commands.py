@@ -388,6 +388,9 @@ def cmd_done_task(
 def _iter_in_review_tasks(repo: TaskRepo) -> Iterator[Task]:
     for task_path in repo.list_root_tasks(archived=False):
         tp = detect_task_type(task_path)
+        if tp is None:
+            continue
+
         root = repo.resolve_ref(tp.task_ref)
         for t in walk_tasks(root):
             if t.status == TaskStatus.IN_REVIEW:
@@ -397,6 +400,10 @@ def _iter_in_review_tasks(repo: TaskRepo) -> Iterator[Task]:
 def _iter_open_leaf_tasks(repo: TaskRepo) -> Iterator[Task]:
     for task_path in repo.list_root_tasks(archived=False):
         tp = detect_task_type(task_path)
+        if tp is None:
+            # skip broken files
+            continue
+
         root = repo.resolve_ref(tp.task_ref)
         for t in walk_tasks(root):
             if not t.is_closed and not is_nonleaf_task(t):

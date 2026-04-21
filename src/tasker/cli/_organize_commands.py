@@ -45,6 +45,10 @@ def cmd_archive_task(
     if all_closed:
         for task_path in repo.list_root_tasks():
             tp = detect_task_type(task_path)
+            if tp is None:
+                # skip broken files
+                continue
+
             if tp.task_id in task_refs or tp.task_ref in task_refs:
                 continue
 

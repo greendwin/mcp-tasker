@@ -5,7 +5,13 @@ from typing import NamedTuple
 from tasker.base_types import Task, is_root_task_id
 from tasker.exceptions import TaskValidateError
 from tasker.layout import ARCHIVE_DIR
-from tasker.parse import ParsedSubtask, detect_task_type, parse_task, parse_task_ref
+from tasker.parse import (
+    ParsedSubtask,
+    detect_task_type,
+    parse_task,
+    parse_task_ref,
+    warn_broken_task,
+)
 from tasker.render import append_task_filename, render_task
 from tasker.utils import read_text, write_text
 
@@ -204,7 +210,7 @@ def _load_task_tree(
             task_ref=root_id,
         )
 
-    tt = detect_task_type(candidates[0])
+    tt = detect_task_type(candidates[0], require_valid=True)
     assert tt.task_id == root_id
 
     content = read_text(tt.content_path)
@@ -239,7 +245,8 @@ def _load_task_tree(
             loader=loader,
             archived=from_archive,
         )
-        root.subtasks.append(child)
+        if child is not None:
+            root.subtasks.append(child)
 
     _invalidate_task_flags(root)
 
@@ -250,7 +257,7 @@ def _load_subtask(
     *,
     loader: TaskLoader,
     archived: bool = False,
-) -> Task:
+) -> Task | None:
     if task_info.slug is None:
         # inline task cannot be extended
         assert not task_info.extended
@@ -268,6 +275,11 @@ def _load_subtask(
         return task
 
     original_path = append_task_filename(parent_dir, task_info.ref, task_info.extended)
+
+    if task_info.extended and not original_path.exists():
+        warn_broken_task(original_path)
+        return None
+
     content = read_text(original_path)
 
     try:
@@ -297,7 +309,8 @@ def _load_subtask(
         child = _load_subtask(
             subtasks_dir, child_info, loader=loader, archived=archived
         )
-        task.subtasks.append(child)
+        if child is not None:
+            task.subtasks.append(child)
 
     return task
 

@@ -408,6 +408,10 @@ def print_parent_preview(repo: TaskRepo, *tasks: Task) -> None:
     if not has_open_ancestor and all(t.is_closed for t in tasks):
         for task_path in repo.list_root_tasks(archived=False):
             tp = detect_task_type(task_path)
+            if tp is None:
+                # skip broken files
+                continue
+
             root = repo.resolve_ref(tp.task_ref)
             if not root.is_closed:
                 config.show_task(root, ShowChildrenMode.SHOW_OPENED)
