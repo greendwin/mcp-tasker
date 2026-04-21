@@ -66,6 +66,10 @@ class OutputContext:
             if not self.json_output:
                 if self.debug:
                     raise
+
+                if ex.file_path:
+                    self.print(f"[dim]File: {escape_markup(str(ex.file_path))}[/dim]")
+
                 self.print(f"[red]Error:[/red] {escape_markup(str(ex))}")
                 raise SystemExit(1) from ex
 

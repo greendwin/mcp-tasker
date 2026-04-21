@@ -209,12 +209,17 @@ def _load_task_tree(
 
     content = read_text(tt.content_path)
 
-    root, subtasks = parse_task(
-        content,
-        task_id=tt.task_id,
-        slug=tt.slug,
-        extended=tt.extended,
-    )
+    try:
+        root, subtasks = parse_task(
+            content,
+            task_id=tt.task_id,
+            slug=tt.slug,
+            extended=tt.extended,
+        )
+    except TaskValidateError as ex:
+        if ex.file_path is None:
+            ex.file_path = tt.content_path.relative_to(loader.root)
+        raise
 
     assert root_id == root.id
     root.archived = from_archive
@@ -265,12 +270,17 @@ def _load_subtask(
     original_path = append_task_filename(parent_dir, task_info.ref, task_info.extended)
     content = read_text(original_path)
 
-    task, subtasks = parse_task(
-        content,
-        task_id=task_info.id,
-        slug=task_info.slug,
-        extended=task_info.extended,
-    )
+    try:
+        task, subtasks = parse_task(
+            content,
+            task_id=task_info.id,
+            slug=task_info.slug,
+            extended=task_info.extended,
+        )
+    except TaskValidateError as ex:
+        if ex.file_path is None:
+            ex.file_path = original_path.relative_to(loader.root)
+        raise
     task.archived = archived
 
     orig_info = OriginalState(

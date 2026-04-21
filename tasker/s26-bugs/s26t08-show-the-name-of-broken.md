@@ -1,7 +1,7 @@
 ---
 id: s26t08
 slug: show-the-name-of-broken
-status: pending
+status: done
 ---
 
 # Show the name of broken file/taskref when reporting that has bad format

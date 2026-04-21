@@ -15,5 +15,5 @@ status: pending
 - [x] [s26t05](s26t05-titles-and-description-any-user.md): Titles and description (any user text) can contain [words] that are incorrectly printed by rich
 - [x] [s26t06](s26t06-bug-list-todo-should-not.md): BUG: list --todo should not show non-todo opened tasks
 - [x] [s26t07](s26t07-valid-error-when-tasker-dir.md): Valid error when tasker dir not found
-- [ ] [s26t08](s26t08-show-the-name-of-broken.md): Show the name of broken file/taskref when reporting that has bad format
+- [x] [s26t08](s26t08-show-the-name-of-broken.md): Show the name of broken file/taskref when reporting that has bad format
 - [ ] [s26t09](s26t09-show-warning-on-missing-readmemd.md): Show warning on missing README.md in a directory

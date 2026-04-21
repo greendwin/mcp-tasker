@@ -6,7 +6,7 @@ import pytest
 from tasker.cli import app
 from tasker.exceptions import TaskerError
 
-from .helpers import assert_invoke
+from .helpers import assert_invoke, create_task
 
 
 def test_tasker_not_found_shows_clean_message() -> None:
@@ -59,3 +59,20 @@ def test_debug_flag_propagates_exception() -> None:
 def test_debug_flag_does_not_print_clean_error() -> None:
     with pytest.raises(TaskerError):
         assert_invoke(app, ["--debug", "add", "s99", "Some task"])
+
+
+def test_malformed_task_shows_file_path(tasks_root: Path) -> None:
+    ref = create_task("Broken story")
+    task_file = next(tasks_root.glob(f"{ref.task_id}-*.md"))
+    task_file.write_text("not valid front-matter")
+    result = assert_invoke(app, ["show", ref.task_id], expect_error=True)
+    assert task_file.name in result.output
+
+
+def test_malformed_task_path_is_relative(tasks_root: Path) -> None:
+    ref = create_task("Broken story")
+    task_file = next(tasks_root.glob(f"{ref.task_id}-*.md"))
+    task_file.write_text("not valid front-matter")
+    result = assert_invoke(app, ["show", ref.task_id], expect_error=True)
+    # path should be relative to tasker dir, not absolute
+    assert str(tasks_root) not in result.output
