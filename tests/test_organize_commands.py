@@ -1148,6 +1148,26 @@ def test_move_multiple_tasks_to_root(s2: str) -> None:
     assert "moved" in result.output
 
 
+def test_move_multiple_groups_renames(s1: str, s2: str) -> None:
+    add_subtask(s1, "Task A")
+    add_subtask(s1, "Task B")
+    result = assert_invoke(app, ["move", f"{s1}t01", f"{s1}t02", "--parent", s2])
+    lines = result.output.splitlines()
+    moved_lines = [i for i, l in enumerate(lines) if "moved" in l]
+    renamed_lines = [i for i, l in enumerate(lines) if "Renamed tasks" in l]
+    assert len(moved_lines) == 2
+    assert len(renamed_lines) == 1
+    # all "moved" lines come before the rename block
+    assert max(moved_lines) < min(renamed_lines)
+
+
+def test_move_single_task_shows_renames(s1: str, s2: str) -> None:
+    add_subtask(s1, "Task A")
+    result = assert_invoke(app, ["move", f"{s1}t01", "--parent", s2])
+    assert "Renamed tasks" in result.output
+    assert f"{s1}t01" in result.output
+
+
 def test_move_multiple_shows_single_preview(s1: str, s2: str) -> None:
     """Preview block should appear only once at the end, not per task."""
     add_subtask(s1, "Task A")

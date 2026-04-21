@@ -1,7 +1,7 @@
 ---
 id: s19
 slug: usability
-status: done
+status: pending
 ---
 
 # Usability
@@ -26,3 +26,5 @@ Improve user experience
 - [x] [s19t16](s19t16-support-done-review-to-close.md): Support done --reviewed to close in-review tasks
 - [x] [s19t17](s19t17-rework-lastclosed-to-clossed-flag.md): Rework implicit closed display to explicit `--closed` flag
 - [x] ~~[s19t18](s19t18-support-inreview-state-for-nonleaf.md): Support 'in-review' state for non-leaf tasks~~
+- [x] [s19t19](s19t19-group-renamed-tasks.md): Group renamed tasks
+- [ ] s19t20: Show callstacks only when --debug

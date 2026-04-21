@@ -6,7 +6,7 @@ from typer_di import Depends
 from tasker.base_types import Task, is_root_task_id, walk_tasks
 from tasker.exceptions import TaskerError, TaskValidateError
 from tasker.parse import detect_task_type
-from tasker.repo import TaskRepo
+from tasker.repo import TaskRename, TaskRepo
 from tasker.resolve import resolve_ref, save_recent_for_refs
 from tasker.todo import load_todo_ids, save_todo_ids
 from tasker.utils import JsonAppend, console
@@ -209,6 +209,7 @@ def cmd_move_task(
 
     need_preview = []
     edit_ids: list[str] = []
+    all_renames: list[TaskRename] = []
     for r in resolved_tasks:
         if delete:
             repo.delete_task(r.task)
@@ -252,17 +253,20 @@ def cmd_move_task(
                 context={"task_refs": JsonAppend(r.task_ref)},
             )
 
+        all_renames.extend(renames)
+        edit_ids.append(renames[0].new_id)
+        need_preview.append(r.task)
+
+    if all_renames:
+        console.print("")
         console.print("[yellow]Renamed tasks:[/yellow]")
-        for rn in renames:
+        for rn in all_renames:
             console.print(
                 f"  [cyan]{rn.old_id}[/cyan] → [blue]{rn.new_id}[/blue]",
                 context={
                     "renames": JsonAppend({"old_id": rn.old_id, "new_id": rn.new_id})
                 },
             )
-
-        edit_ids.append(renames[0].new_id)
-        need_preview.append(r.task)
 
     if not delete:
         # include parent link to recent list
