@@ -1,81 +1,96 @@
-# Claude Code Sandbox
+# Agent Sandbox
 
-A Docker-based environment for running Claude Code with persistent authentication and a shared project workspace.
+A Docker-based environment for running Claude Code with persistent authentication,
+a shared project workspace, and a pluggable variant system for different language stacks.
 
-## Prerequisites
+See the top-level [`README.md`](../README.md) for WSL setup and a variants overview.
 
-- [Docker](https://docs.docker.com/get-docker/) with the Compose plugin
+## Layout
 
-## Setup
+```
+sandbox/
+  .env.example                          template for .env (copy and edit)
+  docker-compose.yml                    base compose file (variant-agnostic)
+  run.sh                                one-shot: build (if needed) → up → claude
+  base/
+    Dockerfile                          generic dev image (ubuntu + tmux/zsh/nvim/node/claude)
+    zshrc, tmux.conf                    mounted read-only into the container
+  variants/
+    python-uv/        Dockerfile + compose.override.yml
+    python-poetry/    Dockerfile + compose.override.yml
+    php/              Dockerfile + compose.override.yml
+    minimal/          Dockerfile + compose.override.yml  (no language stack)
+  scripts/
+    build.sh     builds base image, then the active variant
+    attach.sh    `tmux attach -t main`
+    shell.sh     plain zsh shell
+    claude.sh    `claude --dangerously-skip-permissions`
+    _lib.sh      sourced helper (loads .env, sets COMPOSE_FILE)
+```
 
-Build the image, passing your host UID/GID/username so file ownership and home directory match:
+## First-time setup
 
 ```bash
 cd sandbox
-UID=$(id -u) GID=$(id -g) docker compose build
-
-# alternatively store in .env file
-printf "UID=$(id -u)\nGID=$(id -g)\nUSER=$USER\n" >> .env
-docker compose build
+cp .env.example .env
+# Edit .env: set HOST_UID, HOST_GID, USER, COMPOSE_PROJECT_NAME, VARIANT
+./run.sh
 ```
 
-This is required before the first run and after any identity change on the host. The build bakes your user identity into the image so mounted volume files are owned correctly and the home directory path matches the host (`/home/$USER`).
+`run.sh` builds the base image + active variant on first invocation, starts
+the container, and drops you into Claude Code. Subsequent runs skip the
+build when the images already exist.
 
-Then start the container:
+Claude credentials live in `~/.claude` / `~/.claude.json` on the host (bind-mounted
+into the container), so authentication persists across container rebuilds.
+
+## Daily usage
 
 ```bash
-docker compose up -d
+cd sandbox
+./run.sh              # ensure running, then run claude
+./scripts/attach.sh   # attach to the tmux session inside the container
+./scripts/shell.sh    # plain zsh shell inside the container
+./scripts/claude.sh   # another claude instance in the running container
 ```
 
-On first run, attach to the container and authenticate Claude Code:
+The project directory (`..` relative to `sandbox/`) is mounted at `/work` inside
+the container and reflects host changes in real time.
+
+Press `Ctrl+B, D` to detach from tmux without stopping the container.
+
+## Switching variants
 
 ```bash
-docker exec -it claude-code-dev tmux attach -t main
-claude
+# Edit VARIANT in .env, then:
+docker compose down   # stop the old variant
+./run.sh              # build+start the new one
 ```
 
-Follow the authentication prompts. Your credentials are saved in a persistent Docker volume and will survive container restarts.
-
-Press `Ctrl+B, D` to detach from the tmux session without stopping the container.
-
-## Daily Usage
-
-Start the container (if not already running):
-
-```bash
-docker compose up -d
-```
-
-Attach to it:
-
-```bash
-docker exec -it claude-code-dev tmux attach -t main
-```
-
-Or open a fresh shell session:
-
-```bash
-docker exec -it claude-code-dev tmux new-session
-```
-
-The project directory is mounted at `/work` inside the container, reflecting your local files in real time.
+Each variant's image is tagged `<COMPOSE_PROJECT_NAME>-<variant>:latest`, so
+switching doesn't rebuild unnecessarily.
 
 ## Stopping
 
-Stop the container without losing auth data:
-
 ```bash
-docker compose stop
+docker compose stop        # pause, keep state
+docker compose down        # remove containers, keep volumes (auth + caches)
+docker compose down -v     # nuke everything including caches and venvs
 ```
 
-To fully remove containers (volumes with auth are preserved):
+Named volumes owned by a variant (e.g. `venv`, `tox`, `uv-cache`, `vendor`,
+`composer-cache`) live under the compose project namespace — you can list them
+with `docker volume ls | grep "$COMPOSE_PROJECT_NAME"`.
+
+## Rebuilding
+
+After changing a `Dockerfile` or `claude_install.sh`:
 
 ```bash
-docker compose down
+./scripts/build.sh
+docker compose up -d --force-recreate
 ```
 
-To wipe everything including saved credentials:
+## Adding a variant
 
-```bash
-docker compose down -v
-```
+See the top-level README's "Adding a new variant" section.
