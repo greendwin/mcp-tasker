@@ -1,3 +1,4 @@
+# check=skip=InvalidDefaultArgInFrom
 ARG BASE_IMAGE
 FROM ${BASE_IMAGE}
 
@@ -16,6 +17,10 @@ RUN uv tool install poetry \
  && uv tool install flake8
 
 RUN sudo npm install -g pyright && sudo rm -rf /var/lib/apt/lists/*
+
+# Pre-create volume mount points so named-volume init inherits user ownership
+# instead of being created as root by the Docker daemon.
+RUN mkdir -p /work/.venv /work/.tox
 
 # Keep poetry's venv inside the project dir so the .venv volume-shadow works.
 ENV POETRY_VIRTUALENVS_IN_PROJECT=true

@@ -1,3 +1,4 @@
+# check=skip=InvalidDefaultArgInFrom
 ARG BASE_IMAGE
 FROM ${BASE_IMAGE}
 
@@ -15,5 +16,9 @@ RUN uv tool install tox \
  && uv tool install mcp-tasker
 
 RUN sudo npm install -g pyright && sudo rm -rf /var/lib/apt/lists/*
+
+# Pre-create volume mount points so named-volume init inherits user ownership
+# instead of being created as root by the Docker daemon.
+RUN mkdir -p /work/.venv /work/.tox
 
 ENV PATH="/work/.venv/bin:${PATH}"

@@ -1,3 +1,4 @@
+# check=skip=InvalidDefaultArgInFrom
 ARG BASE_IMAGE
 FROM ${BASE_IMAGE}
 
@@ -29,3 +30,7 @@ RUN curl -fsSL https://getcomposer.org/installer | php -- \
         --install-dir=/usr/local/bin --filename=composer
 
 USER ${USERNAME}
+
+# Pre-create volume mount points so named-volume init inherits user ownership
+# instead of being created as root by the Docker daemon.
+RUN mkdir -p /work/vendor
