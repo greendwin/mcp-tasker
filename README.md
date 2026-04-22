@@ -242,6 +242,12 @@ uv run isort src tests
 
 ## Release Notes
 
+### 1.3.4
+- Warning shown when a task directory is missing its `README.md`
+- Exception callstacks hidden by default, shown only with `--debug`
+- Renamed tasks displayed as a single group in `move` output
+- Bug fixes: broken task files now report the offending filename in the error message
+
 ### 1.3.3
 - Task preview after `done`/`cancel` walks up to the first non-closed ancestor, showing the full picture of remaining work
 - When closing a task completes the entire story, nearby open stories are shown as a "what's next?" hint
