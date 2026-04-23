@@ -1,7 +1,7 @@
 ---
 id: s12
 slug: ideas
-status: done
+status: pending
 ---
 
 # Ideas
@@ -18,3 +18,5 @@ status: done
 - [x] s12t09: Highlight last two digits in bullet lists
 - [x] [s12t10](s12t10-migrate-from-poetry-to-uv.md): Migrate from poetry to uv
 - [x] [s12t11](s12t11-when-finishing-task-go-up.md): When finishing task -- go up in preview until show first non-finished ancestor
+- [ ] [s12t12](s12t12-shared-tasker-aka-20.md): Shared Tasker (aka 2.0)
+- [ ] [s12t13](s12t13-assign-shortcuts-for-active-todo.md): Assign shortcuts for active todo tasks

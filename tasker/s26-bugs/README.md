@@ -1,7 +1,7 @@
 ---
 id: s26
 slug: bugs
-status: done
+status: pending
 ---
 
 # Bugs
@@ -17,3 +17,4 @@ status: done
 - [x] [s26t07](s26t07-valid-error-when-tasker-dir.md): Valid error when tasker dir not found
 - [x] [s26t08](s26t08-show-the-name-of-broken.md): Show the name of broken file/taskref when reporting that has bad format
 - [x] [s26t09](s26t09-show-warning-on-missing-readmemd.md): Show warning on missing README.md in a directory
+- [ ] [s26t10](s26t10-tasker-root-is-not-detected.md): Tasker root is not detected on fresh git clone
