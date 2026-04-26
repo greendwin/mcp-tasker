@@ -1,5 +1,3 @@
-"""Tests for view commands: show and list."""
-
 import json
 from pathlib import Path
 
@@ -7,10 +5,6 @@ from tasker.cli import app, get_task_repo
 from tasker.todo import load_todo_ids, save_todo_ids
 
 from .helpers import GetTaskFile, add_subtask, assert_invoke, create_task
-
-# ---------------------------------------------------------------------------
-# show command (from test_show_task.py)
-# ---------------------------------------------------------------------------
 
 
 def test_show_task_prints_title() -> None:
@@ -192,11 +186,6 @@ def test_show_task_no_marker_on_unrelated_subtask() -> None:
     sub2_line = next(ln for ln in result.output.splitlines() if sub2_id in ln)
     assert "(q)" not in sub2_line
     assert "(p)" not in sub2_line
-
-
-# ---------------------------------------------------------------------------
-# list command (from test_list_tasks.py)
-# ---------------------------------------------------------------------------
 
 
 def test_list_shows_task_title() -> None:
@@ -582,7 +571,6 @@ def test_list_todo_multi_story_hides_non_todo_siblings() -> None:
 
     assert_invoke(app, ["todo", todo1])
     assert_invoke(app, ["todo", todo2])
-    assert_invoke(app, ["done", todo2])
 
     result = assert_invoke(app, ["list", "--todo"])
     assert story1 in result.output
@@ -779,3 +767,79 @@ def test_closed_history_capped_at_30(tasks_root: Path) -> None:
     # oldest (sub_ids[0]) is evicted; newest (sub_ids[30]) is the last line
     assert sub_ids[0] not in stored
     assert stored[-1] == sub_ids[30]
+
+
+def test_list_todo_all_finished_shows_header_and_highlight() -> None:
+    story_id = create_task("My story").task_id
+    sub_a = add_subtask(story_id, "First done").task_id
+    sub_b = add_subtask(story_id, "Last done").task_id
+    assert_invoke(app, ["todo", sub_a])
+    assert_invoke(app, ["todo", sub_b])
+    assert_invoke(app, ["done", sub_a])
+    assert_invoke(app, ["done", sub_b])
+
+    result = assert_invoke(app, ["list", "--todo"])
+    assert "All tasks finished!" in result.output
+    assert sub_a in result.output
+    assert sub_b in result.output
+    assert "<<<" in result.output
+    # highlight is on the most-recently-closed line (sub_b)
+    highlight_line = next(line for line in result.output.splitlines() if "<<<" in line)
+    assert sub_b in highlight_line
+    assert sub_a not in highlight_line
+
+
+def test_list_todo_all_finished_no_recent_skips_highlight(
+    tasks_root: Path,
+) -> None:
+    story_id = create_task("My story").task_id
+    sub = add_subtask(story_id, "Done todo").task_id
+    assert_invoke(app, ["todo", sub])
+    assert_invoke(app, ["done", sub])
+    # wipe the closed-history file so no task qualifies as last-finished
+    (tasks_root / ".closed").unlink()
+
+    result = assert_invoke(app, ["list", "--todo"])
+    assert "All tasks finished!" in result.output
+    assert sub in result.output
+    assert "<<<" not in result.output
+
+
+def test_list_todo_all_with_mixed_shows_everything_no_footer() -> None:
+    story_id = create_task("My story").task_id
+    active_sub = add_subtask(story_id, "Active todo").task_id
+    finished_sub = add_subtask(story_id, "Finished todo").task_id
+    assert_invoke(app, ["todo", active_sub])
+    assert_invoke(app, ["todo", finished_sub])
+    assert_invoke(app, ["done", finished_sub])
+
+    result = assert_invoke(app, ["list", "--todo", "--all"])
+    assert active_sub in result.output
+    assert finished_sub in result.output
+    assert "hidden" not in result.output
+    assert "All tasks finished" not in result.output
+    assert "<<<" not in result.output
+
+
+def test_list_todo_with_explicit_ref_does_not_filter_ref() -> None:
+    story_id = create_task("My story").task_id
+    active_sub = add_subtask(story_id, "Active todo").task_id
+    finished_sub = add_subtask(story_id, "Finished todo").task_id
+    assert_invoke(app, ["todo", active_sub])
+    assert_invoke(app, ["todo", finished_sub])
+    assert_invoke(app, ["done", finished_sub])
+
+    other_story = create_task("Other story").task_id
+    other_done = add_subtask(other_story, "Other done").task_id
+    assert_invoke(app, ["done", other_done])
+
+    result = assert_invoke(app, ["list", "--todo", other_done])
+    assert other_done in result.output
+    assert active_sub in result.output
+    assert finished_sub not in result.output
+
+
+def test_list_todo_empty_shows_no_tasks_message() -> None:
+    create_task("My story")
+    result = assert_invoke(app, ["list", "--todo"])
+    assert "No tasks to show" in result.output
