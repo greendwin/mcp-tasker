@@ -441,7 +441,7 @@ def test_list_todo_silently_skips_stale_ids() -> None:
     todo_sub = add_subtask(story_id, "Live todo").task_id
 
     repo = get_task_repo()
-    save_todo_ids(repo, {todo_sub, "s99t99"})
+    save_todo_ids(repo, [todo_sub, "s99t99"])
 
     result = assert_invoke(app, ["list", "--todo"])
     assert todo_sub in result.output
@@ -453,12 +453,12 @@ def test_list_todo_prunes_stale_ids_on_disk() -> None:
     todo_sub = add_subtask(story_id, "Live todo").task_id
 
     repo = get_task_repo()
-    save_todo_ids(repo, {todo_sub, "s99t99"})
+    save_todo_ids(repo, [todo_sub, "s99t99"])
 
     assert_invoke(app, ["list", "--todo"])
 
     remaining = load_todo_ids(repo)
-    assert remaining == {todo_sub}
+    assert remaining == [todo_sub]
 
 
 def test_list_todo_lists_closed_todo_task() -> None:

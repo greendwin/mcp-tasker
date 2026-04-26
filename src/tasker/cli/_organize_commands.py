@@ -102,7 +102,7 @@ def _remove_archived_from_todo(repo: TaskRepo, task: Task) -> None:
         return
 
     task_ids = {t.id for t in walk_tasks(task)}
-    updated = todo_ids - task_ids
+    updated = [tid for tid in todo_ids if tid not in task_ids]
     if updated != todo_ids:
         save_todo_ids(repo, updated)
 

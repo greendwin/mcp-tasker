@@ -141,11 +141,11 @@ def test_list_tasks_todo_empty() -> None:
 def test_list_tasks_todo_silently_skips_and_prunes_stale_ids() -> None:
     s1 = create_task("Story one").task_id
     repo = get_task_repo()
-    save_todo_ids(repo, {s1, "s99t99"})
+    save_todo_ids(repo, [s1, "s99t99"])
 
     result = list_tasks(todo=True)
     assert len(result) == 1
     assert result[0].id == s1
 
     remaining = load_todo_ids(repo)
-    assert remaining == {s1}
+    assert remaining == [s1]

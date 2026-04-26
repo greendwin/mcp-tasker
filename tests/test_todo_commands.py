@@ -169,14 +169,40 @@ def test_list_todo_and_recent_markers_coexist(story_id: str) -> None:
 # --- .todo file format ---
 
 
-def test_todo_file_sorted_by_id(story_id: str, tasks_root: Path) -> None:
+def test_todo_file_preserves_insertion_order(story_id: str, tasks_root: Path) -> None:
     t01 = add_subtask(story_id, "Task one").task_id
     t02 = add_subtask(story_id, "Task two").task_id
     assert_invoke(app, ["todo", t02])
     assert_invoke(app, ["todo", t01])
     content = (tasks_root / ".todo").read_text()
     lines = [line for line in content.splitlines() if line.strip()]
-    assert lines == sorted(lines)
+    assert lines == [t02, t01]
+
+
+def test_load_todo_ids_returns_insertion_order(story_id: str, repo: TaskRepo) -> None:
+    t01 = add_subtask(story_id, "Task one").task_id
+    t02 = add_subtask(story_id, "Task two").task_id
+    assert_invoke(app, ["todo", t02])
+    assert_invoke(app, ["todo", t01])
+    assert load_todo_ids(repo) == [t02, t01]
+
+
+def test_untodo_preserves_remaining_order(story_id: str, repo: TaskRepo) -> None:
+    t01 = add_subtask(story_id, "Task one").task_id
+    t02 = add_subtask(story_id, "Task two").task_id
+    t03 = add_subtask(story_id, "Task three").task_id
+    assert_invoke(app, ["todo", t01, t02, t03])
+    assert_invoke(app, ["untodo", t02])
+    assert load_todo_ids(repo) == [t01, t03]
+
+
+def test_re_add_existing_todo_does_not_reorder(story_id: str, repo: TaskRepo) -> None:
+    t01 = add_subtask(story_id, "Task one").task_id
+    t02 = add_subtask(story_id, "Task two").task_id
+    t03 = add_subtask(story_id, "Task three").task_id
+    assert_invoke(app, ["todo", t01, t02, t03])
+    assert_invoke(app, ["todo", t01])
+    assert load_todo_ids(repo) == [t01, t02, t03]
 
 
 # --- list --todo ---
