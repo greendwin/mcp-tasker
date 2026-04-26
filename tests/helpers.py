@@ -3,15 +3,26 @@ from pathlib import Path
 from typing import Protocol, Sequence
 from unittest import mock
 
+import click
 import pytest
+from click.testing import CliRunner as ClickCliRunner
 from click.testing import Result
 from typer import Typer
-from typer.testing import CliRunner
+from typer.main import get_command as _get_command
 
 from tasker.cli import _helpers, app
 from tasker.parse import ParsedRef, parse_task_ref
 
-_runner = CliRunner()
+_runner = ClickCliRunner()
+_command_cache: dict[int, click.Command] = {}
+
+
+def _cached_command(app: Typer) -> click.Command:
+    cmd = _command_cache.get(id(app))
+    if cmd is None:
+        cmd = _get_command(app)
+        _command_cache[id(app)] = cmd
+    return cmd
 
 
 def assert_invoke(
@@ -21,7 +32,9 @@ def assert_invoke(
     expect_error: bool = False,
     input: str | None = None,
 ) -> Result:
-    result = _runner.invoke(app, args, input=input, catch_exceptions=False)
+    result = _runner.invoke(
+        _cached_command(app), args, input=input, catch_exceptions=False
+    )
     if expect_error:
         if result.exit_code == 0:
             raise AssertionError(
