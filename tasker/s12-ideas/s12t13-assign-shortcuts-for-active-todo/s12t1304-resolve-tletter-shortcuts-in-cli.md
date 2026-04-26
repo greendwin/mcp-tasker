@@ -1,7 +1,7 @@
 ---
 id: s12t1304
 slug: resolve-tletter-shortcuts-in-cli
-status: pending
+status: done
 ---
 
 # Resolve `t<letter>` shortcuts in CLI

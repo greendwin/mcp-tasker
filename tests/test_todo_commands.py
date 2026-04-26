@@ -133,7 +133,8 @@ def test_list_shows_todo_marker(story_id: str) -> None:
     assert "(ta)" in result.output
 
 
-def test_list_no_todo_marker_without_todo(story_id: str) -> None:
+def test_list_no_todo_marker_without_todo() -> None:
+    create_task("Some story")
     result = assert_invoke(app, ["list"])
     assert "(todo)" not in result.output
     assert "(ta)" not in result.output
@@ -313,6 +314,54 @@ def test_todo_parent_preview_shows_letter_marker(story_id: str) -> None:
             assert "(ta)" in line
             return
     raise AssertionError("no preview line found")
+
+
+# --- t<letter> shortcut resolution ---
+
+
+def test_show_ta_resolves_to_first_active_todo(story_id: str) -> None:
+    assert_invoke(app, ["todo", story_id])
+    result = assert_invoke(app, ["show", "ta"])
+    assert "My story" in result.output
+
+
+def test_show_tc_resolves_to_third_active_todo(story_id: str) -> None:
+    s2 = create_task("Story two").task_id
+    s3 = create_task("Story three").task_id
+    assert_invoke(app, ["todo", story_id, s2, s3])
+    result = assert_invoke(app, ["show", "tc"])
+    assert "Story three" in result.output
+
+
+def test_show_ta_with_child_digits_resolves_to_subtask(story_id: str) -> None:
+    sub_id = add_subtask(story_id, "First child").task_id
+    assert_invoke(app, ["todo", story_id])
+    result = assert_invoke(app, ["show", "ta01"])
+    assert sub_id in result.output
+    assert "First child" in result.output
+
+
+def test_show_ta_with_nested_digits_resolves_through_path(story_id: str) -> None:
+    sub_id = add_subtask(story_id, "Parent sub").task_id
+    nested_id = add_subtask(sub_id, "Nested").task_id
+    assert_invoke(app, ["todo", story_id])
+    result = assert_invoke(app, ["show", "ta0101"])
+    assert nested_id in result.output
+    assert "Nested" in result.output
+
+
+def test_show_unknown_letter_fails(story_id: str) -> None:
+    assert_invoke(app, ["todo", story_id])
+    assert_invoke(app, ["show", "tz"], expect_error=True)
+
+
+def test_t_letter_resolution_does_not_update_recent(story_id: str) -> None:
+    s2 = create_task("Story two").task_id
+    assert_invoke(app, ["todo", story_id])
+    assert_invoke(app, ["show", s2])  # set recent to s2
+    assert_invoke(app, ["show", "ta"])  # access via t-letter
+    result = assert_invoke(app, ["show", "q"])
+    assert "Story two" in result.output
 
 
 def test_list_todo_json_output(story_id: str) -> None:

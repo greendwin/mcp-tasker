@@ -6,6 +6,7 @@ from .exceptions import TaskValidateError
 from .layout import CLOSED_FILE, RECENT_FILE, ensure_gitignore_entry
 from .parse import find_common_ancestor, make_child_ref, parse_task_ref
 from .repo import TaskRepo
+from .todo import assign_todo_letters, load_todo_tasks
 from .utils import write_text
 
 CLOSED_HISTORY_CAP = 30
@@ -23,7 +24,7 @@ def resolve_ref(
     if _is_direct_ref(task_ref):
         resolved_ref = task_ref
     else:
-        resolved_ref = _resolve_recent(repo, task_ref)
+        resolved_ref = _resolve_shortcut(repo, task_ref)
 
     resolved_task = repo.resolve_ref(resolved_ref)
 
@@ -134,7 +135,10 @@ def load_recent_task(repo: TaskRepo) -> Task | None:
         return None
 
 
-def _resolve_recent(repo: TaskRepo, task_ref: str) -> str:
+def _resolve_shortcut(repo: TaskRepo, task_ref: str) -> str:
+    if m := re.fullmatch(r"t([a-z])((?:\d{2})+)?", task_ref):
+        return _resolve_todo_letter(repo, task_ref, m.group(1), m.group(2))
+
     if not task_ref.startswith(("p", "q")):
         # resolve as-is, try to resolve in repo
         return task_ref
@@ -162,3 +166,18 @@ def _resolve_recent(repo: TaskRepo, task_ref: str) -> str:
         return ancestor_id
 
     raise TaskValidateError(f"Invalid recent reference {task_ref!r}", task_ref=task_ref)
+
+
+def _resolve_todo_letter(
+    repo: TaskRepo, task_ref: str, letter: str, digits: str | None
+) -> str:
+    todo_tasks = load_todo_tasks(repo)
+    letters = assign_todo_letters(todo_tasks)
+    target = f"t{letter}"
+    for task_id, assigned in letters.items():
+        if assigned == target:
+            if digits:
+                return make_child_ref(task_id, digits)
+            return task_id
+
+    raise TaskValidateError(f"Unknown todo shortcut {task_ref!r}", task_ref=task_ref)
