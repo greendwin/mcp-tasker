@@ -45,7 +45,7 @@ def cmd_new_task(
     repo.flush_to_disk()
 
     if editor:
-        task = edit_task_in_editor(repo, task)
+        edit_task_in_editor(repo, task)
 
     console.print(
         f"[green]Task [blue]{task.ref}[/blue] created[/green]",
@@ -89,7 +89,7 @@ def cmd_add_task(
     repo.flush_to_disk()
 
     if editor:
-        child = edit_task_in_editor(repo, child)
+        edit_task_in_editor(repo, child)
 
     console.print(
         f"[green]Task [blue]{child.ref}[/blue] added",

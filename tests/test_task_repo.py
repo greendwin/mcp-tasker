@@ -569,3 +569,46 @@ def test_archived_extended_with_subtasks(
     assert archived_dir.is_dir()
     assert (archived_dir / "README.md").exists()
     assert any(archived_dir.glob(f"{child.ref}*"))
+
+
+def test_reload_root_tree_preserves_task_identity(tasks_root: Path) -> None:
+    repo = make_repo(tasks_root)
+    task = repo.create_root_task(
+        title="Original title", description="Body", slug=None, extended=False
+    )
+    repo.flush_to_disk()
+
+    task_path = repo.build_task_path(task)
+    content = task_path.read_text().replace("Original title", "New title")
+    task_path.write_text(content)
+
+    repo.reload_root_tree(task)
+
+    assert task.title == "New title"
+    assert repo.resolve_ref(task.id) is task
+
+
+def test_reload_root_tree_reverts_manual_subtask_changes(
+    tasks_root: Path,
+) -> None:
+    repo = make_repo(tasks_root)
+    parent = repo.create_root_task(
+        title="Story", description=None, slug=None, extended=False
+    )
+    repo.add_subtask(parent, title="Alpha")
+    repo.flush_to_disk()
+
+    parent_path = repo.build_task_path(parent)
+    original_content = parent_path.read_text()
+    parent_path.write_text(
+        original_content.replace(
+            f"- [ ] {parent.id}t01: Alpha",
+            f"- [ ] {parent.id}t01: Alpha\n- [ ] {parent.id}t02: Added",
+        )
+    )
+
+    repo.reload_root_tree(parent)
+    repo.flush_to_disk()
+
+    assert [c.id for c in parent.subtasks] == [f"{parent.id}t01"]
+    assert parent_path.read_text() == original_content

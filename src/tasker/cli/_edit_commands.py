@@ -5,7 +5,6 @@ from typer_di import Depends
 
 from tasker.repo import TaskRepo
 from tasker.resolve import (
-    ResolvedRef,
     resolve_ref,
     save_recent_for_refs,
 )
@@ -62,8 +61,7 @@ def cmd_edit_task(
         repo.flush_to_disk()
 
     if editor:
-        edited = edit_task_in_editor(repo, resolved.task)
-        resolved = ResolvedRef(resolved.task_ref, edited)
+        edit_task_in_editor(repo, resolved.task)
 
     console.print(
         f"[green]Task [blue]{resolved.task.ref}[/blue] updated[/green]",

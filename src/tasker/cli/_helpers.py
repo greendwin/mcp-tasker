@@ -7,7 +7,7 @@ from tasker.base_types import Task
 from tasker.repo._task_repo import TaskRepo
 
 
-def edit_task_in_editor(repo: TaskRepo, task: Task) -> Task:
+def edit_task_in_editor(repo: TaskRepo, task: Task) -> None:
     # make sure that task is not inline
     if task.is_inline:
         repo.upgrade_to_filebased(task)
@@ -19,12 +19,10 @@ def edit_task_in_editor(repo: TaskRepo, task: Task) -> Task:
     task_path = repo.build_task_path(task)
     run_editor(task_path.resolve())
 
-    # after edit many things can be changed including `slug`
-    # if so - reload full tree and flush it back
-    reload = TaskRepo(repo.root)
-    updated = reload.resolve_ref(task.id)
-    reload.flush_to_disk()
-    return updated
+    # editor may have changed title/slug/description/inline subtasks;
+    # refresh the in-memory tree in place so held Task references stay valid
+    repo.reload_root_tree(task)
+    repo.flush_to_disk()
 
 
 def run_editor(path: Path) -> None:

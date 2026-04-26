@@ -229,6 +229,11 @@ class TaskRepo:
             # update parents in case of upgrade from inline task
             update_parents_status(task, loader=self.loader)
 
+    def reload_root_tree(self, task: Task) -> None:
+        # note: accept any task and reload its roots
+        ref = parse_task_ref(task.ref)
+        self.loader.reload_root_tree(ref.root_id)
+
     def flush_to_disk(self) -> None:
         self.loader.flush_to_disk()
 

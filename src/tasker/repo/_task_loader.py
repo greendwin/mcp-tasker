@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import NamedTuple
 
-from tasker.base_types import Task, is_root_task_id
+from tasker.base_types import Task, is_root_task_id, walk_tasks
 from tasker.exceptions import TaskValidateError
 from tasker.layout import ARCHIVE_DIR
 from tasker.parse import (
@@ -99,6 +99,25 @@ class TaskLoader:
         if archived:
             return self.root / ARCHIVE_DIR
         return self.root
+
+    def reload_root_tree(self, root_id: str) -> None:
+        assert root_id in self._root_tasks
+
+        fresh = TaskLoader(self.root)
+        _load_task_tree(root_id, loader=fresh)
+
+        fresh_root = fresh._root_tasks.get(root_id)
+        existing_root = self._root_tasks[root_id]
+
+        if fresh_root is None:
+            raise NotImplementedError("Trying to reload task tree after add/remove")
+
+        _merge_task(existing_root, fresh_root)
+
+        for t in walk_tasks(existing_root):
+            orig = fresh._original_state.get(t.id)
+            if orig is not None:
+                self._original_state[t.id] = orig
 
     def flush_to_disk(self) -> None:
         pending_dir_cleanups: list[_PendingDirCleanup] = []
@@ -313,6 +332,30 @@ def _load_subtask(
             task.subtasks.append(child)
 
     return task
+
+
+def _merge_task(existing: Task, fresh: Task) -> None:
+    assert existing.id == fresh.id
+
+    existing.title = fresh.title
+    existing.status = fresh.status
+    existing.slug = fresh.slug
+    existing.extended = fresh.extended
+    existing.description = fresh.description
+    existing.extra_sections = fresh.extra_sections
+    existing.deleted = fresh.deleted
+    existing.archived = fresh.archived
+
+    # subtasks list is intentionally not mutated: structural changes
+    #  must go through tasker commands
+    #
+    # note: if the user edited the file to add/remove subtasks,
+    # drop those edits silently — the next flush will rewrite them
+    if [c.id for c in existing.subtasks] != [c.id for c in fresh.subtasks]:
+        return
+
+    for ec, fc in zip(existing.subtasks, fresh.subtasks):
+        _merge_task(ec, fc)
 
 
 def _invalidate_task_flags(task: Task) -> None:

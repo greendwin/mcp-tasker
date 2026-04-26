@@ -453,6 +453,26 @@ def test_add_editor_output_shows_updated_slug(
     assert "my-subtask" not in result.output
 
 
+def test_add_editor_output_shows_updated_title(
+    parent_id: str, setup_task_edits: SetupTaskEdits
+) -> None:
+    setup_task_edits(("# My subtask", "# Renamed title"))
+    result = assert_invoke(
+        app, ["add", parent_id, "My subtask", "--details", "d", "--editor"]
+    )
+    assert "Renamed title" in result.output
+    assert "My subtask" not in result.output
+
+
+def test_new_editor_output_shows_updated_title(
+    setup_task_edits: SetupTaskEdits,
+) -> None:
+    setup_task_edits(("# My task", "# Renamed title"))
+    result = assert_invoke(app, ["new", "My task", "--editor"])
+    assert "Renamed title" in result.output
+    assert "My task" not in result.output
+
+
 # ---------------------------------------------------------------------------
 # add-many command (from test_batch_add.py)
 # ---------------------------------------------------------------------------

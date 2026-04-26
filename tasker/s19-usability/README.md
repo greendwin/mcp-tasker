@@ -1,7 +1,7 @@
 ---
 id: s19
 slug: usability
-status: done
+status: pending
 ---
 
 # Usability
@@ -28,3 +28,5 @@ Improve user experience
 - [x] ~~[s19t18](s19t18-support-inreview-state-for-nonleaf.md): Support 'in-review' state for non-leaf tasks~~
 - [x] [s19t19](s19t19-group-renamed-tasks.md): Group renamed tasks
 - [x] [s19t20](s19t20-show-callstacks-only-when-debug.md): Show callstacks only when --debug
+- [ ] [s19t21](s19t21-dont-show-finished-todo-tasks.md): Don't show finished tasks in 'list --todo' when active exists
+- [ ] s19t22: 'tasker add XXX' should open editor with placeholders, same for 'tasker new'
