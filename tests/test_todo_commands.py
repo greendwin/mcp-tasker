@@ -130,28 +130,29 @@ def test_untodo_removes_file_when_empty(story_id: str, tasks_root: Path) -> None
 def test_list_shows_todo_marker(story_id: str) -> None:
     assert_invoke(app, ["todo", story_id])
     result = assert_invoke(app, ["list"])
-    assert "(todo)" in result.output
+    assert "(ta)" in result.output
 
 
 def test_list_no_todo_marker_without_todo(story_id: str) -> None:
     result = assert_invoke(app, ["list"])
     assert "(todo)" not in result.output
+    assert "(ta)" not in result.output
 
 
 def test_list_todo_marker_not_on_children(story_id: str) -> None:
     t01 = add_subtask(story_id, "Child task").task_id
     assert_invoke(app, ["todo", story_id])
     result = assert_invoke(app, ["list"])
-    # marker should be on the story line, not the child line
     for line in result.output.splitlines():
         if t01 in line:
+            assert "(ta)" not in line
             assert "(todo)" not in line
 
 
 def test_view_shows_todo_marker(story_id: str) -> None:
     assert_invoke(app, ["todo", story_id])
     result = assert_invoke(app, ["view", story_id])
-    assert "(todo)" in result.output
+    assert "(ta)" in result.output
 
 
 def test_list_todo_and_recent_markers_coexist(story_id: str) -> None:
@@ -160,10 +161,9 @@ def test_list_todo_and_recent_markers_coexist(story_id: str) -> None:
     result = assert_invoke(app, ["list"])
     for line in result.output.splitlines():
         if story_id in line:
-            assert "(todo)" in line
+            assert "(ta)" in line
             assert "(q)" in line
-            # (todo) before (q)
-            assert line.index("(todo)") < line.index("(q)")
+            assert line.index("(ta)") < line.index("(q)")
 
 
 # --- .todo file format ---
@@ -255,6 +255,64 @@ def test_list_todo_no_highlight_marker(story_id: str) -> None:
     assert_invoke(app, ["todo", story_id])
     result = assert_invoke(app, ["list", "--todo"])
     assert "<<<" not in result.output
+
+
+def test_list_todo_shows_letter_markers(story_id: str) -> None:
+    s2 = create_task("Story two").task_id
+    s3 = create_task("Story three").task_id
+    assert_invoke(app, ["todo", story_id, s2, s3])
+    result = assert_invoke(app, ["list", "--todo"])
+    lines = {line.split(":")[0].strip(): line for line in result.output.splitlines()}
+    assert "(ta)" in lines[story_id]
+    assert "(tb)" in lines[s2]
+    assert "(tc)" in lines[s3]
+
+
+def test_closed_todo_task_shows_plain_todo_marker(story_id: str) -> None:
+    assert_invoke(app, ["todo", story_id])
+    assert_invoke(app, ["finish", story_id])
+    result = assert_invoke(app, ["list", "--all"])
+    lines = {line.split(":")[0].strip(): line for line in result.output.splitlines()}
+    assert "(todo)" in lines[story_id]
+    assert "(ta)" not in lines[story_id]
+
+
+def test_overflow_past_z_shows_plain_todo_marker(story_id: str) -> None:
+    extra_ids = [add_subtask(story_id, f"Task {i}").task_id for i in range(26)]
+    assert_invoke(app, ["todo", story_id, *extra_ids])
+    result = assert_invoke(app, ["list", "--todo"])
+
+    def line_for(task_id: str) -> str:
+        for line in result.output.splitlines():
+            if task_id in line:
+                return line
+        raise AssertionError(f"no line for {task_id}")
+
+    overflow_id = extra_ids[-1]
+    assert "(tz)" in line_for(extra_ids[24])
+    assert "(todo)" in line_for(overflow_id)
+    for letter in ("ta", "tb", "tc", "tz"):
+        assert f"({letter})" not in line_for(overflow_id)
+
+
+def test_full_list_shows_letter_marker_on_deep_subtask(story_id: str) -> None:
+    t01 = add_subtask(story_id, "Child").task_id
+    assert_invoke(app, ["todo", t01])
+    result = assert_invoke(app, ["list", "--all"])
+    for line in result.output.splitlines():
+        if t01 in line:
+            assert "(ta)" in line
+            return
+    raise AssertionError(f"no line for {t01}")
+
+
+def test_todo_parent_preview_shows_letter_marker(story_id: str) -> None:
+    result = assert_invoke(app, ["todo", story_id])
+    for line in result.output.splitlines():
+        if story_id in line and "My story" in line:
+            assert "(ta)" in line
+            return
+    raise AssertionError("no preview line found")
 
 
 def test_list_todo_json_output(story_id: str) -> None:

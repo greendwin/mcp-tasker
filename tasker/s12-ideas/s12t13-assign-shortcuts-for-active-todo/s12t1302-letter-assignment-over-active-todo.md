@@ -1,7 +1,7 @@
 ---
 id: s12t1302
 slug: letter-assignment-over-active-todo
-status: pending
+status: done
 ---
 
 # Letter assignment over active todo tasks

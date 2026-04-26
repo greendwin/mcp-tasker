@@ -1,3 +1,5 @@
+import string
+
 from .base_types import Task
 from .exceptions import TaskValidateError
 from .layout import TODO_FILE, ensure_gitignore_entry
@@ -60,6 +62,19 @@ def load_todo_tasks(repo: TaskRepo) -> list[Task]:
         save_todo_ids(repo, live_ids)
 
     return live
+
+
+def assign_todo_letters(tasks: list[Task]) -> dict[str, str]:
+    result: dict[str, str] = {}
+    i = 0
+    for task in tasks:
+        if task.is_closed:
+            continue
+        if i >= len(string.ascii_lowercase):
+            break
+        result[task.id] = f"t{string.ascii_lowercase[i]}"
+        i += 1
+    return result
 
 
 def remove_todo(repo: TaskRepo, task_id: str) -> bool:

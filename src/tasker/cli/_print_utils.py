@@ -7,7 +7,7 @@ from tasker.base_types import Task, TaskStatus
 from tasker.parse import detect_task_type
 from tasker.repo import TaskRepo
 from tasker.resolve import load_recent_task
-from tasker.todo import load_todo_ids
+from tasker.todo import assign_todo_letters, load_todo_tasks
 from tasker.utils import console, escape_markup
 
 _STATUS_COLOR = {
@@ -85,10 +85,13 @@ class _CollectContext:
 def compute_markers(repo: TaskRepo, *visible: Task) -> MarkersDict:
     markers: MarkersDict = defaultdict(list)
 
-    todo_ids = load_todo_ids(repo)
+    todo_tasks = load_todo_tasks(repo)
+    todo_ids = {t.id for t in todo_tasks}
+    letters = assign_todo_letters(todo_tasks)
     for t in visible:
         if t.id in todo_ids:
-            markers[t.id].append("(todo)")
+            letter = letters.get(t.id)
+            markers[t.id].append(f"({letter})" if letter else "(todo)")
 
     recent = load_recent_task(repo)
     if recent:

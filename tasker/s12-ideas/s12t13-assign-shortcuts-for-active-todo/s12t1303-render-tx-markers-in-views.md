@@ -1,7 +1,7 @@
 ---
 id: s12t1303
 slug: render-tx-markers-in-views
-status: pending
+status: done
 ---
 
 # Render `(tX)` markers in views
