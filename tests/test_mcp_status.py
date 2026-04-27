@@ -3,6 +3,7 @@ from pathlib import Path
 import pytest
 
 from tasker.base_types import TaskStatus
+from tasker.cli import app
 from tasker.exceptions import TaskHasSubtasksError
 from tasker.mcp import (
     cancel_task,
@@ -14,7 +15,7 @@ from tasker.mcp import (
     view_tasks,
 )
 
-from .helpers import add_subtask, create_task
+from .helpers import add_subtask, assert_invoke, create_task
 
 
 @pytest.fixture()
@@ -197,3 +198,33 @@ def test_mcp_finish_task_force_excludes_forced_children(
     assert child_ids  # sanity
     for cid in child_ids:
         assert cid not in stored
+
+
+# --- shortcut resolution ---
+
+
+def test_start_task_resolves_t_letter_shortcut() -> None:
+    s1 = create_task("Story one").task_id
+    leaf = add_subtask(s1, "Leaf").task_ref
+    assert_invoke(app, ["todo", leaf])
+    result = start_task("ta")
+    assert result.id == leaf
+    assert result.status == TaskStatus.IN_PROGRESS
+
+
+def test_finish_task_resolves_t_letter_shortcut() -> None:
+    s1 = create_task("Story one").task_id
+    leaf = add_subtask(s1, "Leaf").task_ref
+    assert_invoke(app, ["todo", leaf])
+    result = finish_task("ta")
+    assert result.id == leaf
+    assert result.status == TaskStatus.DONE
+
+
+def test_review_task_resolves_t_letter_shortcut() -> None:
+    s1 = create_task("Story one").task_id
+    leaf = add_subtask(s1, "Leaf").task_ref
+    assert_invoke(app, ["todo", leaf])
+    result = review_task("ta")
+    assert result.id == leaf
+    assert result.status == TaskStatus.IN_REVIEW

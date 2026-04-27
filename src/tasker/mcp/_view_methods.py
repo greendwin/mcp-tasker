@@ -1,5 +1,6 @@
 from tasker.parse import parse_task_file
 from tasker.repo import TaskRepo
+from tasker.resolve import resolve_ref
 from tasker.todo import load_todo_tasks
 
 from ._common import get_repo, mcp
@@ -19,7 +20,7 @@ def _list_root_previews(repo: TaskRepo) -> list[TaskPreview]:
 
 
 def _load_task_info(repo: TaskRepo, ref: str) -> TaskInfo:
-    task = repo.resolve_ref(ref)
+    task = resolve_ref(repo, ref).task
     return TaskInfo.from_task(task)
 
 

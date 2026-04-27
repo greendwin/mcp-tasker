@@ -1,7 +1,7 @@
 ---
 id: s12t1305
 slug: mcp-routes-through-shared-shortcut
-status: pending
+status: done
 ---
 
 # MCP routes through shared shortcut resolver

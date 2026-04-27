@@ -149,3 +149,40 @@ def test_list_tasks_todo_silently_skips_and_prunes_stale_ids() -> None:
 
     remaining = load_todo_ids(repo)
     assert remaining == [s1]
+
+
+# --- shortcut resolution in MCP ---
+
+
+def test_view_tasks_resolves_t_letter_shortcut() -> None:
+    s1 = create_task("Story one").task_id
+    create_task("Story two")
+    assert_invoke(app, ["todo", s1])
+    result = view_tasks(["ta"])[0]
+    assert result.id == s1
+    assert result.title == "Story one"
+
+
+def test_view_tasks_resolves_t_letter_with_child_digits() -> None:
+    s1 = create_task("Story one").task_id
+    sub_id = add_subtask(s1, "Child").task_id
+    assert_invoke(app, ["todo", s1])
+    result = view_tasks(["ta01"])[0]
+    assert result.id == sub_id
+
+
+def test_view_tasks_resolves_q_shortcut() -> None:
+    s1 = create_task("Story one").task_id
+    assert_invoke(app, ["show", s1])
+    result = view_tasks(["q"])[0]
+    assert result.id == s1
+
+
+def test_view_tasks_shortcut_does_not_update_recent() -> None:
+    s1 = create_task("Story one").task_id
+    s2 = create_task("Story two").task_id
+    assert_invoke(app, ["todo", s1])
+    assert_invoke(app, ["show", s2])  # set recent to s2
+    view_tasks(["ta"])  # access via shortcut
+    result = view_tasks(["q"])[0]
+    assert result.id == s2

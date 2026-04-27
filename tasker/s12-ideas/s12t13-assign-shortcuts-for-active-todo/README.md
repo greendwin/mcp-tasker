@@ -1,7 +1,7 @@
 ---
 id: s12t13
 slug: assign-shortcuts-for-active-todo
-status: pending
+status: done
 ---
 
 # Assign shortcuts for active todo tasks
@@ -50,4 +50,4 @@ Assign single-letter shortcuts (`ta`..`tz`) to active todo tasks for quick refer
 - [x] [s12t1302](s12t1302-letter-assignment-over-active-todo.md): Letter assignment over active todo tasks
 - [x] [s12t1303](s12t1303-render-tx-markers-in-views.md): Render `(tX)` markers in views
 - [x] [s12t1304](s12t1304-resolve-tletter-shortcuts-in-cli.md): Resolve `t<letter>` shortcuts in CLI
-- [ ] [s12t1305](s12t1305-mcp-routes-through-shared-shortcut.md): MCP routes through shared shortcut resolver
+- [x] [s12t1305](s12t1305-mcp-routes-through-shared-shortcut.md): MCP routes through shared shortcut resolver

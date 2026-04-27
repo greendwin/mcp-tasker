@@ -1,5 +1,5 @@
 from tasker.base_types import TaskStatus
-from tasker.resolve import save_closed_refs
+from tasker.resolve import resolve_ref, save_closed_refs
 
 from ._common import get_repo, mcp
 from ._model import TaskInfo, TaskPreview
@@ -14,7 +14,7 @@ def edit_task(
 ) -> TaskInfo:
     """Update a task's title, description, or slug."""
     repo = get_repo()
-    task = repo.resolve_ref(task_ref)
+    task = resolve_ref(repo, task_ref).task
     repo.edit_task(task, title=title, description=description, slug=slug)
     repo.flush_to_disk()
     return TaskInfo.from_task(task)
@@ -24,7 +24,7 @@ def edit_task(
 def start_task(task_ref: str) -> TaskPreview:
     """Mark a task as in-progress."""
     repo = get_repo()
-    task = repo.resolve_ref(task_ref)
+    task = resolve_ref(repo, task_ref).task
     repo.start_task(task)
     repo.flush_to_disk()
     return TaskPreview.from_task(task)
@@ -34,7 +34,7 @@ def start_task(task_ref: str) -> TaskPreview:
 def review_task(task_ref: str) -> TaskPreview:
     """Mark a task as in-review (submit for review)."""
     repo = get_repo()
-    task = repo.resolve_ref(task_ref)
+    task = resolve_ref(repo, task_ref).task
     repo.review_task(task)
     repo.flush_to_disk()
     return TaskPreview.from_task(task)
@@ -47,7 +47,7 @@ def reset_task(task_ref: str, force: bool = False) -> TaskPreview:
     Use force=True to reset all non-pending subtasks.
     """
     repo = get_repo()
-    task = repo.resolve_ref(task_ref)
+    task = resolve_ref(repo, task_ref).task
     repo.reset_task(task, force=force)
     repo.flush_to_disk()
     return TaskPreview.from_task(task)
@@ -57,7 +57,7 @@ def reset_task(task_ref: str, force: bool = False) -> TaskPreview:
 def cancel_task(task_ref: str, force: bool = False) -> TaskPreview:
     """Cancel a task. Use force=True to cancel all open subtasks."""
     repo = get_repo()
-    task = repo.resolve_ref(task_ref)
+    task = resolve_ref(repo, task_ref).task
     already_cancelled = task.status == TaskStatus.CANCELLED
     repo.cancel_task(task, force=force)
     repo.flush_to_disk()
@@ -72,7 +72,7 @@ def cancel_task(task_ref: str, force: bool = False) -> TaskPreview:
 def finish_task(task_ref: str, force: bool = False) -> TaskPreview:
     """Mark a task as done. Use force=True to close all open subtasks."""
     repo = get_repo()
-    task = repo.resolve_ref(task_ref)
+    task = resolve_ref(repo, task_ref).task
     already_done = task.is_closed
     repo.finish_task(task, force=force)
     repo.flush_to_disk()

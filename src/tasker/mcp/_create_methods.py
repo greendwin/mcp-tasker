@@ -1,3 +1,5 @@
+from tasker.resolve import resolve_ref
+
 from ._common import get_repo, mcp
 from ._model import TaskInfo
 
@@ -16,7 +18,7 @@ def create_task(
             title=title, description=description, slug=None, extended=False
         )
     else:
-        parent_task = repo.resolve_ref(parent)
+        parent_task = resolve_ref(repo, parent).task
         task = repo.add_subtask(parent_task, title=title, description=description)
 
     repo.flush_to_disk()

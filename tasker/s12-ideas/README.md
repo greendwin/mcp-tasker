@@ -19,7 +19,7 @@ status: pending
 - [x] [s12t10](s12t10-migrate-from-poetry-to-uv.md): Migrate from poetry to uv
 - [x] [s12t11](s12t11-when-finishing-task-go-up.md): When finishing task -- go up in preview until show first non-finished ancestor
 - [ ] [s12t12](s12t12-shared-tasker-aka-20.md): Shared Tasker (aka 2.0)
-- [ ] [s12t13](s12t13-assign-shortcuts-for-active-todo/): Assign shortcuts for active todo tasks
+- [x] [s12t13](s12t13-assign-shortcuts-for-active-todo/): Assign shortcuts for active todo tasks
 - [ ] s12t14: When moving tasks -- update all references ID to moved tasks
 - [ ] s12t15: Add 'depends-on' links to tasks
 - [ ] [s12t16](s12t16-interactive-mode-for-tasker-list.md): Interactive mode for 'tasker list'
