@@ -242,6 +242,14 @@ uv run isort src tests
 
 ## Release Notes
 
+### 1.4.0
+- `t<letter>` shortcuts (`ta`..`tz`) for active TODO tasks, usable wherever a `<task-id>` is accepted
+- `list --todo` hides finished tasks while active ones remain; prints `All tasks finished!` when none are active
+- TODO list preserves insertion order
+- MCP: `task_ref` arguments accept the full set of CLI shortcuts (`q`, `p`, `t<letter>`)
+- Build: cached Typer command tree in tests cuts full-suite runtime by ~30%
+- Bug fixes: `edit --editor` refreshes the in-memory task tree so follow-up displays reflect new title/slug
+
 ### 1.3.4
 - Warning shown when a task directory is missing its `README.md`
 - Exception callstacks hidden by default, shown only with `--debug`

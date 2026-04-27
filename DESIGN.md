@@ -323,7 +323,7 @@ tasker untodo <task-id>...
 tasker list --todo
 ```
 
-Pinned tasks are marked with `(todo)` in `list` output. Archiving a story auto-removes it (and its descendants) from the TODO list.
+Pinned tasks are marked with `(todo)` in `list` output, or `(tX)` for the first 26 active todo tasks (where `X` is `a`..`z`); see [Recent task shortcuts](#recent-task-shortcuts). The list is stored in insertion order. `list --todo` hides finished pinned tasks while any active ones remain, and prints `All tasks finished!` when every pinned task is closed. Archiving a story auto-removes it (and its descendants) from the TODO list.
 
 ### Edit tasks
 
@@ -396,8 +396,10 @@ The last referenced task is saved to `tasker/.recent` (git-ignored). Shortcuts:
 | `pNN...` | Sibling via parent | `p03` → `s01t03` |
 | `pp` | Grandparent of recent | If recent is `s01t0102`, `pp` → `s01` |
 | `ppNN...` | Uncle via grandparent | `pp0202` → `s01t0202` |
+| `t<letter>` | Active TODO task by letter marker | `ta` → first active todo task |
+| `t<letter>NN...` | Descendant of TODO task | `ta01` → first child of `ta` target |
 
-These shortcuts work in place of any `<task-id>` argument.
+These shortcuts work in place of any `<task-id>` argument, including in MCP `task_ref` parameters.
 
 ---
 
