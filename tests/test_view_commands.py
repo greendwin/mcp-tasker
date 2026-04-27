@@ -769,35 +769,13 @@ def test_closed_history_capped_at_30(tasks_root: Path) -> None:
     assert stored[-1] == sub_ids[30]
 
 
-def test_list_todo_all_finished_shows_header_and_highlight() -> None:
-    story_id = create_task("My story").task_id
-    sub_a = add_subtask(story_id, "First done").task_id
-    sub_b = add_subtask(story_id, "Last done").task_id
-    assert_invoke(app, ["todo", sub_a])
-    assert_invoke(app, ["todo", sub_b])
-    assert_invoke(app, ["done", sub_a])
-    assert_invoke(app, ["done", sub_b])
-
-    result = assert_invoke(app, ["list", "--todo"])
-    assert "All tasks finished!" in result.output
-    assert sub_a in result.output
-    assert sub_b in result.output
-    assert "<<<" in result.output
-    # highlight is on the most-recently-closed line (sub_b)
-    highlight_line = next(line for line in result.output.splitlines() if "<<<" in line)
-    assert sub_b in highlight_line
-    assert sub_a not in highlight_line
-
-
-def test_list_todo_all_finished_no_recent_skips_highlight(
+def test_list_todo_all_finished_no_highlight(
     tasks_root: Path,
 ) -> None:
     story_id = create_task("My story").task_id
     sub = add_subtask(story_id, "Done todo").task_id
     assert_invoke(app, ["todo", sub])
     assert_invoke(app, ["done", sub])
-    # wipe the closed-history file so no task qualifies as last-finished
-    (tasks_root / ".closed").unlink()
 
     result = assert_invoke(app, ["list", "--todo"])
     assert "All tasks finished!" in result.output

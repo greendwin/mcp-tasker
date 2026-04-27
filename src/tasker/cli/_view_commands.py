@@ -8,7 +8,6 @@ from tasker.base_types import Task
 from tasker.parse import detect_task_type, parse_task_file
 from tasker.repo import TaskRepo
 from tasker.resolve import (
-    CLOSED_HISTORY_CAP,
     ResolvedRef,
     load_closed_tasks,
     resolve_ref,
@@ -95,16 +94,14 @@ def cmd_list_tasks(
         )
 
     tasks: list[Task] = []
-    highlight_id: str | None = None
-
-    all_finished_header = False
     if closed:
         tasks.extend(load_closed_tasks(repo, limit=DEFAULT_CLOSED_LIMIT))
     elif todo:
         todo_tasks = _collect_todo_tasks(repo, show_all=show_all)
-        all_finished_header = todo_tasks.all_finished
-        highlight_id = todo_tasks.highlight_id
         tasks.extend(todo_tasks.tasks)
+
+        if todo_tasks.all_finished:
+            console.print("[green]All tasks finished![/green]\n")
 
     if archived:
         tasks.extend(_load_root_tasks(repo, archived=True, shallow=not show_all))
@@ -132,15 +129,8 @@ def cmd_list_tasks(
         show_pending_marker=show_all,
     )
 
-    if all_finished_header:
-        console.print("[green]All tasks finished![/green]\n")
-
     for task in tasks:
-        config.show_task(
-            task,
-            show_children_mode=show_children_mode,
-            highlight=task.id == highlight_id,
-        )
+        config.show_task(task, show_children_mode=show_children_mode)
 
         if parent := repo.get_parent(task):
             # note: no children mode for parent, just show the parent node
@@ -156,7 +146,6 @@ def cmd_list_tasks(
 class TodoTasks:
     tasks: list[Task] = field(default_factory=list)
     all_finished: bool = False
-    highlight_id: str | None = None
 
 
 def _collect_todo_tasks(repo: TaskRepo, *, show_all: bool) -> TodoTasks:
@@ -169,15 +158,7 @@ def _collect_todo_tasks(repo: TaskRepo, *, show_all: bool) -> TodoTasks:
     if active:
         return TodoTasks(active)
 
-    r = TodoTasks(todo_tasks, all_finished=True)
-    finished_ids = {t.id for t in todo_tasks if t.is_closed}
-    for t in load_closed_tasks(repo, limit=CLOSED_HISTORY_CAP):
-        if t.id in finished_ids:
-            # highlight last finished todo task
-            r.highlight_id = t.id
-            break
-
-    return r
+    return TodoTasks(todo_tasks, all_finished=True)
 
 
 def _load_root_tasks(repo: TaskRepo, *, shallow: bool, archived: bool) -> list[Task]:
