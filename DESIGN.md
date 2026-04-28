@@ -301,8 +301,12 @@ tasker list --arch
 # Show only tasks pinned to the TODO list
 tasker list --todo
 
+# Show tasks awaiting review (falls back to active roots when none are in review)
+tasker list --in-review
+tasker list --rev
+
 # Show up to 5 most recently closed tasks
-# (mutually exclusive with --archived, --todo, and positional task refs)
+# (mutually exclusive with --archived, --todo, --in-review, and positional task refs)
 tasker list --closed
 ```
 

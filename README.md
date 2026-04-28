@@ -242,6 +242,9 @@ uv run isort src tests
 
 ## Release Notes
 
+### 1.4.1
+- `list --rev` / `list --in-review` shows tasks awaiting review (with parent context); falls back to active root tasks when none are in review
+
 ### 1.4.0
 - `t<letter>` shortcuts (`ta`..`tz`) for active TODO tasks, usable wherever a `<task-id>` is accepted
 - `list --todo` hides finished tasks while active ones remain; prints `All tasks finished!` when none are active
