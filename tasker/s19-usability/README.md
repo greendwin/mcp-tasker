@@ -30,4 +30,4 @@ Improve user experience
 - [x] [s19t20](s19t20-show-callstacks-only-when-debug.md): Show callstacks only when --debug
 - [x] [s19t21](s19t21-dont-show-finished-todo-tasks.md): Don't show finished tasks in 'list --todo' when active exists
 - [ ] s19t22: 'tasker add XXX' should open editor with placeholders, same for 'tasker new'
-- [ ] s19t23: Support list --rev/--in-review
+- [x] [s19t23](s19t23-support-list-rev.md): Support `list --rev` / `--in-review`

@@ -1,5 +1,4 @@
-from dataclasses import dataclass, field
-from typing import Annotated, Any
+from typing import Annotated, Any, NamedTuple
 
 import typer
 from typer_di import Depends
@@ -16,7 +15,7 @@ from tasker.resolve import (
 from tasker.todo import load_todo_tasks
 from tasker.utils import console
 
-from ._common import app, complete_task_ref, get_task_repo
+from ._common import app, complete_task_ref, get_task_repo, iter_in_review_tasks
 from ._print_utils import (
     ShowChildrenMode,
     ShowTaskConfig,
@@ -84,6 +83,18 @@ def cmd_list_tasks(
             ),
         ),
     ] = False,
+    in_review: Annotated[
+        bool,
+        typer.Option(
+            "--in-review",
+            "--rev",
+            help=(
+                "Show tasks awaiting review. Falls back to active root tasks"
+                " when none. Mutually exclusive with --archived, --todo,"
+                " and --closed."
+            ),
+        ),
+    ] = False,
     repo: TaskRepo = Depends(get_task_repo),
 ) -> None:
     if todo and archived:
@@ -92,9 +103,19 @@ def cmd_list_tasks(
         raise typer.BadParameter(
             "--closed cannot be combined with --archived, --todo, or task refs"
         )
+    if in_review and (archived or todo or closed):
+        raise typer.BadParameter(
+            "--in-review cannot be combined with --archived, --todo, or --closed"
+        )
 
     tasks: list[Task] = []
-    if closed:
+    if in_review:
+        review_tasks = _collect_review_tasks(repo, task_refs=task_refs)
+        tasks.extend(review_tasks.tasks)
+
+        if review_tasks.nothing_to_review:
+            console.print("[green]No tasks in review.[/green]\n")
+    elif closed:
         tasks.extend(load_closed_tasks(repo, limit=DEFAULT_CLOSED_LIMIT))
     elif todo:
         todo_tasks = _collect_todo_tasks(repo, show_all=show_all)
@@ -105,7 +126,7 @@ def cmd_list_tasks(
 
     if archived:
         tasks.extend(_load_root_tasks(repo, archived=True, shallow=not show_all))
-    elif not closed and not todo and not task_refs:
+    elif not closed and not todo and not in_review and not task_refs:
         tasks.extend(_load_root_tasks(repo, archived=False, shallow=False))
 
     resolved: list[ResolvedRef] = []
@@ -142,23 +163,44 @@ def cmd_list_tasks(
         console.append_context("tasks", _task_to_json(task))
 
 
-@dataclass
-class TodoTasks:
-    tasks: list[Task] = field(default_factory=list)
+class _ReviewTasks(NamedTuple):
+    tasks: list[Task]
+    nothing_to_review: bool = False
+
+
+def _collect_review_tasks(repo: TaskRepo, *, task_refs: list[str]) -> _ReviewTasks:
+    tasks = list(iter_in_review_tasks(repo))
+    if tasks:
+        return _ReviewTasks(tasks)
+
+    if task_refs:
+        # there are user-provided tasks to show
+        return _ReviewTasks([], nothing_to_review=True)
+
+    # otherwise show active tasks
+    for t in _load_root_tasks(repo, archived=False, shallow=False):
+        if not t.is_closed:
+            tasks.append(t)
+
+    return _ReviewTasks(tasks, nothing_to_review=True)
+
+
+class _TodoTasks(NamedTuple):
+    tasks: list[Task]
     all_finished: bool = False
 
 
-def _collect_todo_tasks(repo: TaskRepo, *, show_all: bool) -> TodoTasks:
+def _collect_todo_tasks(repo: TaskRepo, *, show_all: bool) -> _TodoTasks:
     todo_tasks = load_todo_tasks(repo)
 
     if show_all or not todo_tasks:
-        return TodoTasks(todo_tasks)
+        return _TodoTasks(todo_tasks)
 
     active = [t for t in todo_tasks if not t.is_closed]
     if active:
-        return TodoTasks(active)
+        return _TodoTasks(active)
 
-    return TodoTasks(todo_tasks, all_finished=True)
+    return _TodoTasks(todo_tasks, all_finished=True)
 
 
 def _load_root_tasks(repo: TaskRepo, *, shallow: bool, archived: bool) -> list[Task]:

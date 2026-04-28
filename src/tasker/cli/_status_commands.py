@@ -16,7 +16,7 @@ from tasker.resolve import (
 )
 from tasker.utils import JsonAppend, console
 
-from ._common import app, complete_task_ref, get_task_repo
+from ._common import app, complete_task_ref, get_task_repo, iter_in_review_tasks
 from ._print_utils import (
     compute_markers,
     format_task_list_item,
@@ -336,7 +336,7 @@ def cmd_done_task(
 
     if reviewed:
         mentioned_tasks = {t.task.id for t in resolved_tasks}
-        for t in _iter_in_review_tasks(repo):
+        for t in iter_in_review_tasks(repo):
             if t.id not in mentioned_tasks:
                 resolved_tasks.append(ResolvedRef("--review", t))
 
@@ -383,18 +383,6 @@ def cmd_done_task(
     save_recent_for_refs(repo, *resolved_tasks)
     save_closed_refs(repo, closed_ids)
     print_parent_preview(repo, *need_preview)
-
-
-def _iter_in_review_tasks(repo: TaskRepo) -> Iterator[Task]:
-    for task_path in repo.list_root_tasks(archived=False):
-        tp = detect_task_type(task_path)
-        if tp is None:
-            continue
-
-        root = repo.resolve_ref(tp.task_ref)
-        for t in walk_tasks(root):
-            if t.status == TaskStatus.IN_REVIEW:
-                yield t
 
 
 def _iter_open_leaf_tasks(repo: TaskRepo) -> Iterator[Task]:

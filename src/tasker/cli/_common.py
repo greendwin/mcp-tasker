@@ -1,3 +1,4 @@
+from collections.abc import Iterator
 from typing import Annotated
 
 import click
@@ -6,9 +7,9 @@ from typer.core import TyperGroup
 from typer_di import TyperDI
 
 from tasker import __version__
-from tasker.base_types import Task, walk_tasks
+from tasker.base_types import Task, TaskStatus, walk_tasks
 from tasker.layout import discover_tasker_dir, get_user_tasker_dir, init_tasker_dir
-from tasker.parse import parse_task_file, parse_task_ref
+from tasker.parse import detect_task_type, parse_task_file, parse_task_ref
 from tasker.repo import TaskRepo
 from tasker.utils import JsonAppend, console
 
@@ -104,6 +105,18 @@ def cmd_init(
         f"[green]Initialized tasker in [blue]{tasker_dir}[/blue][/green]",
         context={"tasker_dir": str(tasker_dir)},
     )
+
+
+def iter_in_review_tasks(repo: TaskRepo) -> Iterator[Task]:
+    for task_path in repo.list_root_tasks(archived=False):
+        tp = detect_task_type(task_path)
+        if tp is None:
+            continue
+
+        root = repo.resolve_ref(tp.task_ref)
+        for t in walk_tasks(root):
+            if t.status == TaskStatus.IN_REVIEW:
+                yield t
 
 
 def unarchive_task(repo: TaskRepo, task: Task) -> bool:

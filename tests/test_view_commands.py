@@ -821,3 +821,77 @@ def test_list_todo_empty_shows_no_tasks_message() -> None:
     create_task("My story")
     result = assert_invoke(app, ["list", "--todo"])
     assert "No tasks to show" in result.output
+
+
+def test_list_rev_shows_in_review_tasks_across_roots() -> None:
+    story_a = create_task("Story A").task_id
+    sub_a = add_subtask(story_a, "Subtask A").task_id
+    story_b = create_task("Story B").task_id
+    sub_b = add_subtask(story_b, "Subtask B").task_id
+    add_subtask(story_b, "Open subtask")
+    assert_invoke(app, ["review", sub_a])
+    assert_invoke(app, ["review", sub_b])
+
+    result = assert_invoke(app, ["list", "--rev"])
+    assert sub_a in result.output
+    assert sub_b in result.output
+    assert "Subtask A" in result.output
+    assert "Subtask B" in result.output
+
+
+def test_list_in_review_alias_matches_rev() -> None:
+    story = create_task("Story").task_id
+    sub = add_subtask(story, "Reviewable").task_id
+    assert_invoke(app, ["review", sub])
+
+    result = assert_invoke(app, ["list", "--in-review"])
+    assert sub in result.output
+    assert "Reviewable" in result.output
+
+
+def test_list_rev_empty_falls_back_with_green_header() -> None:
+    story = create_task("Active story").task_id
+    add_subtask(story, "Open subtask")
+
+    result = assert_invoke(app, ["list", "--rev"])
+    assert "No tasks in review" in result.output
+    assert story in result.output
+    assert "Active story" in result.output
+
+
+def test_list_rev_empty_fallback_excludes_closed_roots() -> None:
+    open_story = create_task("Open story").task_id
+    closed_story = create_task("Closed story").task_id
+    assert_invoke(app, ["done", "--force", closed_story])
+
+    result = assert_invoke(app, ["list", "--rev"])
+    assert "No tasks in review" in result.output
+    assert open_story in result.output
+    assert closed_story not in result.output
+
+
+def test_list_rev_with_refs_is_additive_and_show_no_review() -> None:
+    story = create_task("Story").task_id
+    open_sub = add_subtask(story, "Open subtask").task_id
+
+    result = assert_invoke(app, ["list", "--rev", open_sub])
+    assert open_sub in result.output
+    assert "No tasks in review" in result.output
+
+
+def test_list_rev_with_archived_rejects() -> None:
+    create_task("Story")
+    result = assert_invoke(app, ["list", "--rev", "--archived"], expect_error=True)
+    assert "--in-review" in result.output
+
+
+def test_list_rev_with_todo_rejects() -> None:
+    create_task("Story")
+    result = assert_invoke(app, ["list", "--rev", "--todo"], expect_error=True)
+    assert "--in-review" in result.output
+
+
+def test_list_rev_with_closed_rejects() -> None:
+    create_task("Story")
+    result = assert_invoke(app, ["list", "--rev", "--closed"], expect_error=True)
+    assert "--in-review" in result.output
