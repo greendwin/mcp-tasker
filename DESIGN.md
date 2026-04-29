@@ -403,6 +403,8 @@ The last referenced task is saved to `tasker/.recent` (git-ignored). Shortcuts:
 | `t<letter>` | Active TODO task by letter marker | `ta` → first active todo task |
 | `t<letter>NN...` | Descendant of TODO task | `ta01` → first child of `ta` target |
 
+A single trailing digit is padded to two (e.g. `q3` → `q03`, `ta3` → `ta03`); odd-length digit runs longer than one are rejected as ambiguous.
+
 These shortcuts work in place of any `<task-id>` argument, including in MCP `task_ref` parameters.
 
 ---

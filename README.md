@@ -242,6 +242,9 @@ uv run isort src tests
 
 ## Release Notes
 
+### 1.4.2
+- Single-digit shortcuts pad to two: `q3` → `q03`, `p3` → `p03`, `ta3` → `ta03`; odd-length runs > 1 are rejected as ambiguous
+
 ### 1.4.1
 - `list --rev` / `list --in-review` shows tasks awaiting review (with parent context); falls back to active root tasks when none are in review
 

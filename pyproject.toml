@@ -1,6 +1,6 @@
 [project]
 name = "mcp-tasker"
-version = "1.4.1"
+version = "1.4.2"
 description = "Markdown task tracker with MCP server for humans and AI agents, designed to live in git alongside code"
 readme = "README.md"
 license = {file = "LICENSE"}
