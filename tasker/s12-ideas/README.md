@@ -23,3 +23,5 @@ status: pending
 - [ ] s12t14: When moving tasks -- update all references ID to moved tasks
 - [ ] s12t15: Add 'depends-on' links to tasks
 - [ ] [s12t16](s12t16-interactive-mode-for-tasker-list.md): Interactive mode for 'tasker list'
+- [x] s12t17: Support incomplete numeric shortcuts like q3 -> q03
+- [ ] s12t18: Support -p suffix, like 'tap' aka parent of 'ta'

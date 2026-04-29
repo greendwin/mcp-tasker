@@ -135,9 +135,22 @@ def load_recent_task(repo: TaskRepo) -> Task | None:
         return None
 
 
+def _normalize_shortcut_digits(task_ref: str, digits: str | None) -> str | None:
+    if digits is None:
+        return None
+    if len(digits) == 1:
+        return "0" + digits
+    if len(digits) % 2 == 1:
+        raise TaskValidateError(
+            f"Ambiguous shortcut digits {task_ref!r}", task_ref=task_ref
+        )
+    return digits
+
+
 def _resolve_shortcut(repo: TaskRepo, task_ref: str) -> str:
-    if m := re.fullmatch(r"t([a-z])((?:\d{2})+)?", task_ref):
-        return _resolve_todo_letter(repo, task_ref, m.group(1), m.group(2))
+    if m := re.fullmatch(r"t([a-z])(\d+)?", task_ref):
+        digits = _normalize_shortcut_digits(task_ref, m.group(2))
+        return _resolve_todo_letter(repo, task_ref, m.group(1), digits)
 
     if not task_ref.startswith(("p", "q")):
         # resolve as-is, try to resolve in repo
@@ -151,15 +164,17 @@ def _resolve_shortcut(repo: TaskRepo, task_ref: str) -> str:
         return recent_id
 
     # links like q0102
-    if m := re.fullmatch(r"q((?:\d{2})+)", task_ref):
-        return make_child_ref(recent_id, m.group(1))
+    if m := re.fullmatch(r"q(\d+)", task_ref):
+        digits = _normalize_shortcut_digits(task_ref, m.group(1))
+        assert digits is not None
+        return make_child_ref(recent_id, digits)
 
     # links like p, p01, pp, pp0102
-    if m := re.fullmatch(r"(p+)((?:\d{2})+)?", task_ref):
+    if m := re.fullmatch(r"(p+)(\d+)?", task_ref):
         ancestor_id = recent_id
         for _ in range(len(m.group(1))):
             ancestor_id = parse_task_ref(ancestor_id).parent_id
-        digits = m.group(2)
+        digits = _normalize_shortcut_digits(task_ref, m.group(2))
 
         if digits:
             return make_child_ref(ancestor_id, digits)

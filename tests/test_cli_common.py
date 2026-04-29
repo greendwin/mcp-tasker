@@ -493,6 +493,33 @@ def test_q_digits_does_not_update_recent(tasks_root: Path) -> None:
     assert _read_recent(tasks_root) == t01
 
 
+def test_q_single_digit_pads_to_two(s1: str, tasks_root: Path) -> None:
+    add_subtask(s1, "Task A")
+    add_subtask(s1, "Task B")
+    t03 = add_subtask(s1, "Task three").task_id
+    assert t03.endswith("t03")
+    assert_invoke(app, ["edit", s1, "--title", "Set recent to root"])
+    # q3 -> q03 -> s01 + t03 -> s01t03
+    assert_invoke(app, ["edit", "q3", "--title", "Child via q3"])
+
+
+def test_q_three_digits_is_ambiguous(s1: str, tasks_root: Path) -> None:
+    add_subtask(s1, "Task A")
+    # recent = s01
+    # q345 has odd length > 1 -> ambiguous, should error
+    assert_invoke(app, ["edit", "q345", "--title", "nope"], expect_error=True)
+
+
+def test_p_single_digit_pads_to_two(s1: str, tasks_root: Path) -> None:
+    t01 = add_subtask(s1, "Task A").task_id
+    add_subtask(s1, "Task B")
+    t03 = add_subtask(s1, "Task three").task_id
+    assert t03.endswith("t03")
+    assert_invoke(app, ["start", t01])  # recent = s01t01
+    # p3 -> p03 -> sibling under s01 -> s01t03
+    assert_invoke(app, ["edit", "p3", "--title", "Sibling via p3"])
+
+
 def test_p_digits_does_not_update_recent(s1: str, tasks_root: Path) -> None:
     t01 = add_subtask(s1, "Task A").task_id
     add_subtask(s1, "Task B")

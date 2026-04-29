@@ -341,6 +341,15 @@ def test_show_ta_with_child_digits_resolves_to_subtask(story_id: str) -> None:
     assert "First child" in result.output
 
 
+def test_show_ta_with_single_digit_pads_to_two(story_id: str) -> None:
+    sub_id = add_subtask(story_id, "First child").task_id
+    assert_invoke(app, ["todo", story_id])
+    # ta1 -> ta01
+    result = assert_invoke(app, ["show", "ta1"])
+    assert sub_id in result.output
+    assert "First child" in result.output
+
+
 def test_show_ta_with_nested_digits_resolves_through_path(story_id: str) -> None:
     sub_id = add_subtask(story_id, "Parent sub").task_id
     nested_id = add_subtask(sub_id, "Nested").task_id
