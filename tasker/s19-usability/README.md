@@ -31,3 +31,6 @@ Improve user experience
 - [x] [s19t21](s19t21-dont-show-finished-todo-tasks.md): Don't show finished tasks in 'list --todo' when active exists
 - [ ] s19t22: 'tasker add XXX' should open editor with placeholders, same for 'tasker new'
 - [x] [s19t23](s19t23-support-list-rev.md): Support `list --rev` / `--in-review`
+- [ ] [s19t24](s19t24-tasker-list-rev-must-show.md): Tasker list --rev must show --todo if nothing in review
+- [ ] [s19t25](s19t25-install-shortcuts-to-bashrc-of.md): Install shortcuts to .bashrc of .zshrc/.zshuser
+- [ ] [s19t26](s19t26-todo-list-must-be-commited.md): Todo list must be commited to git, don't ignore it
