@@ -1,7 +1,7 @@
 ---
 id: s27
 slug: use-tasker-dir-on-init
-status: pending
+status: done
 ---
 
 # Create '.tasker' dir on 'init'
@@ -36,4 +36,4 @@ Switch project initialization to create `.tasker/` instead of `tasker/`, while k
 - [x] [s27t02](s27t02-init-creates-tasker-noop-on.md): `init` creates `.tasker/`; no-op on legacy
 - [x] [s27t03](s27t03-pin-discovery-precedence-rules.md): Pin discovery precedence rules
 - [x] [s27t04](s27t04-userlevel-dir-stays-tasker-regression.md): User-level dir stays `tasker/` (regression guard)
-- [ ] [s27t05](s27t05-update-designmd-and-readmemd.md): Update DESIGN.md and README.md
+- [x] [s27t05](s27t05-update-designmd-and-readmemd.md): Update DESIGN.md and README.md

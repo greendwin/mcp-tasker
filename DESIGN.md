@@ -195,14 +195,16 @@ All commands support `--json-output` for machine-readable output, `--debug` for 
 ### Initialize
 
 ```bash
-# Initialize tasker in the current directory (creates tasker/ and archive/)
+# Initialize tasker in the current directory (creates .tasker/ and archive/)
 tasker init
 
 # Initialize user-level tasker (~/.local/share/tasker on Linux/macOS, %LOCALAPPDATA%\tasker on Windows)
 tasker init --user
 ```
 
-When no `tasker/` directory exists in the current directory, tasker walks up the directory tree looking for one. If none is found, it checks the user-level tasker directory. Respects `XDG_DATA_HOME` on Linux/macOS and `LOCALAPPDATA` on Windows.
+`tasker init` creates `.tasker/`; if a legacy `tasker/` already exists at the project root it's kept as-is (no parallel `.tasker/`). The user-level dir stays `tasker/`.
+
+Discovery walks up from the current directory, preferring `.tasker/` over legacy `tasker/` at each level, then falls back to the user-level dir. Respects `XDG_DATA_HOME` on Linux/macOS and `LOCALAPPDATA` on Windows.
 
 ### Add tasks
 

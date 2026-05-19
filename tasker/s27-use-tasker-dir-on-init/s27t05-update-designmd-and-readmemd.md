@@ -1,7 +1,7 @@
 ---
 id: s27t05
 slug: update-designmd-and-readmemd
-status: pending
+status: done
 ---
 
 # Update DESIGN.md and README.md

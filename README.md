@@ -2,7 +2,7 @@
 
 [![tests](https://github.com/greendwin/mcp-tasker/actions/workflows/ci.yml/badge.svg)](https://github.com/greendwin/mcp-tasker/actions/workflows/ci.yml)
 
-A Markdown task tracker designed to live in git alongside your code. Tasks are plain Markdown files inside a `tasker/` directory, with hierarchical stories and subtasks, a CLI for humans, and an MCP server so AI agents can manage the same task list.
+A Markdown task tracker designed to live in git alongside your code. Tasks are plain Markdown files inside a `.tasker/` directory, with hierarchical stories and subtasks, a CLI for humans, and an MCP server so AI agents can manage the same task list.
 
 ## Installation
 
@@ -55,10 +55,10 @@ tasker done s01t01
 tasker edit s01t02
 ```
 
-Tasks are stored as Markdown in `tasker/` and committed with your code:
+Tasks are stored as Markdown in `.tasker/` and committed with your code:
 
 ```
-tasker/
+.tasker/
   s01-build-authentication/
     README.md
     s01t01-design-login-flow.md
@@ -110,7 +110,7 @@ tasker view <task-id>         # full task details
 
 ### TODO list
 
-Pin tasks you're actively focused on. The list lives in `tasker/.todo` (git-ignored), and archived tasks are removed automatically.
+Pin tasks you're actively focused on. The list lives in `.tasker/.todo` (git-ignored), and archived tasks are removed automatically.
 
 ```bash
 tasker todo <task-id>...      # pin task(s) to the TODO list
