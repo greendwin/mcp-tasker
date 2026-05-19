@@ -25,4 +25,3 @@ status: pending
 - [ ] [s12t16](s12t16-interactive-mode-for-tasker-list.md): Interactive mode for 'tasker list'
 - [x] s12t17: Support incomplete numeric shortcuts like q3 -> q03
 - [ ] s12t18: Support -p suffix, like 'tap' aka parent of 'ta'
-- [ ] [s12t19](s12t19-use-tasker-dir-on-init.md): Create '.tasker' dir on 'init'

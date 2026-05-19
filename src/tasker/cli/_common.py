@@ -1,4 +1,5 @@
 from collections.abc import Iterator
+from pathlib import Path
 from typing import Annotated
 
 import click
@@ -8,7 +9,14 @@ from typer_di import TyperDI
 
 from tasker import __version__
 from tasker.base_types import Task, TaskStatus, walk_tasks
-from tasker.layout import discover_tasker_dir, get_user_tasker_dir, init_tasker_dir
+from tasker.layout import (
+    DOT_TASKER_DIR,
+    TASKER_DIR,
+    discover_tasker_dir,
+    find_project_tasker_dir,
+    get_user_tasker_dir,
+    init_tasker_dir,
+)
 from tasker.parse import detect_task_type, parse_task_file, parse_task_ref
 from tasker.repo import TaskRepo
 from tasker.utils import JsonAppend, console
@@ -97,9 +105,21 @@ def cmd_init(
     ] = False,
 ) -> None:
     if user:
-        tasker_dir = init_tasker_dir(get_user_tasker_dir().parent)
+        project_root = get_user_tasker_dir().parent
+        dir_name = TASKER_DIR
     else:
-        tasker_dir = init_tasker_dir()
+        project_root = Path.cwd()
+        dir_name = DOT_TASKER_DIR
+
+    tasker_dir = find_project_tasker_dir(project_root)
+    if tasker_dir is not None:
+        console.print(
+            f"[yellow]Tasker already initialized at [blue]{tasker_dir}[/blue][/yellow]",
+            context={"tasker_dir": str(tasker_dir), "already_initialized": True},
+        )
+        return
+
+    tasker_dir = init_tasker_dir(project_root, dir_name)
 
     console.print(
         f"[green]Initialized tasker in [blue]{tasker_dir}[/blue][/green]",

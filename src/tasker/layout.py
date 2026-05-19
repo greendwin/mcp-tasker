@@ -8,6 +8,7 @@ from tasker.utils import read_text, write_text
 from .exceptions import TaskerError
 
 TASKER_DIR = "tasker"
+DOT_TASKER_DIR = ".tasker"
 ARCHIVE_DIR = "archive"
 GITKEEP_FILE = ".gitkeep"
 GITIGNORE_FILE = ".gitignore"
@@ -45,11 +46,13 @@ def discover_tasker_dir(start: Path | None = None) -> Path:
 
     start = start.resolve()
 
-    # 1. search for existing tasker/ folder in project tree
+    # 1. search for an existing tasker dir in the project tree; at each
+    # level prefer the new `.tasker/` over the legacy `tasker/`.
     for parent in _walk_parents(start):
-        candidate = parent / TASKER_DIR
-        if candidate.is_dir() and is_tasker_dir(candidate):
-            return candidate
+        for name in (DOT_TASKER_DIR, TASKER_DIR):
+            candidate = parent / name
+            if candidate.is_dir() and is_tasker_dir(candidate):
+                return candidate
 
     # 2. check user-level tasker dir
     user_dir = get_user_tasker_dir()
@@ -60,11 +63,18 @@ def discover_tasker_dir(start: Path | None = None) -> Path:
     raise TaskerNotFoundError
 
 
-def init_tasker_dir(project_root: Path | None = None) -> Path:
-    if project_root is None:
-        project_root = Path.cwd()
+def find_project_tasker_dir(project_root: Path) -> Path | None:
+    """Return an existing project-level tasker dir (`.tasker/` or legacy
+    `tasker/`) at `project_root`, or `None` if none is initialized."""
+    for name in (DOT_TASKER_DIR, TASKER_DIR):
+        candidate = project_root / name
+        if candidate.is_dir() and is_tasker_dir(candidate):
+            return candidate
+    return None
 
-    tasker_dir = project_root / TASKER_DIR
+
+def init_tasker_dir(project_root: Path, dir_name: str) -> Path:
+    tasker_dir = project_root / dir_name
     tasker_dir.mkdir(parents=True, exist_ok=True)
 
     gitignore = tasker_dir / GITIGNORE_FILE

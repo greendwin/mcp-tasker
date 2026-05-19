@@ -5,7 +5,7 @@ import pytest
 
 from tasker.cli import app
 from tasker.cli._common import complete_task_ref
-from tasker.layout import TASKER_DIR, init_tasker_dir
+from tasker.layout import DOT_TASKER_DIR, init_tasker_dir
 
 from .helpers import add_subtask, assert_invoke, create_task
 
@@ -176,9 +176,9 @@ def test_recent_written_to_file(tasks_root: Path) -> None:
 
 
 def test_gitignore_created_by_init(project_root: Path) -> None:
-    init_tasker_dir(project_root)
+    init_tasker_dir(project_root, DOT_TASKER_DIR)
 
-    gitignore = project_root / TASKER_DIR / ".gitignore"
+    gitignore = project_root / DOT_TASKER_DIR / ".gitignore"
     assert gitignore.exists()
     entries = gitignore.read_text().splitlines()
     assert ".recent" in entries
@@ -189,7 +189,7 @@ def test_gitignore_created_by_auto_init(project_root: Path) -> None:
     # auto-init happens when discover finds .git but no tasker/
     create_task("Test story")
 
-    gitignore = project_root / TASKER_DIR / ".gitignore"
+    gitignore = project_root / DOT_TASKER_DIR / ".gitignore"
     assert gitignore.exists()
     entries = gitignore.read_text().splitlines()
     assert ".recent" in entries
@@ -200,7 +200,7 @@ def test_closed_file_added_to_existing_gitignore(
     project_root: Path, tasks_root: Path
 ) -> None:
     """If .gitignore exists (say from older tasker) without .closed, add it."""
-    init_tasker_dir(project_root)
+    init_tasker_dir(project_root, DOT_TASKER_DIR)
     gitignore = tasks_root / ".gitignore"
     # simulate pre-existing gitignore without .closed
     gitignore.write_text("# tasker\n.recent\n")
