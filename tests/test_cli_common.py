@@ -541,6 +541,29 @@ def test_direct_ref_pads_single_s_digit(s1: str, tasks_root: Path) -> None:
     assert_invoke(app, ["edit", "s1", "--title", "Edited via s1"])
 
 
+def test_direct_ref_pads_both_segments(s1: str, tasks_root: Path) -> None:
+    t01 = add_subtask(s1, "Task A").task_id
+    assert t01 == "s01t01"
+    # s1t1 / s01t1 / s1t01 should all resolve to s01t01
+    assert_invoke(app, ["edit", "s1t1", "--title", "Via s1t1"])
+    assert_invoke(app, ["edit", "s01t1", "--title", "Via s01t1"])
+    assert_invoke(app, ["edit", "s1t01", "--title", "Via s1t01"])
+
+
+def test_direct_ref_multilevel_t_passthrough(s1: str, tasks_root: Path) -> None:
+    t01 = add_subtask(s1, "Task A", details="d").task_id
+    t0101 = add_subtask(t01, "Sub A1").task_id
+    assert t0101 == "s01t0101"
+    # s1t0101 → s01t0101 (even-length t-run, only s-segment pads)
+    assert_invoke(app, ["edit", "s1t0101", "--title", "Via s1t0101"])
+
+
+def test_direct_ref_odd_t_digits_is_ambiguous(s1: str, tasks_root: Path) -> None:
+    add_subtask(s1, "Task A")
+    # s1t102 has odd-length t-run > 1 → ambiguous
+    assert_invoke(app, ["edit", "s1t102", "--title", "nope"], expect_error=True)
+
+
 # ---------------------------------------------------------------------------
 # add/add-many with shortcuts must not overwrite 'recent'
 # ---------------------------------------------------------------------------

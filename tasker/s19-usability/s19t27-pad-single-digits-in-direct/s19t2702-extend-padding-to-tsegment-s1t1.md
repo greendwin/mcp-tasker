@@ -1,7 +1,7 @@
 ---
 id: s19t2702
 slug: extend-padding-to-tsegment-s1t1
-status: pending
+status: done
 ---
 
 # Extend padding to t-segment (s1t1, s02t2, multi-level, ambiguity)

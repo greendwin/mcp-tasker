@@ -32,12 +32,19 @@ def resolve_ref(
 
 
 def _normalize_direct_ref(task_ref: str) -> str:
-    m = re.fullmatch(r"s(\d+)", task_ref)
-    if m:
-        digits = _normalize_shortcut_digits(task_ref, m.group(1))
-        assert digits is not None
-        return "s" + digits
-    return task_ref
+    m = re.fullmatch(r"s(\d+)(?:t(\d+))?", task_ref)
+    if not m:
+        return task_ref
+
+    s_digits = _normalize_shortcut_digits(task_ref, m.group(1))
+    assert s_digits is not None
+    result = "s" + s_digits
+    if m.group(2) is not None:
+        t_digits = _normalize_shortcut_digits(task_ref, m.group(2))
+        assert t_digits is not None
+        result += "t" + t_digits
+
+    return result
 
 
 def _is_direct_ref(task_ref: str) -> bool:
