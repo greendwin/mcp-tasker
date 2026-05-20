@@ -242,6 +242,13 @@ uv run isort src tests
 
 ## Release Notes
 
+### 1.5.0
+- `tasker init` now creates `.tasker/`; legacy `tasker/` directories are still recognised at discovery time
+- Direct task references accept single-digit segments: `s1` → `s01`, `s1t1` → `s01t01`, and trailing `-slug` works on the padded form
+- `list --rev` falls back to the active TODO list when nothing is in review (previously fell back to all active root tasks)
+- Ambiguous-digit error message reworded to mention direct references
+- Bug fixes: suppress spurious `Error: <code>` output from `typer.Exit` on normal CLI exits
+
 ### 1.4.2
 - Single-digit shortcuts pad to two: `q3` → `q03`, `p3` → `p03`, `ta3` → `ta03`; odd-length runs > 1 are rejected as ambiguous
 

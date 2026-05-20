@@ -77,9 +77,10 @@ s01-design-file-structure/        ← extended form (dir)
 - Slug is kebab-cased, max 5 words
 - Derived automatically from the task title, or set explicitly via `--slug`
 - The slug is cosmetic — tasks are always addressed by ID alone (`s01`, `s01t02`, `s01t0102`)
-- When referencing a task in commands, both forms are accepted:
+- When referencing a task in commands, the following forms are accepted:
   - `s01t01` — ID only
   - `s01t01-define-task-forms` — full filename stem (slug ignored for lookup)
+  - `s1`, `s1t1`, `s1-design`, … — single-digit segments are padded to two digits; odd-length runs > 1 are rejected as ambiguous
 
 ---
 
