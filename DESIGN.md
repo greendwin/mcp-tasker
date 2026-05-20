@@ -303,7 +303,8 @@ tasker list --arch
 # Show only tasks pinned to the TODO list
 tasker list --todo
 
-# Show tasks awaiting review (falls back to active roots when none are in review)
+# Show tasks awaiting review. When none are in review, falls back to the
+# TODO list if it has any active pinned tasks; otherwise to active roots.
 tasker list --in-review
 tasker list --rev
 

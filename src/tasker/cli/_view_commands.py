@@ -115,6 +115,8 @@ def cmd_list_tasks(
 
         if review_tasks.nothing_to_review:
             console.print("[green]No tasks in review.[/green]\n")
+        if review_tasks.todo_fallback:
+            console.print("[yellow]Showing todo list:[/yellow]")
     elif closed:
         tasks.extend(load_closed_tasks(repo, limit=DEFAULT_CLOSED_LIMIT))
     elif todo:
@@ -166,6 +168,7 @@ def cmd_list_tasks(
 class _ReviewTasks(NamedTuple):
     tasks: list[Task]
     nothing_to_review: bool = False
+    todo_fallback: bool = False
 
 
 def _collect_review_tasks(repo: TaskRepo, *, task_refs: list[str]) -> _ReviewTasks:
@@ -173,11 +176,15 @@ def _collect_review_tasks(repo: TaskRepo, *, task_refs: list[str]) -> _ReviewTas
     if tasks:
         return _ReviewTasks(tasks)
 
+    active_todo = [t for t in load_todo_tasks(repo) if not t.is_closed]
+    if active_todo:
+        return _ReviewTasks(active_todo, nothing_to_review=True, todo_fallback=True)
+
     if task_refs:
         # there are user-provided tasks to show
         return _ReviewTasks([], nothing_to_review=True)
 
-    # otherwise show active tasks
+    # otherwise show active root tasks
     for t in _load_root_tasks(repo, archived=False, shallow=False):
         if not t.is_closed:
             tasks.append(t)

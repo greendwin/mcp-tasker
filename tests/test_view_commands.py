@@ -895,3 +895,54 @@ def test_list_rev_with_closed_rejects() -> None:
     create_task("Story")
     result = assert_invoke(app, ["list", "--rev", "--closed"], expect_error=True)
     assert "--in-review" in result.output
+
+
+def test_list_rev_falls_back_to_todo_when_active_pinned() -> None:
+    story = create_task("Active story").task_id
+    pinned = add_subtask(story, "Pinned subtask").task_id
+    other_open = add_subtask(story, "Other open").task_id
+    assert_invoke(app, ["todo", pinned])
+
+    result = assert_invoke(app, ["list", "--rev"])
+    assert "No tasks in review" in result.output
+    assert "Showing todo list" in result.output
+    assert pinned in result.output
+    assert "Pinned subtask" in result.output
+    assert other_open not in result.output
+
+
+def test_list_rev_todo_fallback_uses_letter_marker() -> None:
+    story = create_task("Story").task_id
+    pinned = add_subtask(story, "Pinned subtask").task_id
+    assert_invoke(app, ["todo", pinned])
+
+    result = assert_invoke(app, ["list", "--rev"])
+    assert "(ta)" in result.output
+
+
+def test_list_rev_skips_todo_fallback_when_all_pinned_finished() -> None:
+    story = create_task("Story").task_id
+    pinned = add_subtask(story, "Pinned subtask").task_id
+    other_open = add_subtask(story, "Other open").task_id
+    assert_invoke(app, ["todo", pinned])
+    assert_invoke(app, ["done", pinned])
+
+    result = assert_invoke(app, ["list", "--rev"])
+    assert "No tasks in review" in result.output
+    assert "Showing todo list" not in result.output
+    assert other_open in result.output
+
+
+def test_list_rev_todo_fallback_additive_refs() -> None:
+    story_a = create_task("Story A").task_id
+    pinned = add_subtask(story_a, "Pinned subtask").task_id
+    assert_invoke(app, ["todo", pinned])
+
+    story_b = create_task("Story B").task_id
+    ref_sub = add_subtask(story_b, "Ref subtask").task_id
+
+    result = assert_invoke(app, ["list", "--rev", ref_sub])
+    assert "No tasks in review" in result.output
+    assert "Showing todo list" in result.output
+    assert pinned in result.output
+    assert ref_sub in result.output
