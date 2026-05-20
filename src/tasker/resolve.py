@@ -158,7 +158,7 @@ def _normalize_shortcut_digits(task_ref: str, digits: str | None) -> str | None:
         return "0" + digits
     if len(digits) % 2 == 1:
         raise TaskValidateError(
-            f"Ambiguous shortcut digits {task_ref!r}", task_ref=task_ref
+            f"Ambiguous digits in task ref {task_ref!r}", task_ref=task_ref
         )
     return digits
 

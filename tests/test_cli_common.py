@@ -561,7 +561,10 @@ def test_direct_ref_multilevel_t_passthrough(s1: str, tasks_root: Path) -> None:
 def test_direct_ref_odd_t_digits_is_ambiguous(s1: str, tasks_root: Path) -> None:
     add_subtask(s1, "Task A")
     # s1t102 has odd-length t-run > 1 → ambiguous
-    assert_invoke(app, ["edit", "s1t102", "--title", "nope"], expect_error=True)
+    result = assert_invoke(
+        app, ["edit", "s1t102", "--title", "nope"], expect_error=True
+    )
+    assert "Ambiguous digits in task ref" in result.output
 
 
 def test_direct_ref_preserves_slug_suffix(s1: str, tasks_root: Path) -> None:

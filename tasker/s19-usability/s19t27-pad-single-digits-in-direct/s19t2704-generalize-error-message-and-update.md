@@ -1,7 +1,7 @@
 ---
 id: s19t2704
 slug: generalize-error-message-and-update
-status: pending
+status: done
 ---
 
 # Generalize error message and update DESIGN.md + README.md
