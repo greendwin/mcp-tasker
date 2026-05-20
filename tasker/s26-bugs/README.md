@@ -19,3 +19,4 @@ status: done
 - [x] [s26t09](s26t09-show-warning-on-missing-readmemd.md): Show warning on missing README.md in a directory
 - [x] ~~[s26t10](s26t10-tasker-root-is-not-detected.md): Tasker root is not detected on fresh git clone (legacy setups)~~
 - [x] [s26t11](s26t11-renaming-task-title-during-add.md): Renaming task title during 'add' shows previous title
+- [x] [s26t12](s26t12-when-failing-resetting-extra-error.md): When failing resetting - extra Error: 1

@@ -484,6 +484,13 @@ def test_reset_nonleaf_hints_force(story_id: str) -> None:
     assert "--force" in result.output
 
 
+def test_reset_nonleaf_does_not_print_spurious_error(story_id: str) -> None:
+    task_id = add_subtask(story_id, "Subtask one").task_id
+    assert_invoke(app, ["start", task_id])
+    result = assert_invoke(app, ["reset", story_id], expect_error=True)
+    assert "Error:" not in result.output
+
+
 def test_reset_done_nonleaf_lists_non_pending_subtasks(story_id: str) -> None:
     t01 = add_subtask(story_id, "Subtask one").task_id
     t02 = add_subtask(story_id, "Subtask two").task_id

@@ -63,7 +63,7 @@ class OutputContext:
         self._json_output_obj = {}
         try:
             yield
-        except click.ClickException:
+        except (click.ClickException, click.exceptions.Exit, click.exceptions.Abort):
             raise
         except TaskerError as ex:
             self._handle_error(ex, file_path=ex.file_path, json_output=ex.json_output)
