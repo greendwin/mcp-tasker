@@ -27,5 +27,5 @@ After this change, both segments accept single-digit shorthand:
 
 - [x] [s19t2701](s19t2701-tracer-pad-ssegment-only-s1.md): Tracer: pad s-segment only (s1 → s01) end-to-end
 - [x] [s19t2702](s19t2702-extend-padding-to-tsegment-s1t1.md): Extend padding to t-segment (s1t1, s02t2, multi-level, ambiguity)
-- [ ] [s19t2703](s19t2703-preserve-trailing-slug-suffix-on.md): Preserve trailing -slug suffix on direct refs
+- [x] [s19t2703](s19t2703-preserve-trailing-slug-suffix-on.md): Preserve trailing -slug suffix on direct refs
 - [ ] [s19t2704](s19t2704-generalize-error-message-and-update.md): Generalize error message and update DESIGN.md + README.md

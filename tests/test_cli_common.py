@@ -564,6 +564,14 @@ def test_direct_ref_odd_t_digits_is_ambiguous(s1: str, tasks_root: Path) -> None
     assert_invoke(app, ["edit", "s1t102", "--title", "nope"], expect_error=True)
 
 
+def test_direct_ref_preserves_slug_suffix(s1: str, tasks_root: Path) -> None:
+    t01 = add_subtask(s1, "Task A").task_id
+    assert t01 == "s01t01"
+    # `-slug` tail should survive padding
+    assert_invoke(app, ["edit", "s1-task-a", "--title", "Via s1-slug"])
+    assert_invoke(app, ["edit", "s1t1-task-a", "--title", "Via s1t1-slug"])
+
+
 # ---------------------------------------------------------------------------
 # add/add-many with shortcuts must not overwrite 'recent'
 # ---------------------------------------------------------------------------

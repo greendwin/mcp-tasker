@@ -32,7 +32,7 @@ def resolve_ref(
 
 
 def _normalize_direct_ref(task_ref: str) -> str:
-    m = re.fullmatch(r"s(\d+)(?:t(\d+))?", task_ref)
+    m = re.fullmatch(r"s(\d+)(?:t(\d+))?(?:-.*)?", task_ref)
     if not m:
         return task_ref
 

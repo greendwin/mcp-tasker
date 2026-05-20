@@ -1,7 +1,7 @@
 ---
 id: s19t2703
 slug: preserve-trailing-slug-suffix-on
-status: pending
+status: done
 ---
 
 # Preserve trailing -slug suffix on direct refs
