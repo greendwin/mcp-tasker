@@ -22,13 +22,22 @@ def resolve_ref(
     task_ref: str,
 ) -> ResolvedRef:
     if _is_direct_ref(task_ref):
-        resolved_ref = task_ref
+        resolved_ref = _normalize_direct_ref(task_ref)
     else:
         resolved_ref = _resolve_shortcut(repo, task_ref)
 
     resolved_task = repo.resolve_ref(resolved_ref)
 
     return ResolvedRef(task_ref, resolved_task)
+
+
+def _normalize_direct_ref(task_ref: str) -> str:
+    m = re.fullmatch(r"s(\d+)", task_ref)
+    if m:
+        digits = _normalize_shortcut_digits(task_ref, m.group(1))
+        assert digits is not None
+        return "s" + digits
+    return task_ref
 
 
 def _is_direct_ref(task_ref: str) -> bool:

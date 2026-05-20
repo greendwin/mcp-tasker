@@ -531,6 +531,17 @@ def test_p_digits_does_not_update_recent(s1: str, tasks_root: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
+# Direct-ref digit padding (s1 → s01, s02t2 → s02t02, ...)
+# ---------------------------------------------------------------------------
+
+
+def test_direct_ref_pads_single_s_digit(s1: str, tasks_root: Path) -> None:
+    assert s1 == "s01"
+    # s1 should resolve the same as s01
+    assert_invoke(app, ["edit", "s1", "--title", "Edited via s1"])
+
+
+# ---------------------------------------------------------------------------
 # add/add-many with shortcuts must not overwrite 'recent'
 # ---------------------------------------------------------------------------
 

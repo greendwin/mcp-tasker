@@ -34,4 +34,4 @@ Improve user experience
 - [x] [s19t24](s19t24-tasker-list-rev-must-show.md): Tasker list --rev must show --todo if nothing in review
 - [ ] [s19t25](s19t25-install-shortcuts-to-bashrc-of.md): Install shortcuts to .bashrc of .zshrc/.zshuser
 - [ ] [s19t26](s19t26-todo-list-must-be-commited.md): Todo list must be commited to git, don't ignore it
-- [ ] s19t27: Support shortcuts s1, s02t2 - same as q1, ta2
+- [ ] [s19t27](s19t27-pad-single-digits-in-direct/): Pad single digits in direct task refs (s1 → s01, s02t2 → s02t02)
