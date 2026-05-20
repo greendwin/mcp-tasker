@@ -22,13 +22,29 @@ def resolve_ref(
     task_ref: str,
 ) -> ResolvedRef:
     if _is_direct_ref(task_ref):
-        resolved_ref = task_ref
+        resolved_ref = _normalize_direct_ref(task_ref)
     else:
         resolved_ref = _resolve_shortcut(repo, task_ref)
 
     resolved_task = repo.resolve_ref(resolved_ref)
 
     return ResolvedRef(task_ref, resolved_task)
+
+
+def _normalize_direct_ref(task_ref: str) -> str:
+    m = re.fullmatch(r"s(\d+)(?:t(\d+))?(?:-.*)?", task_ref)
+    if not m:
+        return task_ref
+
+    s_digits = _normalize_shortcut_digits(task_ref, m.group(1))
+    assert s_digits is not None
+    result = "s" + s_digits
+    if m.group(2) is not None:
+        t_digits = _normalize_shortcut_digits(task_ref, m.group(2))
+        assert t_digits is not None
+        result += "t" + t_digits
+
+    return result
 
 
 def _is_direct_ref(task_ref: str) -> bool:
@@ -142,7 +158,7 @@ def _normalize_shortcut_digits(task_ref: str, digits: str | None) -> str | None:
         return "0" + digits
     if len(digits) % 2 == 1:
         raise TaskValidateError(
-            f"Ambiguous shortcut digits {task_ref!r}", task_ref=task_ref
+            f"Ambiguous digits in task ref {task_ref!r}", task_ref=task_ref
         )
     return digits
 
