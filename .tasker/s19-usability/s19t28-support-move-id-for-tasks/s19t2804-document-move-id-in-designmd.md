@@ -1,7 +1,7 @@
 ---
 id: s19t2804
 slug: document-move-id-in-designmd
-status: pending
+status: done
 ---
 
 # Document move --id in DESIGN.md

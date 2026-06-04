@@ -1,7 +1,7 @@
 ---
 id: s19t28
 slug: support-move-id-for-tasks
-status: pending
+status: done
 ---
 
 # Support move --id for tasks rename
@@ -41,4 +41,4 @@ After a git merge, two tasks can collide on the same id, and there's no in-tool 
 - [x] [s19t2801](s19t2801-normalizetaskid-deep-module.md): Normalize_task_id deep module
 - [x] [s19t2802](s19t2802-thread-newid-through-move-mechanics.md): Thread new_id through move mechanics
 - [x] [s19t2803](s19t2803-move-id-cli-wiring.md): Move --id CLI wiring
-- [ ] [s19t2804](s19t2804-document-move-id-in-designmd.md): Document move --id in DESIGN.md
+- [x] [s19t2804](s19t2804-document-move-id-in-designmd.md): Document move --id in DESIGN.md
