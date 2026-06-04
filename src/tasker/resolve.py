@@ -4,7 +4,13 @@ from typing import NamedTuple
 from .base_types import Task
 from .exceptions import TaskValidateError
 from .layout import CLOSED_FILE, RECENT_FILE, ensure_gitignore_entry
-from .parse import find_common_ancestor, make_child_ref, parse_task_ref
+from .parse import (
+    find_common_ancestor,
+    make_child_ref,
+    normalize_id_digits,
+    normalize_task_id,
+    parse_task_ref,
+)
 from .repo import TaskRepo
 from .todo import assign_todo_letters, load_todo_tasks
 from .utils import write_text
@@ -22,29 +28,13 @@ def resolve_ref(
     task_ref: str,
 ) -> ResolvedRef:
     if _is_direct_ref(task_ref):
-        resolved_ref = _normalize_direct_ref(task_ref)
+        resolved_ref = normalize_task_id(task_ref)
     else:
         resolved_ref = _resolve_shortcut(repo, task_ref)
 
     resolved_task = repo.resolve_ref(resolved_ref)
 
     return ResolvedRef(task_ref, resolved_task)
-
-
-def _normalize_direct_ref(task_ref: str) -> str:
-    m = re.fullmatch(r"s(\d+)(?:t(\d+))?(?:-.*)?", task_ref)
-    if not m:
-        return task_ref
-
-    s_digits = _normalize_shortcut_digits(task_ref, m.group(1))
-    assert s_digits is not None
-    result = "s" + s_digits
-    if m.group(2) is not None:
-        t_digits = _normalize_shortcut_digits(task_ref, m.group(2))
-        assert t_digits is not None
-        result += "t" + t_digits
-
-    return result
 
 
 def _is_direct_ref(task_ref: str) -> bool:
@@ -151,21 +141,9 @@ def load_recent_task(repo: TaskRepo) -> Task | None:
         return None
 
 
-def _normalize_shortcut_digits(task_ref: str, digits: str | None) -> str | None:
-    if digits is None:
-        return None
-    if len(digits) == 1:
-        return "0" + digits
-    if len(digits) % 2 == 1:
-        raise TaskValidateError(
-            f"Ambiguous digits in task ref {task_ref!r}", task_ref=task_ref
-        )
-    return digits
-
-
 def _resolve_shortcut(repo: TaskRepo, task_ref: str) -> str:
     if m := re.fullmatch(r"t([a-z])(\d+)?", task_ref):
-        digits = _normalize_shortcut_digits(task_ref, m.group(2))
+        digits = normalize_id_digits(task_ref, m.group(2))
         return _resolve_todo_letter(repo, task_ref, m.group(1), digits)
 
     if not task_ref.startswith(("p", "q")):
@@ -181,7 +159,7 @@ def _resolve_shortcut(repo: TaskRepo, task_ref: str) -> str:
 
     # links like q0102
     if m := re.fullmatch(r"q(\d+)", task_ref):
-        digits = _normalize_shortcut_digits(task_ref, m.group(1))
+        digits = normalize_id_digits(task_ref, m.group(1))
         assert digits is not None
         return make_child_ref(recent_id, digits)
 
@@ -190,7 +168,7 @@ def _resolve_shortcut(repo: TaskRepo, task_ref: str) -> str:
         ancestor_id = recent_id
         for _ in range(len(m.group(1))):
             ancestor_id = parse_task_ref(ancestor_id).parent_id
-        digits = _normalize_shortcut_digits(task_ref, m.group(2))
+        digits = normalize_id_digits(task_ref, m.group(2))
 
         if digits:
             return make_child_ref(ancestor_id, digits)

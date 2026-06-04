@@ -1,13 +1,13 @@
-from typing import Annotated, Optional
+from typing import Annotated, NamedTuple, Optional
 
 import typer
 from typer_di import Depends
 
 from tasker.base_types import Task, is_root_task_id, walk_tasks
 from tasker.exceptions import TaskerError, TaskValidateError
-from tasker.parse import detect_task_type
+from tasker.parse import detect_task_type, normalize_task_id, parse_task_ref
 from tasker.repo import TaskRename, TaskRepo
-from tasker.resolve import resolve_ref, save_recent_for_refs
+from tasker.resolve import ResolvedRef, resolve_ref, save_recent_for_refs
 from tasker.todo import load_todo_ids, save_todo_ids
 from tasker.utils import JsonAppend, console
 
@@ -176,29 +176,54 @@ def cmd_move_task(
         bool,
         typer.Option("--delete", help="Delete the task instead of moving it."),
     ] = False,
+    id_ref: Annotated[
+        Optional[str],
+        typer.Option(
+            "--id",
+            help="Move the task to this explicit ID (resolves the implied parent).",
+        ),
+    ] = None,
     editor: Annotated[
         bool,
         typer.Option("--editor", "-e", help="Open task file in editor after moving."),
     ] = False,
     repo: TaskRepo = Depends(get_task_repo),
 ) -> None:
-    flags = sum([parent_ref is not None, root, delete])
+    flags = sum([parent_ref is not None, root, delete, id_ref is not None])
     if flags > 1:
-        raise TaskerError("Specify only one of --parent, --root, or --delete.")
+        raise TaskerError("Specify only one of --parent, --root, --delete, or --id.")
 
     if flags == 0:
-        raise TaskerError("Specify --parent <ref>, --root, or --delete.")
+        raise TaskerError("Specify --parent <ref>, --root, --delete, or --id.")
 
     if editor and delete:
         raise TaskerError("--editor cannot be used with --delete.")
 
-    new_parent = None
-    if parent_ref is not None:
-        new_parent = resolve_ref(repo, parent_ref)
-        console.set_context("parent_ref", new_parent.task_ref)
-
     # Resolve all refs upfront to avoid mid-loop recent changes.
     resolved_tasks = [resolve_ref(repo, ref) for ref in task_refs]
+
+    new_id: str | None = None
+    new_parent: ResolvedRef | None = None
+    if parent_ref is not None:
+        new_id = None
+        new_parent = resolve_ref(repo, parent_ref)
+        console.set_context("parent_ref", new_parent.task_ref)
+    elif id_ref is not None:
+        res = _resolve_id_ref_param(repo, id_ref, resolved_tasks)
+        if res is None:
+            console.print(
+                f"[green]Task [blue]{resolved_tasks[0].task.ref}[/blue]"
+                " is already in the requested location[/green]",
+                context={
+                    "task_refs": JsonAppend(resolved_tasks[0].task.ref),
+                    "already": True,
+                },
+            )
+            return
+
+        new_id, new_parent = res
+        if new_parent:
+            console.set_context("parent_ref", new_parent.task_ref)
 
     # auto-unarchive when moving tasks with non-closed status
     if any(not r.task.is_closed for r in resolved_tasks):
@@ -223,9 +248,12 @@ def cmd_move_task(
             need_preview.append(r.task)
             continue
 
+        orig_parent_id = parse_task_ref(r.task.id).parent_id
+
         renames = repo.move_task(
             r.task,
             new_parent=new_parent.task if new_parent else None,
+            new_id=new_id,
         )
         repo.flush_to_disk()
 
@@ -244,6 +272,12 @@ def cmd_move_task(
         if new_parent is None:
             console.print(
                 f"[green]Task [blue]{r.task_ref}[/blue] moved to root[/green]",
+                context={"task_refs": JsonAppend(r.task_ref)},
+            )
+        elif new_id is not None and orig_parent_id == new_parent.task.id:
+            console.print(
+                f"[green]Task [blue]{r.task_ref}[/blue]"
+                f" renamed to [blue]{new_id}[/blue][/green]",
                 context={"task_refs": JsonAppend(r.task_ref)},
             )
         else:
@@ -280,3 +314,42 @@ def cmd_move_task(
         for task_id in edit_ids:
             task = repo.resolve_ref(task_id)
             edit_task_in_editor(repo, task)
+
+
+class _ResolveIdRefResult(NamedTuple):
+    new_id: str
+    new_parent: ResolvedRef | None
+
+
+def _resolve_id_ref_param(
+    repo: TaskRepo, id_ref: str, task_refs: list[ResolvedRef]
+) -> _ResolveIdRefResult | None:
+    if len(task_refs) != 1:
+        raise TaskerError("--id can only be used with a single task ref.")
+
+    new_id = normalize_task_id(id_ref)
+    parsed = parse_task_ref(new_id)
+
+    if is_root_task_id(new_id):
+        return _ResolveIdRefResult(new_id, None)
+
+    r = task_refs[0]
+    if r.task.id == new_id:
+        # TODO: use `NoopError` for such cases
+        # trying to move to itself
+        return None
+
+    if repo.try_resolve_ref(new_id) is not None:
+        raise TaskValidateError(
+            f"Target id {new_id!r} is already taken.",
+            task_ref=new_id,
+        )
+
+    if not repo.try_resolve_ref(parsed.parent_id):
+        raise TaskValidateError(
+            f"Target parent {parsed.parent_id!r} does not exist.",
+            task_ref=parsed.parent_id,
+        )
+
+    new_parent = resolve_ref(repo, parsed.parent_id)
+    return _ResolveIdRefResult(new_id, new_parent)

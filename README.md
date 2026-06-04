@@ -133,6 +133,7 @@ tasker edit <task-id> --slug new-slug
 tasker move <task-id> --parent <new-parent>  # reparent
 tasker move <task-id> --root                 # promote to story
 tasker move <task-id> --delete               # delete a task
+tasker move <task-id> --id <new-id>          # rename to an explicit free ID
 tasker move <task-id> --parent <p> --editor  # reparent and open in editor
 tasker archive <task-id>                     # archive completed story
 tasker archive --closed                      # archive all closed stories

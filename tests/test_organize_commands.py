@@ -1425,3 +1425,112 @@ def test_move_delete_editor_errors(s1: str) -> None:
         app, ["move", f"{s1}t01", "--delete", "-e"], expect_error=True
     )
     assert "--editor cannot be used with --delete" in result.output
+
+
+# ---------------------------------------------------------------------------
+# move --id
+# ---------------------------------------------------------------------------
+
+
+def test_move_id_same_parent_renames(s1: str) -> None:
+    add_subtask(s1, "Task A")
+    t02 = add_subtask(s1, "Task B").task_id
+    # rename t02 to a free sibling id under the same parent
+    result = assert_invoke(app, ["move", t02, "--id", f"{s1}t09"])
+    assert "renamed to" in result.output
+    assert f"{s1}t09" in result.output
+
+
+def test_move_id_to_root(s1: str) -> None:
+    t01 = add_subtask(s1, "Promote me").task_id
+    result = assert_invoke(app, ["move", t01, "--id", "s09"])
+    assert "moved to root" in result.output
+    assert "s09" in result.output
+
+
+def test_move_id_to_other_parent(s1: str, s2: str) -> None:
+    t01 = add_subtask(s1, "Task A").task_id
+    result = assert_invoke(app, ["move", t01, "--id", f"{s2}t01"])
+    assert "moved under" in result.output
+    assert s2 in result.output
+
+
+def test_move_id_with_parent_errors(s1: str, s2: str) -> None:
+    t01 = add_subtask(s1, "Task A").task_id
+    result = assert_invoke(
+        app, ["move", t01, "--id", f"{s2}t01", "--parent", s2], expect_error=True
+    )
+    assert "only one" in result.output.lower()
+
+
+def test_move_id_with_root_errors(s1: str) -> None:
+    t01 = add_subtask(s1, "Task A").task_id
+    result = assert_invoke(
+        app, ["move", t01, "--id", "s09", "--root"], expect_error=True
+    )
+    assert "only one" in result.output.lower()
+
+
+def test_move_id_with_delete_errors(s1: str) -> None:
+    t01 = add_subtask(s1, "Task A").task_id
+    result = assert_invoke(
+        app, ["move", t01, "--id", "s09", "--delete"], expect_error=True
+    )
+    assert "only one" in result.output.lower()
+
+
+def test_move_id_two_refs_errors(s1: str) -> None:
+    t01 = add_subtask(s1, "Task A").task_id
+    t02 = add_subtask(s1, "Task B").task_id
+    result = assert_invoke(
+        app, ["move", t01, t02, "--id", f"{s1}t09"], expect_error=True
+    )
+    assert result.exit_code != 0
+    assert "single task ref" in result.output
+
+
+def test_move_id_occupied_target_errors(s1: str) -> None:
+    t01 = add_subtask(s1, "Task A").task_id
+    add_subtask(s1, "Task B")
+    result = assert_invoke(app, ["move", t01, "--id", f"{s1}t02"], expect_error=True)
+    assert result.exit_code != 0
+    assert "already taken" in result.output
+
+
+def test_move_id_missing_parent_errors(s1: str) -> None:
+    t01 = add_subtask(s1, "Task A").task_id
+    result = assert_invoke(app, ["move", t01, "--id", "s99t01"], expect_error=True)
+    assert result.exit_code != 0
+    assert "s99" in result.output
+    assert "not found" in result.output
+
+
+def test_move_id_idempotent_target(s1: str) -> None:
+    t01 = add_subtask(s1, "Task A").task_id
+    result = assert_invoke(app, ["move", t01, "--id", t01])
+    assert "already" in result.output.lower()
+    assert "Renamed tasks" not in result.output
+
+
+def test_move_id_shorthand_input(s1: str) -> None:
+    t01 = add_subtask(s1, "Task A").task_id
+    # s1 fixture is "s01"; shorthand "s1t9" should normalize to "s01t09"
+    result = assert_invoke(app, ["move", t01, "--id", "s1t9"])
+    assert f"{s1}t09" in result.output
+
+
+def test_move_id_editor_opens_renamed_task(s1: str, run_editor: mock.Mock) -> None:
+    add_subtask(s1, "Task A")
+    t02 = add_subtask(s1, "Task B").task_id
+    assert_invoke(app, ["move", t02, "--id", f"{s1}t09", "--editor"])
+    opened_path: Path = run_editor.call_args[0][0]
+    assert opened_path.exists()
+    assert f"{s1}t09" in opened_path.name
+
+
+def test_move_id_json_renames(s1: str, s2: str) -> None:
+    t01 = add_subtask(s1, "Task A").task_id
+    result = assert_invoke(app, ["--json-output", "move", t01, "--id", f"{s2}t01"])
+    data = json.loads(result.output)
+    assert "renames" in data
+    assert data["renames"][0]["old_id"] == t01

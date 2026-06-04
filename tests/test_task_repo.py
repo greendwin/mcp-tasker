@@ -571,6 +571,207 @@ def test_archived_extended_with_subtasks(
     assert any(archived_dir.glob(f"{child.ref}*"))
 
 
+# --- move_task with explicit new_id ---
+
+
+def test_move_subtask_to_root_with_explicit_id(tasks_root: Path) -> None:
+    repo = make_repo(tasks_root)
+    parent = repo.create_root_task(
+        title="Parent story", description=None, slug=None, extended=False
+    )
+    child = repo.add_subtask(parent, title="Child")
+
+    renames = repo.move_task(child, new_parent=None, new_id="s07")
+
+    assert renames
+    assert child.id == "s07"
+    assert repo.resolve_ref("s07") is child
+
+
+def test_move_same_parent_relabel_is_real_rename(tasks_root: Path) -> None:
+    repo = make_repo(tasks_root)
+    parent = repo.create_root_task(
+        title="Parent story", description=None, slug=None, extended=False
+    )
+    a = repo.add_subtask(parent, title="A")
+    repo.add_subtask(parent, title="B")
+
+    new_id = f"{parent.id}t07"
+    renames = repo.move_task(a, new_parent=parent, new_id=new_id)
+
+    assert renames
+    assert a.id == new_id
+    assert repo.resolve_ref(new_id) is a
+
+
+def test_move_reparent_with_explicit_id(tasks_root: Path) -> None:
+    repo = make_repo(tasks_root)
+    src_parent = repo.create_root_task(
+        title="Source", description=None, slug=None, extended=False
+    )
+    repo.flush_to_disk()
+    dst_parent = repo.create_root_task(
+        title="Dest", description=None, slug=None, extended=False
+    )
+    repo.flush_to_disk()
+    child = repo.add_subtask(src_parent, title="Child")
+
+    new_id = f"{dst_parent.id}t01"
+    renames = repo.move_task(child, new_parent=dst_parent, new_id=new_id)
+
+    assert renames
+    assert child.id == new_id
+    assert repo.resolve_ref(new_id) is child
+    assert child in dst_parent.subtasks
+
+
+def test_move_subtree_relabels_descendants_recursively(tasks_root: Path) -> None:
+    repo = make_repo(tasks_root)
+    parent = repo.create_root_task(
+        title="Parent", description=None, slug=None, extended=False
+    )
+    branch = repo.add_subtask(parent, title="Branch")
+    leaf = repo.add_subtask(branch, title="Leaf")
+
+    new_id = "s07"
+    repo.move_task(branch, new_parent=None, new_id=new_id)
+
+    assert branch.id == new_id
+    expected_leaf_id = f"{new_id}t01"
+    assert leaf.id == expected_leaf_id
+    assert repo.resolve_ref(expected_leaf_id) is leaf
+
+
+def test_move_with_new_id_self_guard_raises(tasks_root: Path) -> None:
+    repo = make_repo(tasks_root)
+    parent = repo.create_root_task(
+        title="Parent", description=None, slug=None, extended=False
+    )
+    child = repo.add_subtask(parent, title="Child")
+
+    with pytest.raises(TaskerError):
+        repo.move_task(child, new_parent=child, new_id="s09t01")
+
+
+def test_move_with_new_id_descendant_guard_raises(tasks_root: Path) -> None:
+    repo = make_repo(tasks_root)
+    parent = repo.create_root_task(
+        title="Parent", description=None, slug=None, extended=False
+    )
+    branch = repo.add_subtask(parent, title="Branch")
+    leaf = repo.add_subtask(branch, title="Leaf")
+
+    with pytest.raises(TaskerError):
+        repo.move_task(branch, new_parent=leaf, new_id=f"{leaf.id}01")
+
+
+def test_move_without_new_id_unchanged(tasks_root: Path) -> None:
+    repo = make_repo(tasks_root)
+    parent = repo.create_root_task(
+        title="Parent", description=None, slug=None, extended=False
+    )
+    child = repo.add_subtask(parent, title="Child")
+    repo.flush_to_disk()
+
+    # subtask already under target parent: no-op early return
+    assert repo.move_task(child, new_parent=parent) == []
+
+    # subtask to root: auto-generated id
+    renames = repo.move_task(child, new_parent=None)
+    assert renames
+    assert child.id == "s02"
+
+    # already a root task: no-op early return
+    assert repo.move_task(child, new_parent=None) == []
+
+
+def test_move_with_new_id_persists_after_reload(tasks_root: Path) -> None:
+    repo = make_repo(tasks_root)
+    parent = repo.create_root_task(
+        title="Parent", description=None, slug=None, extended=False
+    )
+    child = repo.add_subtask(parent, title="Child")
+    repo.flush_to_disk()
+    old_id = child.id
+
+    repo.move_task(child, new_parent=None, new_id="s07")
+    repo.flush_to_disk()
+
+    fresh = make_repo(tasks_root)
+    reloaded = fresh.resolve_ref("s07")
+    assert reloaded.title == "Child"
+    with pytest.raises(TaskerError):
+        fresh.resolve_ref(old_id)
+
+
+def test_move_with_new_id_returns_full_rename_mapping(tasks_root: Path) -> None:
+    repo = make_repo(tasks_root)
+    parent = repo.create_root_task(
+        title="Parent", description=None, slug=None, extended=False
+    )
+    branch = repo.add_subtask(parent, title="Branch")
+    leaf = repo.add_subtask(branch, title="Leaf")
+    branch_old_id = branch.id
+    leaf_old_id = leaf.id
+
+    renames = repo.move_task(branch, new_parent=None, new_id="s07")
+
+    pairs = {(r.old_id, r.new_id) for r in renames}
+    assert (branch_old_id, "s07") in pairs
+    assert (leaf_old_id, "s07t01") in pairs
+
+
+def test_move_reparent_with_new_id_detaches_from_old_parent(
+    tasks_root: Path,
+) -> None:
+    repo = make_repo(tasks_root)
+    src_parent = repo.create_root_task(
+        title="Source", description=None, slug=None, extended=False
+    )
+    repo.flush_to_disk()
+    dst_parent = repo.create_root_task(
+        title="Dest", description=None, slug=None, extended=False
+    )
+    repo.flush_to_disk()
+    child = repo.add_subtask(src_parent, title="Child")
+
+    repo.move_task(child, new_parent=dst_parent, new_id=f"{dst_parent.id}t01")
+
+    assert child not in src_parent.subtasks
+    assert child in dst_parent.subtasks
+
+
+def test_move_with_new_id_root_target_rejects_non_root_id(
+    tasks_root: Path,
+) -> None:
+    repo = make_repo(tasks_root)
+    parent = repo.create_root_task(
+        title="Parent", description=None, slug=None, extended=False
+    )
+    child = repo.add_subtask(parent, title="Child")
+
+    with pytest.raises(AssertionError):
+        repo.move_task(child, new_parent=None, new_id="s07t01")
+
+
+def test_move_with_new_id_reparent_rejects_mismatched_parent(
+    tasks_root: Path,
+) -> None:
+    repo = make_repo(tasks_root)
+    src_parent = repo.create_root_task(
+        title="Source", description=None, slug=None, extended=False
+    )
+    repo.flush_to_disk()
+    dst_parent = repo.create_root_task(
+        title="Dest", description=None, slug=None, extended=False
+    )
+    repo.flush_to_disk()
+    child = repo.add_subtask(src_parent, title="Child")
+
+    with pytest.raises(AssertionError):
+        repo.move_task(child, new_parent=dst_parent, new_id="s99t01")
+
+
 def test_reload_root_tree_preserves_task_identity(tasks_root: Path) -> None:
     repo = make_repo(tasks_root)
     task = repo.create_root_task(

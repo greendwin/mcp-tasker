@@ -1,5 +1,6 @@
 ---
 id: s13t04
+slug: story-cache
 status: done
 ---
 

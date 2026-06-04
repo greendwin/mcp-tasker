@@ -9,6 +9,7 @@ from tasker.parse import (
     ParsedSubtask,
     find_common_ancestor,
     make_child_ref,
+    normalize_task_id,
     parse_task,
     parse_task_file,
     parse_task_ref,
@@ -508,6 +509,40 @@ def test_partial_subtask_id_raises() -> None:
     # "t" alone without a digit group is not valid
     with pytest.raises(TaskValidateError, match="Invalid task ref"):
         parse_task_ref("t01")
+
+
+# ---------------------------------------------------------------------------
+# normalize_task_id
+# ---------------------------------------------------------------------------
+
+
+def test_normalize_task_id_pads_subtask() -> None:
+    assert normalize_task_id("s1t5") == "s01t05"
+
+
+def test_normalize_task_id_keeps_canonical_paste() -> None:
+    assert normalize_task_id("s05t0302") == "s05t0302"
+
+
+def test_normalize_task_id_pads_root() -> None:
+    assert normalize_task_id("s1") == "s01"
+
+
+def test_normalize_task_id_two_digit_subtask() -> None:
+    assert normalize_task_id("s1t12") == "s01t12"
+
+
+def test_normalize_task_id_strips_slug() -> None:
+    assert normalize_task_id("s01-foo") == "s01"
+
+
+def test_normalize_task_id_passthrough_on_non_match() -> None:
+    assert normalize_task_id("q") == "q"
+
+
+def test_normalize_task_id_raises_on_ambiguous_digits() -> None:
+    with pytest.raises(TaskValidateError, match="Ambiguous digits"):
+        normalize_task_id("s1t123")
 
 
 # ---------------------------------------------------------------------------

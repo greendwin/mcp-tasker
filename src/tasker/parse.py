@@ -68,6 +68,42 @@ def parse_task_ref(task_ref: str) -> ParsedRef:
     )
 
 
+def normalize_task_id(raw: str) -> str:
+    """Expand a direct task ref to its canonical form.
+
+    Pads short digit groups (``s1`` -> ``s01``), drops a trailing ``-slug``,
+    and returns *raw* unchanged when it does not match a direct ref.
+    """
+    m = re.fullmatch(r"s(\d+)(?:t(\d+))?(?:-.*)?", raw)
+    if not m:
+        return raw
+
+    s_digits = normalize_id_digits(raw, m.group(1))
+    assert s_digits is not None
+    result = "s" + s_digits
+    if m.group(2) is not None:
+        t_digits = normalize_id_digits(raw, m.group(2))
+        assert t_digits is not None
+        result += "t" + t_digits
+
+    return result
+
+
+def normalize_id_digits(task_ref: str, digits: str | None) -> str | None:
+    if digits is None:
+        return None
+
+    if len(digits) == 1:
+        return "0" + digits
+
+    if len(digits) % 2 == 1:
+        raise TaskValidateError(
+            f"Ambiguous digits in task ref {task_ref!r}", task_ref=task_ref
+        )
+
+    return digits
+
+
 def find_common_ancestor(direct_refs: list[str]) -> str:
     assert len(direct_refs) > 0
 

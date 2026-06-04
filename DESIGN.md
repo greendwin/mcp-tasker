@@ -367,12 +367,17 @@ tasker move <task-id> --root
 # Delete a task
 tasker move <task-id> --delete
 
+# Rename a task to an explicit free ID
+tasker move <task-id> --id <new-id>
+
 # Move and open in editor for manual adjustments
 tasker move <task-id> --parent <new-parent-id> --editor
 tasker move <task-id> --root -e
 ```
 
 Moving re-generates task IDs to match the new location and prints the rename mapping. Source parents are auto-downgraded when possible.
+
+`--id` renames a task to any free, canonically-valid ID (shorthand like `s1t5` is accepted and normalized). The new ID determines placement: the task is re-homed under the parent it implies, and descendants are relabeled recursively. It is primarily for resolving ID collisions after a merge. The command operates only on a repo that still loads cleanly — hard duplicate-ID states (ambiguous root directories, duplicated subtasks) must be fixed on disk first.
 
 ### Archive
 

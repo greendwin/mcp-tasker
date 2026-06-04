@@ -24,10 +24,14 @@ class TaskRename(NamedTuple):
 
 
 def move_task_impl(
-    task: Task, *, new_parent: Task | None, loader: TaskLoader
+    task: Task,
+    *,
+    new_parent: Task | None,
+    new_id: str | None = None,
+    loader: TaskLoader,
 ) -> list[TaskRename]:
     if new_parent is None:
-        return _convert_to_root(task, loader=loader)
+        return _convert_to_root(task, new_id=new_id, loader=loader)
 
     if new_parent.id == task.id:
         raise TaskValidateError(
@@ -36,7 +40,7 @@ def move_task_impl(
         )
 
     ref = parse_task_ref(task.id)
-    if ref.parent_id == new_parent.id:
+    if new_id is None and ref.parent_id == new_parent.id:
         # already under target parent
         return []
 
@@ -55,7 +59,13 @@ def move_task_impl(
     renames: list[TaskRename] = []
 
     prev_id = task.id
-    task.id = get_next_subtask_id(new_parent)
+
+    if new_id is not None:
+        assert parse_task_ref(new_id).parent_id == new_parent.id
+        task.id = new_id
+    else:
+        task.id = get_next_subtask_id(new_parent)
+
     _reregister_tree(task, prev_id, renames, loader=loader)
 
     _set_archived(task, new_parent.archived)
@@ -86,13 +96,15 @@ def _set_archived(task: Task, archived: bool) -> None:
 
 
 def _is_descendant_of(child_id: str, *, ancestor_id: str) -> bool:
-    """True when *child_id* is a strict descendant of *ancestor_id*."""
+    # check whether `child_id` is a strict descendant of `ancestor_id`
     prefix = ancestor_id if "t" in ancestor_id else ancestor_id + "t"
     return child_id.startswith(prefix) and len(child_id) > len(ancestor_id)
 
 
-def _convert_to_root(task: Task, *, loader: TaskLoader) -> list[TaskRename]:
-    if is_root_task_id(task.id):
+def _convert_to_root(
+    task: Task, *, new_id: str | None = None, loader: TaskLoader
+) -> list[TaskRename]:
+    if new_id is None and is_root_task_id(task.id):
         # already a root task
         return []
 
@@ -100,9 +112,14 @@ def _convert_to_root(task: Task, *, loader: TaskLoader) -> list[TaskRename]:
 
     # regenerate new ids
     renames: list[TaskRename] = []
-
     prev_id = task.id
-    task.id = find_next_root_task_id(loader)
+
+    if new_id is not None:
+        assert is_root_task_id(new_id)
+        task.id = new_id
+    else:
+        task.id = find_next_root_task_id(loader)
+
     _reregister_tree(task, prev_id, renames, loader=loader)
 
     # new root tasks are always active (not archived)

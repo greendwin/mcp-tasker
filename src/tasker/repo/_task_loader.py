@@ -3,7 +3,7 @@ from pathlib import Path
 from typing import NamedTuple
 
 from tasker.base_types import Task, is_root_task_id, walk_tasks
-from tasker.exceptions import TaskValidateError
+from tasker.exceptions import TaskNotFoundError, TaskValidateError
 from tasker.layout import ARCHIVE_DIR
 from tasker.parse import (
     ParsedSubtask,
@@ -40,7 +40,7 @@ class TaskLoader:
 
         task = self._tasks.get(ti.task_id)
         if task is None:
-            raise TaskValidateError(
+            raise TaskNotFoundError(
                 f"Cannot resolve task reference {task_ref!r}", task_ref=task_ref
             )
 
