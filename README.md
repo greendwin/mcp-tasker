@@ -144,12 +144,12 @@ tasker unarchive <task-id>                   # restore from archive
 
 Reference recent tasks without typing full IDs:
 
-| Shortcut | Meaning |
-|---|---|
-| `q` | Last referenced task |
-| `q01` | Subtask 01 of recent |
-| `p` | Parent of recent |
-| `p03` | Sibling 03 via parent |
+| Shortcut | Meaning               |
+| -------- | --------------------- |
+| `q`      | Last referenced task  |
+| `q01`    | Subtask 01 of recent  |
+| `p`      | Parent of recent      |
+| `p03`    | Sibling 03 via parent |
 
 ```bash
 tasker view s01t02   # sets recent = s01t02
@@ -206,17 +206,17 @@ tasker mcp --port 8080
 
 Once connected, the MCP server exposes:
 
-| Tool | Description |
-|---|---|
-| `create_task` | Create a root task or subtask |
-| `list_tasks` | List all root tasks (pass `todo=true` for only pinned tasks) |
-| `view_tasks` | View detailed info for multiple tasks |
-| `edit_task` | Update a task's title, description, or slug |
-| `start_task` | Mark task in-progress |
-| `review_task` | Mark task in-review (submit for review) |
-| `reset_task` | Reset task to pending |
-| `finish_task` | Mark task done |
-| `cancel_task` | Cancel a task |
+| Tool          | Description                                                  |
+| ------------- | ------------------------------------------------------------ |
+| `create_task` | Create a root task or subtask                                |
+| `list_tasks`  | List all root tasks (pass `todo=true` for only pinned tasks) |
+| `view_tasks`  | View detailed info for multiple tasks                        |
+| `edit_task`   | Update a task's title, description, or slug                  |
+| `start_task`  | Mark task in-progress                                        |
+| `review_task` | Mark task in-review (submit for review)                      |
+| `reset_task`  | Reset task to pending                                        |
+| `finish_task` | Mark task done                                               |
+| `cancel_task` | Cancel a task                                                |
 
 ## Development
 
@@ -242,6 +242,11 @@ uv run isort src tests
 - Python >= 3.10
 
 ## Release Notes
+
+### 1.6.0
+- `move <task-id> --id <new-id>` renames a task to any free, canonically-valid ID (shorthand like `s1t5` is accepted); the task is re-homed under the parent the new ID implies and descendants are relabeled recursively
+- Bugfix: `list --todo` now expands children of every sibling todo task
+- Bugfix: MCP `view_tasks` description includes extra non-Subtasks `##` sections
 
 ### 1.5.0
 - `tasker init` now creates `.tasker/`; legacy `tasker/` directories are still recognised at discovery time
