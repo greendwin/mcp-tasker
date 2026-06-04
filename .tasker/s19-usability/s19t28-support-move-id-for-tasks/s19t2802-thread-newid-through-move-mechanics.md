@@ -1,7 +1,7 @@
 ---
 id: s19t2802
 slug: thread-newid-through-move-mechanics
-status: pending
+status: done
 ---
 
 # Thread new_id through move mechanics

@@ -192,10 +192,13 @@ class TaskRepo:
     def unarchive_root_task(self, task_ref: str) -> ParsedRef:
         return unarchive_root_task_impl(self, task_ref)
 
-    def move_task(self, task: Task, *, new_parent: Task | None) -> list[TaskRename]:
+    def move_task(
+        self, task: Task, *, new_parent: Task | None, new_id: str | None = None
+    ) -> list[TaskRename]:
         return move_task_impl(
             task,
             new_parent=new_parent,
+            new_id=new_id,
             loader=self.loader,
         )
 

@@ -22,4 +22,4 @@ status: pending
 - [x] [s26t12](s26t12-when-failing-resetting-extra-error.md): When failing resetting - extra Error: 1
 - [x] [s26t13](s26t13-list-todo-dont-expand-subtasks.md): List --todo don't expand subtasks
 - [x] s26t14: Description can be null in MCP when there are only extra sections
-- [ ] s26t15: Review outputs in MCP methods -- should be concise
+- [ ] [s26t15](s26t15-concise-mcp-outputs/): Review outputs in MCP methods -- should be concise
