@@ -1,8 +1,7 @@
 from collections.abc import Iterator
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Any
 
-import click
 import typer
 from typer.core import TyperGroup
 from typer_di import TyperDI
@@ -23,7 +22,7 @@ from tasker.utils import JsonAppend, console
 
 
 class _TaskerGroup(TyperGroup):
-    def invoke(self, ctx: click.Context) -> None:
+    def invoke(self, ctx: Any) -> None:
         with console.catching_errors():
             super().invoke(ctx)
 
@@ -67,7 +66,7 @@ def common_options(
 
 
 def complete_task_ref(
-    ctx: click.Context, args: list[str], incomplete: str
+    ctx: Any, args: list[str], incomplete: str
 ) -> list[tuple[str, str]]:
     try:
         tasker_dir = discover_tasker_dir()

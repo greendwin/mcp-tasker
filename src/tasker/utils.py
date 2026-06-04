@@ -4,7 +4,7 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
 
-import click
+import typer._click.exceptions as _click_exceptions
 from rich.console import Console
 from rich.markup import escape as _rich_escape
 
@@ -63,7 +63,11 @@ class OutputContext:
         self._json_output_obj = {}
         try:
             yield
-        except (click.ClickException, click.exceptions.Exit, click.exceptions.Abort):
+        except (
+            _click_exceptions.ClickException,
+            _click_exceptions.Exit,
+            _click_exceptions.Abort,
+        ):
             raise
         except TaskerError as ex:
             self._handle_error(ex, file_path=ex.file_path, json_output=ex.json_output)
