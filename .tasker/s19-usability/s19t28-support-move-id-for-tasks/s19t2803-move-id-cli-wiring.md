@@ -1,7 +1,7 @@
 ---
 id: s19t2803
 slug: move-id-cli-wiring
-status: pending
+status: done
 ---
 
 # Move --id CLI wiring

@@ -1,5 +1,6 @@
 ---
 id: s13t05
+slug: add-assertwordsinmessage-helper
 status: cancelled
 ---
 

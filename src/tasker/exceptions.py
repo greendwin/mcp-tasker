@@ -27,6 +27,10 @@ class TaskValidateError(TaskerError):
         self.task_ref = task_ref
 
 
+class TaskNotFoundError(TaskValidateError):
+    pass
+
+
 class TaskHasSubtasksError(TaskerError):
     def __init__(self, task: Task) -> None:
         assert not task.is_inline and len(task.subtasks) > 0

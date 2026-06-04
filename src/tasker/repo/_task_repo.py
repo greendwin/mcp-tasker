@@ -1,7 +1,7 @@
 from pathlib import Path
 
 from tasker.base_types import Task, TaskStatus, is_root_task_id, walk_tasks
-from tasker.exceptions import TaskHasSubtasksError
+from tasker.exceptions import TaskHasSubtasksError, TaskNotFoundError
 from tasker.parse import ParsedRef, parse_task_ref
 
 from ._move_task import (
@@ -33,6 +33,12 @@ class TaskRepo:
 
     def resolve_ref(self, task_ref: str) -> Task:
         return self.loader.resolve_ref(task_ref)
+
+    def try_resolve_ref(self, task_ref: str) -> Task | None:
+        try:
+            return self.loader.resolve_ref(task_ref)
+        except TaskNotFoundError:
+            return None
 
     def get_parent(self, task: Task) -> Task | None:
         if is_root_task_id(task.id):
