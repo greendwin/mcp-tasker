@@ -1,5 +1,5 @@
 ---
-id: s26t1504
+id: s13t0704
 slug: remove-resources-retire-models-docs
 status: pending
 ---

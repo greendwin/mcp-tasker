@@ -1,5 +1,5 @@
 ---
-id: s26t15
+id: s13t07
 slug: concise-mcp-outputs
 status: pending
 ---
@@ -37,7 +37,7 @@ MCP method outputs are verbose: mutators echo back caller-supplied text (titles,
 
 ## Subtasks
 
-- [ ] [s26t1501](s26t1501-render-core-listtasks-as-concise.md): Render core + list_tasks as concise text
-- [ ] [s26t1502](s26t1502-viewtasks-as-trimmed-markdown.md): View_tasks as trimmed markdown
-- [ ] [s26t1503](s26t1503-mutators-return-id-status-plus.md): Mutators return {id, status} plus affected on force
-- [ ] [s26t1504](s26t1504-remove-resources-retire-models-docs.md): Remove resources, retire models, docs and tox
+- [ ] [s13t0701](s13t0701-render-core-listtasks-as-concise.md): Render core + list_tasks as concise text
+- [ ] [s13t0702](s13t0702-viewtasks-as-trimmed-markdown.md): View_tasks as trimmed markdown
+- [ ] [s13t0703](s13t0703-mutators-return-id-status-plus.md): Mutators return {id, status} plus affected on force
+- [ ] [s13t0704](s13t0704-remove-resources-retire-models-docs.md): Remove resources, retire models, docs and tox
