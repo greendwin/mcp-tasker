@@ -1,7 +1,7 @@
 ---
 id: s26t13
 slug: list-todo-dont-expand-subtasks
-status: pending
+status: done
 ---
 
 # List --todo don't expand subtasks

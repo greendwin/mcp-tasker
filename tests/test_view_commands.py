@@ -534,6 +534,41 @@ def test_list_todo_expands_open_children_of_todo_task() -> None:
     assert nested_open in result.output
 
 
+def test_list_todo_expands_children_of_all_sibling_todo_tasks() -> None:
+    # regression: when several todo tasks share a parent, the parent is added
+    # to the show config (MANUAL mode) between the siblings. Processing order
+    # must not let the parent mark a later sibling as walked before that
+    # sibling expands its own children -- nor must it over-expand non-todo
+    # siblings that share the same parent.
+    story_id = create_task("My story").task_id
+
+    todo_a = add_subtask(story_id, "Todo A", details="d").task_id
+    nested_a = add_subtask(todo_a, "Nested under A").task_id
+
+    todo_b = add_subtask(story_id, "Todo B", details="d").task_id
+    nested_b = add_subtask(todo_b, "Nested under B").task_id
+
+    todo_c = add_subtask(story_id, "Todo C", details="d").task_id
+    nested_c = add_subtask(todo_c, "Nested under C").task_id
+
+    # non-todo sibling with its own child: must stay hidden (no over-expansion)
+    other = add_subtask(story_id, "Other open subtask", details="d").task_id
+    nested_other = add_subtask(other, "Nested under other").task_id
+
+    assert_invoke(app, ["todo", todo_a])
+    assert_invoke(app, ["todo", todo_b])
+    assert_invoke(app, ["todo", todo_c])
+
+    result = assert_invoke(app, ["list", "--todo"])
+    # every todo sibling expands its own child, regardless of processing order
+    assert nested_a in result.output
+    assert nested_b in result.output
+    assert nested_c in result.output
+    # the non-todo sibling and its child remain hidden
+    assert other not in result.output
+    assert nested_other not in result.output
+
+
 def test_list_todo_hides_non_todo_siblings() -> None:
     story_id = create_task("My story").task_id
     todo_sub = add_subtask(story_id, "Todo subtask").task_id

@@ -137,36 +137,35 @@ def _build_print_entries(repo: TaskRepo, config: ShowTaskConfig) -> list[PrintEn
         highlight=config.highlight,
     )
 
-    has_force_show: set[str] = set()
+    has_force_show = set()
     for task in config.tasks.values():
         cur: Task | None = task
         while cur:
             has_force_show.add(cur.id)
             cur = repo.get_parent(cur)
 
-    walked: set[str] = set()
+    walked: dict[str, ShowChildrenMode] = {}
     for task in config.tasks.values():
         _collect_visible_tasks(
+            ctx.visible,
             task,
             config.show_children_mode.get(task.id, ShowChildrenMode.MANUAL),
-            ctx.visible,
-            walked,
+            walked=walked,
             has_force_show=has_force_show,
         )
 
-    visible_roots: dict[str, Task] = {}
+    visible_roots = {}
     for task in ctx.visible.values():
         cur = task
         while True:
             parent = repo.get_parent(cur)
+            # walk to closest visible ancestor
             if parent is None or parent.id not in ctx.visible:
                 visible_roots[cur.id] = cur
                 break
-
             cur = parent
 
     ctx.markers = compute_markers(repo, *ctx.visible.values())
-
     for root in sorted(visible_roots.values(), key=lambda p: p.id):
         _collect_print_entries(ctx, root, indent=0)
 
@@ -174,17 +173,17 @@ def _build_print_entries(repo: TaskRepo, config: ShowTaskConfig) -> list[PrintEn
 
 
 def _collect_visible_tasks(
+    visible: dict[str, Task],
     cur: Task,
     mode: ShowChildrenMode,
-    visible: dict[str, Task],
-    walked: set[str],
     *,
+    walked: dict[str, ShowChildrenMode],
     has_force_show: set[str],
 ) -> None:
-    if cur.id in walked:
+    if cur.id in walked and walked[cur.id] >= mode:
         return
 
-    walked.add(cur.id)
+    walked[cur.id] = mode
     visible[cur.id] = cur
 
     for child in cur.subtasks:
@@ -199,10 +198,10 @@ def _collect_visible_tasks(
                     assert mode == ShowChildrenMode.SHOW_ALL
 
         _collect_visible_tasks(
+            visible,
             child,
             mode,
-            visible,
-            walked,
+            walked=walked,
             has_force_show=has_force_show,
         )
 
