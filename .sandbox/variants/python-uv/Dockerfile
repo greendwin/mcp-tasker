@@ -2,7 +2,7 @@
 ARG BASE_IMAGE
 FROM ${BASE_IMAGE}
 
-ARG PYTHON_VERSION=3.12
+ARG PYTHON_VERSION="3.10 3.11 3.12"
 
 RUN curl -LsSf https://astral.sh/uv/install.sh | sh \
  && uv python install ${PYTHON_VERSION}
@@ -15,7 +15,9 @@ RUN uv tool install tox \
  && uv tool install flake8 \
  && uv tool install mcp-tasker
 
-RUN sudo npm install -g pyright && sudo rm -rf /var/lib/apt/lists/*
+USER root
+RUN npm install -g pyright && rm -rf /var/lib/apt/lists/*
+USER ${USERNAME}
 
 # Pre-create volume mount points so named-volume init inherits user ownership
 # instead of being created as root by the Docker daemon.

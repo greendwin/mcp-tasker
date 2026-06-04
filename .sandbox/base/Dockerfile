@@ -3,7 +3,7 @@ FROM ubuntu:26.04
 ENV DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-        curl ca-certificates git zsh neovim tmux sudo ncurses-term \
+        curl ca-certificates git zsh neovim tmux ncurses-term \
     && rm -rf /var/lib/apt/lists/*
 
 ARG UID=1000
@@ -14,8 +14,7 @@ ARG USERNAME=agent
 # host's UID/GID can be reused without collision.
 RUN (userdel -r ubuntu && groupdel ubuntu) 2>/dev/null || true \
     && groupadd -g ${GID} ${USERNAME} \
-    && useradd -m -u ${UID} -g ${GID} -s /bin/zsh ${USERNAME} \
-    && echo "${USERNAME} ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/${USERNAME}
+    && useradd -m -u ${UID} -g ${GID} -s /bin/zsh ${USERNAME}
 
 RUN curl -fsSL https://deb.nodesource.com/setup_lts.x | bash - \
     && apt-get install -y --no-install-recommends nodejs \

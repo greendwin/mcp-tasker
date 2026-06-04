@@ -5,8 +5,10 @@ services:
       - venv:/work/.venv
       - tox:/work/.tox
       - uv-cache:/home/${USER}/.cache/uv
+      - uv-data:/home/${USER}/.local/share/uv
 
 volumes:
   venv:
   tox:
   uv-cache:
+  uv-data:
