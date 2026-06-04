@@ -37,11 +37,17 @@ class TaskInfo(TaskPreview):
         for child in task.subtasks:
             grouped[child.status].append(child.id)
 
+        description_parts = []
+        if task.description:
+            description_parts.append(task.description)
+        if task.extra_sections:
+            description_parts.append(task.extra_sections)
+
         return cls(
             id=task.id,
             parent_id=parent_id,
             title=task.title,
             status=task.status,
-            description=task.description,
+            description="\n\n".join(description_parts) or None,
             subtasks=grouped,
         )

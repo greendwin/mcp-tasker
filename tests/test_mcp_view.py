@@ -13,7 +13,7 @@ from tasker.mcp import (
 )
 from tasker.todo import load_todo_ids, save_todo_ids
 
-from .helpers import add_subtask, assert_invoke, create_task
+from .helpers import GetTaskFile, add_subtask, assert_invoke, create_task
 
 
 def test_list_tasks_returns_empty() -> None:
@@ -66,6 +66,31 @@ def test_view_tasks_no_description_is_none() -> None:
     task_id = create_task("My story").task_id
     result = view_tasks([task_id])[0]
     assert result.description is None
+
+
+def test_view_tasks_includes_extra_sections_only(get_task_file: GetTaskFile) -> None:
+    task_id = create_task("My story").task_id
+    path = get_task_file(task_id)
+    path.write_text(path.read_text() + "\n## Notes\n\nSome notes here.\n")
+
+    result = view_tasks([task_id])[0]
+    assert result.description == "## Notes\n\nSome notes here."
+
+
+def test_view_tasks_merges_description_and_extra_sections(
+    get_task_file: GetTaskFile,
+) -> None:
+    task_id = create_task("My story").task_id
+    path = get_task_file(task_id)
+    content = path.read_text()
+    content = content.replace(
+        "# My story\n",
+        "# My story\n\nSome details.\n\n## Notes\n\nSome notes here.\n",
+    )
+    path.write_text(content)
+
+    result = view_tasks([task_id])[0]
+    assert result.description == "Some details.\n\n## Notes\n\nSome notes here."
 
 
 def test_view_tasks_subtasks_grouped_by_status() -> None:

@@ -41,6 +41,8 @@ def list_tasks(todo: bool = False) -> list[TaskPreview]:
 def view_tasks(task_refs: list[str]) -> list[TaskInfo]:
     """View tasks by IDs: title, status, description, and subtask IDs.
 
+    The description includes any non-Subtasks ``##`` sections.
+
     Use this instead of reading task files from disk.
     """
     repo = get_repo()
