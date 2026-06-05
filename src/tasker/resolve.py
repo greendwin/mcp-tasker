@@ -5,6 +5,7 @@ from .base_types import Task
 from .exceptions import TaskValidateError
 from .layout import CLOSED_FILE, RECENT_FILE, ensure_gitignore_entry
 from .parse import (
+    detect_task_type,
     find_common_ancestor,
     make_child_ref,
     normalize_id_digits,
@@ -35,23 +36,6 @@ def resolve_ref(
     resolved_task = repo.resolve_ref(resolved_ref)
 
     return ResolvedRef(task_ref, resolved_task)
-
-
-def _is_direct_ref(task_ref: str) -> bool:
-    return task_ref.startswith("s")
-
-
-def _load_recent_id(repo: TaskRepo) -> str | None:
-    path = repo.root / RECENT_FILE
-    if not path.exists():
-        return None
-
-    text = path.read_text().strip()
-    if not text or text.startswith("{"):
-        # empty or legacy JSON — ignore
-        return None
-
-    return text
 
 
 def _write_recent_id(repo: TaskRepo, task_id: str) -> None:
@@ -88,6 +72,10 @@ def save_recent_for_refs(repo: TaskRepo, *refs: ResolvedRef | Task) -> None:
 
     task_id = find_common_ancestor(direct_refs)
     _write_recent_id(repo, task_id)
+
+
+def _is_direct_ref(task_ref: str) -> bool:
+    return bool(re.match(r"s\d", task_ref))
 
 
 def save_closed_refs(repo: TaskRepo, closed_ids: list[str]) -> None:
@@ -141,14 +129,26 @@ def load_recent_task(repo: TaskRepo) -> Task | None:
         return None
 
 
+def _load_recent_id(repo: TaskRepo) -> str | None:
+    path = repo.root / RECENT_FILE
+    if not path.exists():
+        return None
+
+    text = path.read_text().strip()
+    if not text or text.startswith("{"):
+        # empty or legacy JSON — ignore
+        return None
+
+    return text
+
+
 def _resolve_shortcut(repo: TaskRepo, task_ref: str) -> str:
     if m := re.fullmatch(r"t([a-z])(\d+)?", task_ref):
         digits = normalize_id_digits(task_ref, m.group(2))
         return _resolve_todo_letter(repo, task_ref, m.group(1), digits)
 
     if not task_ref.startswith(("p", "q")):
-        # resolve as-is, try to resolve in repo
-        return task_ref
+        return _resolve_by_name(repo, task_ref)
 
     recent_id = _load_recent_id(repo)
     if not recent_id:
@@ -175,6 +175,56 @@ def _resolve_shortcut(repo: TaskRepo, task_ref: str) -> str:
         return ancestor_id
 
     raise TaskValidateError(f"Invalid recent reference {task_ref!r}", task_ref=task_ref)
+
+
+def _resolve_by_name(repo: TaskRepo, name: str) -> str:
+    # resolve a task reference by matching against root task slugs on disk
+
+    exact_matches = []
+    partial_matches = []
+    root_paths = repo.list_root_tasks()
+    for path in root_paths:
+        result = detect_task_type(path)
+        if result is None:
+            continue
+
+        if result.slug.lower() == name.lower():
+            exact_matches.append(result)
+
+        if _is_partial_slug_match(result.slug, name):
+            partial_matches.append(result)
+
+    if len(exact_matches) > 1:
+        candidates = ", ".join(sorted(p.task_ref for p in exact_matches))
+        raise TaskValidateError(
+            f"Ambiguous name {name!r}: matches {candidates}",
+            task_ref=name,
+        )
+
+    if len(exact_matches) == 1:
+        return exact_matches[0].task_id
+
+    if len(partial_matches) > 1:
+        candidates = ", ".join(sorted(p.task_ref for p in partial_matches))
+        raise TaskValidateError(
+            f"Ambiguous name {name!r}: matches {candidates}",
+            task_ref=name,
+        )
+
+    if len(partial_matches) == 1:
+        return partial_matches[0].task_id
+
+    raise TaskValidateError(
+        f"No task found matching {name!r}",
+        task_ref=name,
+    )
+
+
+def _is_partial_slug_match(slug: str, name: str) -> bool:
+    # partial match only for inputs >= 3 chars
+    if len(name) < 3:
+        return False
+    return name.lower() in slug.lower()
 
 
 def _resolve_todo_letter(
