@@ -1,7 +1,7 @@
 ---
 id: s19t2905
 slug: cli-command-and-endtoend-integration
-status: pending
+status: done
 ---
 
 # CLI command and end-to-end integration

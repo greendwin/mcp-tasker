@@ -25,9 +25,6 @@ def _to_checkbox(status: TaskStatus) -> str:
     return STATUS_CHECKBOX[status]
 
 
-_jinja.filters["checkbox"] = _to_checkbox
-
-
 def render_subtask_line(sub: ParsedSubtask) -> str:
     checkbox = STATUS_CHECKBOX[sub.status]
     review_tag = "**review** " if sub.status == TaskStatus.IN_REVIEW else ""
@@ -44,10 +41,9 @@ def render_subtask_line(sub: ParsedSubtask) -> str:
     return f"- [{checkbox}] {sub.id}: {review_tag}{sub.title}"
 
 
-_jinja.filters["subtask_line"] = render_subtask_line
-
-
 def render_task(task: Task) -> str:
+    _jinja.filters["checkbox"] = _to_checkbox
+    _jinja.filters["subtask_line"] = render_subtask_line
     return _jinja.get_template("task.md.j2").render(
         id=task.id,
         slug=task.slug,

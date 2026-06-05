@@ -43,6 +43,10 @@ class OutputContext:
         if not self.json_output:
             self._console.print(text, end=end)
 
+    def print_exception(self) -> None:
+        if not self.json_output:
+            self._console.print_exception()
+
     def set_context(self, key: str, value: Any) -> None:
         if isinstance(value, JsonAppend):
             self.append_context(key, value.value)

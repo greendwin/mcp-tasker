@@ -73,8 +73,10 @@ def merge_subtask_lists(
         # --- either `ours` or `theirs` is missing ---
 
         if not base:
-            # if no base -- it was added
-            result.append(ours or theirs)
+            # no base means it was added; one side must exist
+            added = ours or theirs
+            assert added is not None
+            result.append(added)
             continue
 
         if ours == base or theirs == base:
