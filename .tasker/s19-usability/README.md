@@ -32,10 +32,9 @@ Improve user experience
 - [ ] s19t22: 'tasker add XXX' should open editor with placeholders, same for 'tasker new'
 - [x] [s19t23](s19t23-support-list-rev.md): Support `list --rev` / `--in-review`
 - [x] [s19t24](s19t24-tasker-list-rev-must-show.md): Tasker list --rev must show --todo if nothing in review
-- [ ] [s19t25](s19t25-install-shortcuts-to-bashrc-of.md): Install shortcuts to .bashrc of .zshrc/.zshuser
-- [ ] [s19t26](s19t26-todo-list-must-be-commited.md): Todo list must be commited to git, don't ignore it
 - [x] [s19t27](s19t27-pad-single-digits-in-direct/): Pad single digits in direct task refs (s1 → s01, s02t2 → s02t02)
 - [x] [s19t28](s19t28-support-move-id-for-tasks/): Support move --id for tasks rename
 - [ ] [s19t29](s19t29-add-tasker-resolve-command-for/): Add `tasker resolve` command for merge conflicts in .tasker dir
-- [ ] [s19t30](s19t30-support-merging-archived-tasks-in.md): Support merging archived tasks in `tasker resolve`
+- [ ] s19t31: Allow reference tasks by their name aka 'tasker add bugs ...'
+- [ ] [s19t32](s19t32-interactive-mode-for-tasker-list.md): Interactive mode for 'tasker list'
 - [ ] s19t33: Add mpc installation helper 'tasker mcp --install'

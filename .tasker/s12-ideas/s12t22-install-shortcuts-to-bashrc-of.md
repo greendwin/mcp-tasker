@@ -1,5 +1,5 @@
 ---
-id: s19t25
+id: s12t22
 slug: install-shortcuts-to-bashrc-of
 status: pending
 ---
