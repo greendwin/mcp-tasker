@@ -1,7 +1,7 @@
 ---
 id: s19t2903
 slug: subtask-list-merge
-status: pending
+status: done
 ---
 
 # Subtask list merge

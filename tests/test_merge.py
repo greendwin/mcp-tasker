@@ -5,7 +5,11 @@ from typing import Any
 import pytest
 
 from tasker.base_types import Task, TaskStatus
-from tasker.merge import Merged, merge_scalar_fields
+from tasker.merge import (
+    Merged,
+    merge_scalar_fields,
+    merge_subtask_lists,
+)
 
 
 def _task(**overrides: Any) -> Task:
@@ -237,3 +241,298 @@ class TestEachScalarField:
         theirs = _task(**{field: changed_val})
         result = merge_scalar_fields(base, ours, theirs)
         assert getattr(result, field) == Merged(changed_val)
+
+
+# --- Subtask list merge tests ---
+
+
+def _sub(
+    tid: str = "s01t01",
+    title: str = "Task one",
+    status: TaskStatus = TaskStatus.PENDING,
+) -> Task:
+    return Task(id=tid, title=title, status=status)
+
+
+class TestSubtaskListsIdentical:
+    """All three lists identical -- merged list has Merged values."""
+
+    def test_all_identical(self) -> None:
+        t = _sub()
+        result = merge_subtask_lists([t], [t], [t])
+        assert len(result) == 1
+        assert result[0].id == "s01t01"
+        assert result[0].title == Merged("Task one")
+        assert result[0].status == Merged(TaskStatus.PENDING)
+
+
+class TestSubtaskOursModified:
+    """Entry modified only in ours -- ours wins."""
+
+    def test_ours_title_changed(self) -> None:
+        base = [_sub()]
+        ours = [_sub(title="Updated")]
+        theirs = [_sub()]
+        result = merge_subtask_lists(base, ours, theirs)
+        assert len(result) == 1
+        assert result[0].title == Merged("Updated")
+        assert result[0].status == Merged(TaskStatus.PENDING)
+
+
+class TestSubtaskTheirsModified:
+    """Entry modified only in theirs -- theirs wins."""
+
+    def test_theirs_status_changed(self) -> None:
+        base = [_sub()]
+        ours = [_sub()]
+        theirs = [_sub(status=TaskStatus.DONE)]
+        result = merge_subtask_lists(base, ours, theirs)
+        assert len(result) == 1
+        assert result[0].status == Merged(TaskStatus.DONE)
+        assert result[0].title == Merged("Task one")
+
+
+class TestSubtaskBothSameChange:
+    """Both modified title to same value -- merged."""
+
+    def test_both_same_title(self) -> None:
+        base = [_sub()]
+        ours = [_sub(title="Same")]
+        theirs = [_sub(title="Same")]
+        result = merge_subtask_lists(base, ours, theirs)
+        assert len(result) == 1
+        assert result[0].title == Merged("Same")
+
+
+class TestSubtaskBothDifferentChange:
+    """Both modified title to different values -- conflict."""
+
+    def test_both_different_title(self) -> None:
+        base = [_sub()]
+        ours = [_sub(title="Ours")]
+        theirs = [_sub(title="Theirs")]
+        result = merge_subtask_lists(base, ours, theirs)
+        assert len(result) == 1
+        assert result[0].title is None
+
+
+class TestSubtaskDeleteAccepted:
+    """Entry deleted from one side, unchanged on other -- accept delete."""
+
+    def test_deleted_in_theirs_unchanged(self) -> None:
+        base = [_sub()]
+        ours = [_sub()]
+        theirs: list[Task] = []
+        result = merge_subtask_lists(base, ours, theirs)
+        assert len(result) == 0
+
+    def test_deleted_in_ours_unchanged(self) -> None:
+        base = [_sub()]
+        ours: list[Task] = []
+        theirs = [_sub()]
+        result = merge_subtask_lists(base, ours, theirs)
+        assert len(result) == 0
+
+
+class TestSubtaskDeleteModifyConflict:
+    """Delete-modify conflict -- entry present with None fields."""
+
+    def test_deleted_in_theirs_modified_in_ours(self) -> None:
+        base = [_sub()]
+        ours = [_sub(title="Modified")]
+        theirs: list[Task] = []
+        result = merge_subtask_lists(base, ours, theirs)
+        assert len(result) == 1
+        assert result[0].id == "s01t01"
+        assert result[0].title is None
+        assert result[0].status is None
+
+    def test_deleted_in_ours_modified_in_theirs(self) -> None:
+        base = [_sub()]
+        ours: list[Task] = []
+        theirs = [_sub(status=TaskStatus.DONE)]
+        result = merge_subtask_lists(base, ours, theirs)
+        assert len(result) == 1
+        assert result[0].id == "s01t01"
+        assert result[0].title is None
+        assert result[0].status is None
+
+
+class TestSubtaskBothDeleted:
+    """Both deleted (in base only) -- not in result."""
+
+    def test_both_deleted(self) -> None:
+        base = [_sub()]
+        ours: list[Task] = []
+        theirs: list[Task] = []
+        result = merge_subtask_lists(base, ours, theirs)
+        assert len(result) == 0
+
+
+class TestSubtaskAdditions:
+    """Entry only in one side (addition) -- included with Merged values."""
+
+    def test_ours_addition(self) -> None:
+        base: list[Task] = []
+        ours = [_sub(tid="s01t02", title="New task")]
+        theirs: list[Task] = []
+        result = merge_subtask_lists(base, ours, theirs)
+        assert len(result) == 1
+        assert result[0].id == "s01t02"
+        assert result[0].title == Merged("New task")
+        assert result[0].status == Merged(TaskStatus.PENDING)
+
+    def test_theirs_addition(self) -> None:
+        base: list[Task] = []
+        ours: list[Task] = []
+        theirs = [_sub(tid="s01t03", title="Their task")]
+        result = merge_subtask_lists(base, ours, theirs)
+        assert len(result) == 1
+        assert result[0].id == "s01t03"
+        assert result[0].title == Merged("Their task")
+        assert result[0].status == Merged(TaskStatus.PENDING)
+
+
+class TestSubtaskBothAddedSame:
+    """Both added same entry (same id, title, status) -- merged."""
+
+    def test_both_added_identical(self) -> None:
+        base: list[Task] = []
+        ours = [_sub(tid="s01t04", title="Shared")]
+        theirs = [_sub(tid="s01t04", title="Shared")]
+        result = merge_subtask_lists(base, ours, theirs)
+        assert len(result) == 1
+        assert result[0].title == Merged("Shared")
+
+    def test_both_added_different_title(self) -> None:
+        base: list[Task] = []
+        ours = [_sub(tid="s01t04", title="Ours")]
+        theirs = [_sub(tid="s01t04", title="Theirs")]
+        result = merge_subtask_lists(base, ours, theirs)
+        assert len(result) == 1
+        assert result[0].title is None
+
+    def test_both_added_different_status(self) -> None:
+        base: list[Task] = []
+        ours = [_sub(tid="s01t04", status=TaskStatus.IN_PROGRESS)]
+        theirs = [_sub(tid="s01t04", status=TaskStatus.DONE)]
+        result = merge_subtask_lists(base, ours, theirs)
+        assert len(result) == 1
+        assert result[0].title == Merged("Task one")
+        assert result[0].status is None
+
+
+class TestSubtaskOrdering:
+    """Ordering: base order preserved, ours additions appended, then theirs."""
+
+    def test_ordering(self) -> None:
+        base = [_sub(tid="s01t01"), _sub(tid="s01t02", title="Two")]
+        ours = [
+            _sub(tid="s01t01"),
+            _sub(tid="s01t02", title="Two"),
+            _sub(tid="s01t10", title="Ours new"),
+        ]
+        theirs = [
+            _sub(tid="s01t01"),
+            _sub(tid="s01t02", title="Two"),
+            _sub(tid="s01t20", title="Theirs new"),
+        ]
+        result = merge_subtask_lists(base, ours, theirs)
+        ids = [e.id for e in result]
+        assert ids == ["s01t01", "s01t02", "s01t10", "s01t20"]
+
+
+class TestSubtaskNoBase:
+    """No base (None) -- two-way merge."""
+
+    def test_equal_merged(self) -> None:
+        ours = [_sub()]
+        theirs = [_sub()]
+        result = merge_subtask_lists(None, ours, theirs)
+        assert len(result) == 1
+        assert result[0].title == Merged("Task one")
+
+    def test_different_conflict(self) -> None:
+        ours = [_sub(title="A")]
+        theirs = [_sub(title="B")]
+        result = merge_subtask_lists(None, ours, theirs)
+        assert len(result) == 1
+        assert result[0].title is None
+
+    def test_ours_only_addition(self) -> None:
+        ours = [_sub(tid="s01t02", title="Only ours")]
+        result = merge_subtask_lists(None, ours, [])
+        assert len(result) == 1
+        assert result[0].id == "s01t02"
+        assert result[0].title == Merged("Only ours")
+
+    def test_theirs_only_addition(self) -> None:
+        theirs = [_sub(tid="s01t03", title="Only theirs")]
+        result = merge_subtask_lists(None, [], theirs)
+        assert len(result) == 1
+        assert result[0].id == "s01t03"
+        assert result[0].title == Merged("Only theirs")
+
+
+class TestSubtaskEmptyLists:
+    """Empty lists -- empty result."""
+
+    def test_all_empty(self) -> None:
+        result = merge_subtask_lists([], [], [])
+        assert result == []
+
+    def test_base_none_empty(self) -> None:
+        result = merge_subtask_lists(None, [], [])
+        assert result == []
+
+
+class TestSubtaskMixedScenario:
+    """Mixed: some merged, some conflicted, some added, some deleted."""
+
+    def test_mixed(self) -> None:
+        base = [
+            _sub(tid="s01t01", title="One"),
+            _sub(tid="s01t02", title="Two"),
+            _sub(tid="s01t03", title="Three"),
+            _sub(tid="s01t04", title="Four"),
+        ]
+        ours = [
+            _sub(tid="s01t01", title="One updated"),  # modified
+            # s01t02 deleted
+            _sub(tid="s01t03", title="Three"),  # unchanged
+            _sub(tid="s01t04", title="Four"),  # unchanged (theirs deletes)
+            _sub(tid="s01t10", title="New ours"),  # addition
+        ]
+        theirs = [
+            _sub(tid="s01t01", title="One"),  # unchanged -> ours wins
+            _sub(
+                tid="s01t02", title="Two modified"
+            ),  # modified, ours deleted -> conflict
+            _sub(tid="s01t03", title="Three", status=TaskStatus.DONE),  # status change
+            # s01t04 deleted, ours unchanged -> accept delete
+            _sub(tid="s01t20", title="New theirs"),  # addition
+        ]
+        result = merge_subtask_lists(base, ours, theirs)
+        by_id = {e.id: e for e in result}
+
+        # s01t01: ours modified title, theirs unchanged -> ours wins
+        assert by_id["s01t01"].title == Merged("One updated")
+
+        # s01t02: delete-modify conflict
+        assert by_id["s01t02"].title is None
+        assert by_id["s01t02"].status is None
+
+        # s01t03: theirs changed status, ours unchanged
+        assert by_id["s01t03"].title == Merged("Three")
+        assert by_id["s01t03"].status == Merged(TaskStatus.DONE)
+
+        # s01t04: deleted in theirs, unchanged in ours -> accept delete
+        assert "s01t04" not in by_id
+
+        # additions
+        assert by_id["s01t10"].title == Merged("New ours")
+        assert by_id["s01t20"].title == Merged("New theirs")
+
+        # ordering: base order first, then ours additions, then theirs additions
+        ids = [e.id for e in result]
+        assert ids == ["s01t01", "s01t02", "s01t03", "s01t10", "s01t20"]
