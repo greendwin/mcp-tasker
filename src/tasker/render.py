@@ -2,9 +2,10 @@ from pathlib import Path
 
 from jinja2 import Environment, PackageLoader
 
-from .base_types import EXTENDED_TASK_FILENAME, Task, TaskStatus
+from .base_types import EXTENDED_TASK_FILENAME, Task, TaskStatus, build_task_ref
+from .parse import ParsedSubtask
 
-_CHECKBOX = {
+STATUS_CHECKBOX: dict[TaskStatus, str] = {
     TaskStatus.PENDING: " ",
     TaskStatus.IN_PROGRESS: "~",
     TaskStatus.IN_REVIEW: "~",
@@ -21,10 +22,29 @@ _jinja = Environment(
 
 
 def _to_checkbox(status: TaskStatus) -> str:
-    return _CHECKBOX[status]
+    return STATUS_CHECKBOX[status]
 
 
 _jinja.filters["checkbox"] = _to_checkbox
+
+
+def render_subtask_line(sub: ParsedSubtask) -> str:
+    checkbox = STATUS_CHECKBOX[sub.status]
+    review_tag = "**review** " if sub.status == TaskStatus.IN_REVIEW else ""
+
+    if sub.slug is not None:
+        ref = build_task_ref(sub.id, sub.slug)
+        link = f"{ref}/" if sub.extended else f"{ref}.md"
+        if sub.status == TaskStatus.CANCELLED:
+            return f"- [{checkbox}] ~~[{sub.id}]({link}): {sub.title}~~"
+        return f"- [{checkbox}] [{sub.id}]({link}): {review_tag}{sub.title}"
+
+    if sub.status == TaskStatus.CANCELLED:
+        return f"- [{checkbox}] ~~{sub.id}: {sub.title}~~"
+    return f"- [{checkbox}] {sub.id}: {review_tag}{sub.title}"
+
+
+_jinja.filters["subtask_line"] = render_subtask_line
 
 
 def render_task(task: Task) -> str:

@@ -20,21 +20,8 @@ status: {{ status }}
 ## Subtasks
 
 {% for subtask in subtasks %}
-{% set review_tag = "**review** " if subtask.status.value == "in-review" else "" %}
-{% if subtask.deleted %}
-{% elif subtask.is_inline %}
-{% if subtask.status.value == "cancelled" %}
-- [{{ subtask.status | checkbox }}] ~~{{ subtask.id }}: {{ subtask.title }}~~
-{% else %}
-- [{{ subtask.status | checkbox }}] {{ subtask.id }}: {{ review_tag }}{{ subtask.title }}
-{% endif %}
-{% else %}
-{% set link = subtask.ref ~ "/" if subtask.extended else subtask.ref ~ ".md" %}
-{% if subtask.status.value == "cancelled" %}
-- [{{ subtask.status | checkbox }}] ~~[{{ subtask.id }}]({{ link }}): {{ subtask.title }}~~
-{% else %}
-- [{{ subtask.status | checkbox }}] [{{ subtask.id }}]({{ link }}): {{ review_tag }}{{ subtask.title }}
-{% endif %}
+{% if not subtask.deleted %}
+{{ subtask | subtask_line }}
 {% endif %}
 {% endfor %}
 {% endif %}

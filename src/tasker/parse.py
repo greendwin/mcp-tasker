@@ -224,7 +224,7 @@ def warn_broken_task(task_path: Path) -> None:
     )
 
 
-@dataclass
+@dataclass(slots=True, eq=True)
 class ParsedSubtask:
     id: str
     slug: str | None

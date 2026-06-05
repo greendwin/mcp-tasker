@@ -1,7 +1,7 @@
 ---
 id: s19t2904
 slug: full-task-merge-with-conflict
-status: pending
+status: done
 ---
 
 # Full task merge with conflict markers

@@ -2,9 +2,11 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from functools import partial
-from typing import Generic, TypeVar
+from typing import Generic, TypeAlias, TypeVar
 
-from tasker.base_types import Task, TaskStatus
+from tasker.base_types import Task, TaskStatus, build_task_ref
+from tasker.parse import ParsedSubtask, parse_task
+from tasker.render import render_subtask_line
 
 _T = TypeVar("_T")
 
@@ -30,118 +32,86 @@ class SubtaskMergeEntry:
     status: Merged[TaskStatus] | None
 
 
+@dataclass(slots=True)
+class _ConflictingSubtask:
+    # note: None means was not exist
+    base: ParsedSubtask | None
+    # note: None means deleted
+    ours: ParsedSubtask | None
+    theirs: ParsedSubtask | None
+
+
+_MergedSubtask: TypeAlias = ParsedSubtask | _ConflictingSubtask
+
+
 def merge_subtask_lists(
-    base: list[Task] | None,
-    ours: list[Task],
-    theirs: list[Task],
-) -> list[SubtaskMergeEntry]:
-    base_map = {t.id: t for t in base} if base is not None else {}
-    ours_map = {t.id: t for t in ours}
-    theirs_map = {t.id: t for t in theirs}
+    base_task: list[ParsedSubtask] | None,
+    ours_task: list[ParsedSubtask],
+    theirs_task: list[ParsedSubtask],
+) -> list[_MergedSubtask]:
+    base_map = {t.id: t for t in base_task} if base_task is not None else {}
+    ours_map = {t.id: t for t in ours_task}
+    theirs_map = {t.id: t for t in theirs_task}
 
-    has_base = base is not None
+    task_ids = sorted(set(base_map) | set(ours_map) | set(theirs_map))
 
-    # determine base-order IDs, ours-only additions, theirs-only additions
-    base_ids = list(base_map) if base is not None else []
-    base_id_set = set(base_ids)
+    result = []
 
-    # IDs added on both sides (not in base) -- appended after base entries in ours order
-    both_added = (set(ours_map) & set(theirs_map)) - base_id_set
+    for tid in task_ids:
+        base = base_map.get(tid)
+        ours = ours_map.get(tid)
+        theirs = theirs_map.get(tid)
 
-    ours_only_additions = [
-        t.id for t in ours if t.id not in base_id_set and t.id not in both_added
-    ]
-    theirs_only_additions = [
-        t.id for t in theirs if t.id not in base_id_set and t.id not in both_added
-    ]
-
-    # build ordered ID list: base order + both-added at ours position,
-    # then ours-only, then theirs-only.
-    # "Both added" entries are appended after base entries, in ours order.
-    ordered_ids: list[str] = []
-    # first pass: base IDs
-    ordered_ids.extend(base_ids)
-
-    # insert both-added entries in ours order
-    for t in ours:
-        if t.id in both_added:
-            ordered_ids.append(t.id)
-
-    ordered_ids.extend(ours_only_additions)
-    ordered_ids.extend(theirs_only_additions)
-
-    result: list[SubtaskMergeEntry] = []
-    merge = partial(_merge_field, has_base=has_base)
-
-    for tid in ordered_ids:
-        in_base = tid in base_map
-        in_ours = tid in ours_map
-        in_theirs = tid in theirs_map
-
-        if in_base and in_ours and in_theirs:
-            # Three-way merge
-            b, o, t = base_map[tid], ours_map[tid], theirs_map[tid]
-            result.append(
-                SubtaskMergeEntry(
-                    id=tid,
-                    title=merge(b.title, o.title, t.title),
-                    status=merge(b.status, o.status, t.status),
-                )
-            )
-        elif in_base and in_ours and not in_theirs:
-            # theirs deleted
-            b, o = base_map[tid], ours_map[tid]
-            if o.title == b.title and o.status == b.status:
-                # Unchanged in ours -- accept delete
-                continue
-
-            # delete-modify conflict
-            result.append(SubtaskMergeEntry(id=tid, title=None, status=None))
-        elif in_base and not in_ours and in_theirs:
-            # ours deleted
-            b, t = base_map[tid], theirs_map[tid]
-            if t.title == b.title and t.status == b.status:
-                # Unchanged in theirs -- accept delete
-                continue
-
-            # delete-modify conflict
-            result.append(SubtaskMergeEntry(id=tid, title=None, status=None))
-        elif in_base and not in_ours and not in_theirs:
-            # both deleted -- omit
+        if ours and theirs:
+            result.append(_try_merge_subtask(base, ours, theirs))
             continue
 
-        elif not in_base and in_ours and in_theirs:
-            # both added -- two-way merge (no base)
-            o, t = ours_map[tid], theirs_map[tid]
-            result.append(
-                SubtaskMergeEntry(
-                    id=tid,
-                    title=_merge_field(None, o.title, t.title, has_base=False),
-                    status=_merge_field(None, o.status, t.status, has_base=False),
-                )
-            )
-        elif not in_base and in_ours and not in_theirs:
-            # ours addition
-            o = ours_map[tid]
-            result.append(
-                SubtaskMergeEntry(
-                    id=tid,
-                    title=Merged(o.title),
-                    status=Merged(o.status),
-                )
-            )
-        elif not in_base and not in_ours and in_theirs:
-            # theirs addition
-            t = theirs_map[tid]
-            result.append(
-                SubtaskMergeEntry(
-                    id=tid,
-                    title=Merged(t.title),
-                    status=Merged(t.status),
-                )
-            )
+        if not ours and not theirs:
+            # both deleted
+            continue
+
+        # --- either `ours` or `theirs` is missing ---
+
+        if not base:
+            # if no base -- it was added
+            result.append(ours or theirs)
+            continue
+
+        if ours == base or theirs == base:
+            # one unchanged, another deleted
+            continue
+
+        # otherwise: delete-modify conflict
+        result.append(_ConflictingSubtask(base, ours, theirs))
 
     return result
+
+
+def _try_merge_subtask(
+    base: ParsedSubtask | None,
+    ours: ParsedSubtask,
+    theirs: ParsedSubtask,
+) -> _MergedSubtask:
+    has_base = base is not None
+    merge = partial(_merge_field, has_base=has_base)
+
+    title = merge(base.title if base else None, ours.title, theirs.title)
+    status = merge(base.status if base else None, ours.status, theirs.status)
+    slug = merge(base.slug if base else None, ours.slug, theirs.slug)
+
+    if title is None or status is None or slug is None:
+        return _ConflictingSubtask(base, ours, theirs)
+
+    assert ours.id == theirs.id
+
+    return ParsedSubtask(
+        id=ours.id,
+        slug=slug.value,
+        ref=build_task_ref(ours.id, slug.value) if slug.value else ours.id,
+        title=title.value,
+        status=status.value,
+        extended=ours.extended or theirs.extended,
+    )
 
 
 def merge_scalar_fields(
@@ -190,3 +160,134 @@ def _merge_field(
             return Merged(theirs_val)
 
     return None
+
+
+@dataclass(slots=True)
+class MergeFileResult:
+    content: str
+    has_conflicts: bool
+
+
+def _conflict_block(ours_text: str, theirs_text: str) -> str:
+    r = ["<<<<<<< ours"]
+    if ours_text:
+        r.append(ours_text)
+
+    # TODO: show base part
+
+    r.append("=======")
+    if theirs_text:
+        r.append(theirs_text)
+
+    r.append(">>>>>>> theirs")
+
+    return "\n".join(r)
+
+
+class _MergeComposer:
+    def __init__(self) -> None:
+        self.has_conflicts = False
+        self.lines: list[str] = []
+
+    def append_merged(
+        self,
+        fmt: str,
+        /,
+        merged: Merged[_T] | None,
+        ours: _T,
+        their: _T,
+    ) -> None:
+        if merged:
+            if merged.value is None:
+                return
+
+            self.lines.append(fmt.format(merged.value))
+            return
+
+        self.append_conflict(
+            fmt.format(ours if ours is not None else ""),
+            fmt.format(their if their is not None else ""),
+        )
+
+    def append_conflict(self, ours_text: str, theirs_text: str) -> None:
+        self.lines.append(_conflict_block(ours_text, theirs_text))
+        self.has_conflicts = True
+
+
+def merge_task_file(
+    base_content: str | None,
+    ours_content: str,
+    theirs_content: str,
+    *,
+    task_id: str,
+    slug: str,
+    extended: bool,
+) -> MergeFileResult:
+    base = (
+        parse_task(base_content, task_id=task_id, slug=slug, extended=extended)
+        if base_content is not None
+        else None
+    )
+    ours = parse_task(ours_content, task_id=task_id, slug=slug, extended=extended)
+    theirs = parse_task(theirs_content, task_id=task_id, slug=slug, extended=extended)
+
+    base_task = base.task if base else None
+    ours_task = ours.task
+    theirs_task = theirs.task
+
+    r = _MergeComposer()
+
+    # --- Front-matter ---
+    r.lines.append("---")
+    r.lines.append(f"id: {task_id}")
+
+    fields = merge_scalar_fields(base_task, ours_task, theirs_task)
+    r.append_merged("slug: {}", fields.slug, ours_task.slug, theirs_task.slug)
+
+    r.append_merged(
+        "status: {.value}", fields.status, ours_task.status, theirs_task.status
+    )
+    r.lines.append("---")
+    r.lines.append("")
+    r.append_merged("# {}", fields.title, ours_task.title, theirs_task.title)
+
+    if fields.description is None or fields.description.value:
+        # either has conflict or has description
+        r.lines.append("")
+    r.append_merged(
+        "{}",
+        fields.description,
+        ours_task.description,
+        theirs_task.description,
+    )
+
+    if fields.extra_sections is None or fields.extra_sections.value:
+        # either has conflict or has extra_sections
+        r.lines.append("")
+    r.append_merged(
+        "{}",
+        fields.extra_sections,
+        ours_task.extra_sections,
+        theirs_task.extra_sections,
+    )
+
+    merged_entries = merge_subtask_lists(
+        base.subtasks if base else None, ours.subtasks, theirs.subtasks
+    )
+    if merged_entries:
+        r.lines.append("")
+        r.lines.append("## Subtasks")
+        r.lines.append("")
+
+    for entry in merged_entries:
+        if isinstance(entry, ParsedSubtask):
+            r.lines.append(render_subtask_line(entry))
+            continue
+
+        r.append_conflict(
+            render_subtask_line(entry.ours) if entry.ours else "",
+            render_subtask_line(entry.theirs) if entry.theirs else "",
+        )
+
+    r.lines.append("")
+    return MergeFileResult(content="\n".join(r.lines), has_conflicts=r.has_conflicts)
