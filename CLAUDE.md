@@ -17,3 +17,8 @@ Detailed design is described in `DESIGN.md`.
 * Never use `unittest.mock.patch`, use `monkeypatch`.
 * Never use inline imports inside methods and tests.
 * Always use `assert_invoke` helper instead of `CliRunner`.
+
+## Conventions
+
+Task-coupled skills read `docs/agents/task-tracker.md` to resolve task-tracker verbs and statuses.
+`dev-loop` reads `docs/agents/dev-loop.md` to resolve the reviewer rosters.
