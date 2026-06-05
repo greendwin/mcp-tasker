@@ -65,8 +65,14 @@ def _parse_unmerged_output(output: str, directory: str) -> dict[str, dict[int, s
             continue
 
         # Format: "<mode> <hash> <stage>\t<path>"
+        if "\t" not in line:
+            continue
+
         meta, tab_path = line.split("\t", 1)
         parts = meta.split()
+        if len(parts) < 3:
+            continue
+
         blob_hash = parts[1]
         stage = int(parts[2])
 

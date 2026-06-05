@@ -1,7 +1,7 @@
 ---
 id: s19t2906
 slug: defensive-parsing-for-malformed-git
-status: pending
+status: done
 ---
 
 # Defensive parsing for malformed git ls-files output

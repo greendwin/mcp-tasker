@@ -64,6 +64,28 @@ class TestParseUnmergedOutput:
         result = _parse_unmerged_output(output, ".tasker/")
         assert ".tasker/s01-foo.md" in result
 
+    def test_skips_malformed_lines_without_tab(self) -> None:
+        output = (
+            "100644 abc123 1\t.tasker/s01-foo.md\n"
+            "this line has no tab character\n"
+            "100644 def456 2\t.tasker/s01-foo.md\n"
+        )
+        result = _parse_unmerged_output(output, ".tasker")
+        assert result == {
+            ".tasker/s01-foo.md": {1: "abc123", 2: "def456"},
+        }
+
+    def test_skips_malformed_meta_with_tab(self) -> None:
+        output = (
+            "100644 abc123 1\t.tasker/s01-foo.md\n"
+            "badmeta\tsome/path\n"
+            "100644 def456 2\t.tasker/s01-foo.md\n"
+        )
+        result = _parse_unmerged_output(output, ".tasker")
+        assert result == {
+            ".tasker/s01-foo.md": {1: "abc123", 2: "def456"},
+        }
+
     def test_nested_subdirectory(self) -> None:
         output = (
             "100644 aaa 1\t.tasker/s01-foo/README.md\n"
