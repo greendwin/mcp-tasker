@@ -1,7 +1,7 @@
 ---
 id: s19t29
 slug: add-tasker-resolve-command-for
-status: pending
+status: done
 ---
 
 # Add `tasker resolve` command for merge conflicts in .tasker dir
@@ -40,4 +40,4 @@ The `.tasker/` directory is tracked in git, and when branches diverge, git's lin
 - [x] [s19t2904](s19t2904-full-task-merge-with-conflict.md): Full task merge with conflict markers
 - [x] [s19t2905](s19t2905-cli-command-and-endtoend-integration.md): CLI command and end-to-end integration
 - [x] [s19t2906](s19t2906-defensive-parsing-for-malformed-git.md): Defensive parsing for malformed git ls-files output
-- [ ] [s19t2907](s19t2907-handle-pureposixpath-directory-normalization-for.md): Handle PurePosixPath directory normalization for Windows compatibility
+- [x] [s19t2907](s19t2907-handle-pureposixpath-directory-normalization-for.md): Handle PurePosixPath directory normalization for Windows compatibility

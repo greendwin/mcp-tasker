@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import subprocess
+from collections import defaultdict
 from dataclasses import dataclass
-from pathlib import Path, PurePosixPath
+from pathlib import Path
+from typing import TypeAlias
 
 
 @dataclass
@@ -22,17 +24,15 @@ def list_conflicted_files(
 
         directory = directory.relative_to(repo_root)
 
-    dir_str = PurePosixPath(directory).as_posix()
-    output = _run_git("ls-files", "--unmerged", cwd=repo_root)
-    parsed = _parse_unmerged_output(output, dir_str)
+    parsed = _ls_files_unmerged(repo_root, str(directory))
 
-    conflicts: list[ConflictedFile] = []
+    conflicts = []
     for path, stages in parsed.items():
         cf = ConflictedFile(
             path=path,
-            base=_read_blob(stages.get(1), cwd=repo_root),
-            ours=_read_blob(stages.get(2), cwd=repo_root),
-            theirs=_read_blob(stages.get(3), cwd=repo_root),
+            base=_read_blob(stages[0], cwd=repo_root),
+            ours=_read_blob(stages[1], cwd=repo_root),
+            theirs=_read_blob(stages[2], cwd=repo_root),
         )
         conflicts.append(cf)
 
@@ -50,15 +50,18 @@ def _run_git(*args: str, cwd: Path | None = None) -> str:
     return result.stdout
 
 
-def _parse_unmerged_output(output: str, directory: str) -> dict[str, dict[int, str]]:
-    """Parse ``git ls-files --unmerged`` output, filtering to *directory*.
+_PathStageBlobs: TypeAlias = dict[str, list[str | None]]
 
-    Returns ``{path: {stage_num: blob_hash}}`` for paths under *directory*.
-    """
-    result: dict[str, dict[int, str]] = {}
+
+def _ls_files_unmerged(repo_root: Path | None, directory: str) -> _PathStageBlobs:
+    output = _run_git("ls-files", "--unmerged", cwd=repo_root)
+
+    directory = directory.replace("\\", "/")
     match_all = directory in (".", "")
     prefix = directory.rstrip("/") + "/"
 
+    # {path: {stage_num: blob_hash}} for paths under *directory*.
+    result: _PathStageBlobs = defaultdict(lambda: [None, None, None])
     for line in output.splitlines():
         line = line.strip()
         if not line:
@@ -74,12 +77,12 @@ def _parse_unmerged_output(output: str, directory: str) -> dict[str, dict[int, s
             continue
 
         blob_hash = parts[1]
-        stage = int(parts[2])
+        stage = int(parts[2]) - 1  # convert to zero-based
 
         if not match_all and not tab_path.startswith(prefix):
             continue
 
-        result.setdefault(tab_path, {})[stage] = blob_hash
+        result[tab_path][stage] = blob_hash
 
     return result
 
