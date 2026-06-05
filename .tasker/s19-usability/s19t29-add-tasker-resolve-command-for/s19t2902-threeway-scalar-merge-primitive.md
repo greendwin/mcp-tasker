@@ -1,7 +1,7 @@
 ---
 id: s19t2902
 slug: threeway-scalar-merge-primitive
-status: pending
+status: done
 ---
 
 # Three-way scalar merge primitive
