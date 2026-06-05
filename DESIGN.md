@@ -76,11 +76,12 @@ s01-design-file-structure/        ← extended form (dir)
 - Inline tasks have an ID but no slug and no file
 - Slug is kebab-cased, max 5 words
 - Derived automatically from the task title, or set explicitly via `--slug`
-- The slug is cosmetic — tasks are always addressed by ID alone (`s01`, `s01t02`, `s01t0102`)
+- The slug is cosmetic — tasks are normally addressed by ID, but root tasks can also be referenced by slug name
 - When referencing a task in commands, the following forms are accepted:
   - `s01t01` — ID only
-  - `s01t01-define-task-forms` — full filename stem (slug ignored for lookup)
+  - `s01t01-define-task-forms` — full filename stem (slug portion ignored for lookup)
   - `s1`, `s1t1`, `s1-design`, … — single-digit segments are padded to two digits; odd-length runs > 1 are rejected as ambiguous
+  - `design-file-structure` — root-task slug name: exact match first, then unambiguous partial substring (≥ 3 chars)
 
 ---
 
@@ -396,6 +397,15 @@ tasker unarchive <task-id>...  # alias: unarch
 ```
 
 Only root stories can be archived. Archiving a non-root task is an error.
+
+### Resolve merge conflicts
+
+```bash
+# Auto-merge all conflicted task files in .tasker/
+tasker resolve
+```
+
+During a git merge, task files may conflict. `resolve` discovers all conflicted task files via `git ls-files -u`, performs a three-way merge at the field level (front matter scalars, subtask lists), writes the result, and stages cleanly resolved files. Files with remaining conflicts are left with git-style conflict markers for manual resolution. Non-task files in `.tasker/` are skipped.
 
 ### Recent task shortcuts
 

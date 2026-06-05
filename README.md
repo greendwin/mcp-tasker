@@ -140,6 +140,16 @@ tasker archive --closed                      # archive all closed stories
 tasker unarchive <task-id>                   # restore from archive
 ```
 
+### Resolve merge conflicts
+
+After a git merge that leaves conflicted task files, auto-resolve them:
+
+```bash
+tasker resolve
+```
+
+This performs a three-way merge on each conflicted task file in `.tasker/` — scalar fields (title, status, slug) and subtask lists are merged individually. Cleanly resolved files are staged automatically; files with remaining conflicts are left with git-style conflict markers for manual editing.
+
 ### Shortcuts
 
 Reference recent tasks without typing full IDs:
@@ -242,6 +252,11 @@ uv run isort src tests
 - Python >= 3.10
 
 ## Release Notes
+
+### 1.7.0
+- `tasker resolve` auto-merges conflicted task files after a git merge — three-way field-level merge with git-style conflict markers for unresolvable differences
+- Task references accept root-task slug names: exact match or unambiguous partial substring (≥ 3 chars)
+- Bug fixes: backslash directory paths normalised in conflict file detection, defensive parsing for malformed `git ls-files` output
 
 ### 1.6.0
 - `move <task-id> --id <new-id>` renames a task to any free, canonically-valid ID (shorthand like `s1t5` is accepted); the task is re-homed under the parent the new ID implies and descendants are relabeled recursively
