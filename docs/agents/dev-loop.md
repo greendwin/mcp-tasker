@@ -38,17 +38,16 @@ For each, name the duplicated sites and propose how to unify them (extract a hel
 parameterize, hoist a shared value). Report each as a finding with location, rationale,
 and an inline `suggested-fix`. Do not edit code; propose only.
 
-### deep-modules
+### thermo-nuclear-code-quality-review
 
-Review the change for shallow modules — a large interface over thin implementation,
-pass-through wrappers, and abstractions that leak their internals. Propose how to make
-the module deeper: collapse a needless wrapper, hide complexity behind a smaller
-interface, or fold a one-call helper into its caller. Report each as a finding with
-location, rationale, and an inline `suggested-fix`. Do not edit code; propose only.
-
-### simplification
-
-Review the change for control-flow complexity — deep nesting, arrow code, redundant
-conditionals, and branches that a guard clause or early return would flatten. Propose
-the flattened form. Report each as a finding with location, rationale, and an inline
+Invoke the `thermo-nuclear-code-quality-review` skill over the whole change for an
+extremely strict maintainability and structure audit. Be ambitious: hunt for "code
+judo" restructurings that preserve behavior while making whole branches, helpers,
+modes, or layers disappear entirely — prefer deleting complexity over rearranging it.
+Flag, as distinct findings: any file the change pushes past ~1000 lines without a
+strong structural reason; ad-hoc conditionals or one-off special cases tangled into
+unrelated flows (spaghetti growth); thin or pass-through abstractions and identity
+wrappers that add indirection without buying clarity; and type/boundary smells —
+needless optionality, `any`/cast-heavy code, or silent fallbacks papering over an
+unclear invariant. Report each as a finding with location, rationale, and an inline
 `suggested-fix`. Do not edit code; propose only.
