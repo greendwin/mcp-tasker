@@ -5,7 +5,6 @@ from tasker.cli import app, get_task_repo
 from tasker.exceptions import TaskValidateError
 from tasker.mcp import (
     TaskInfo,
-    TaskPreview,
     finish_task,
     list_tasks,
     start_task,
@@ -18,31 +17,31 @@ from .helpers import GetTaskFile, add_subtask, assert_invoke, create_task
 
 def test_list_tasks_returns_empty() -> None:
     result = list_tasks()
-    assert result == []
+    assert result == "No tasks"
 
 
 def test_list_tasks_returns_task() -> None:
     task_id = create_task("My story").task_id
     result = list_tasks()
-    assert len(result) == 1
-    assert result[0].id == task_id
-    assert result[0].title == "My story"
-    assert result[0].status == TaskStatus.PENDING
+    assert isinstance(result, str)
+    assert task_id in result
+    assert "My story" in result
+    assert result.startswith(". ")
 
 
-def test_list_tasks_returns_task_preview_instances() -> None:
+def test_list_tasks_returns_string() -> None:
     create_task("My story")
     result = list_tasks()
-    assert type(result[0]) is TaskPreview
+    assert isinstance(result, str)
 
 
 def test_list_tasks_multiple_root_tasks() -> None:
     create_task("First story")
     create_task("Second story")
     result = list_tasks()
-    assert len(result) == 2
-    titles = {t.title for t in result}
-    assert titles == {"First story", "Second story"}
+    assert isinstance(result, str)
+    assert "First story" in result
+    assert "Second story" in result
 
 
 def test_view_tasks_returns_task_info() -> None:
@@ -153,14 +152,15 @@ def test_list_tasks_todo_returns_todo_tasks() -> None:
     create_task("Story two")
     assert_invoke(app, ["todo", s1])
     result = list_tasks(todo=True)
-    assert len(result) == 1
-    assert result[0].id == s1
+    assert isinstance(result, str)
+    assert s1 in result
+    assert "Story one" in result
 
 
 def test_list_tasks_todo_empty() -> None:
     create_task("Story one")
     result = list_tasks(todo=True)
-    assert result == []
+    assert result == "No tasks"
 
 
 def test_list_tasks_todo_silently_skips_and_prunes_stale_ids() -> None:
@@ -169,11 +169,31 @@ def test_list_tasks_todo_silently_skips_and_prunes_stale_ids() -> None:
     save_todo_ids(repo, [s1, "s99t99"])
 
     result = list_tasks(todo=True)
-    assert len(result) == 1
-    assert result[0].id == s1
+    assert isinstance(result, str)
+    assert s1 in result
 
     remaining = load_todo_ids(repo)
     assert remaining == [s1]
+
+
+def test_list_tasks_todo_excludes_finished_tasks() -> None:
+    s1 = create_task("Open story").task_id
+    s2 = create_task("Done story").task_id
+    assert_invoke(app, ["todo", s1])
+    assert_invoke(app, ["todo", s2])
+    finish_task(s2)
+    result = list_tasks(todo=True)
+    assert isinstance(result, str)
+    assert "Open story" in result
+    assert "Done story" not in result
+
+
+def test_list_tasks_todo_all_finished() -> None:
+    s1 = create_task("Story one").task_id
+    assert_invoke(app, ["todo", s1])
+    finish_task(s1)
+    result = list_tasks(todo=True)
+    assert result == "All tasks finished!"
 
 
 # --- shortcut resolution in MCP ---
@@ -211,3 +231,14 @@ def test_view_tasks_shortcut_does_not_update_recent() -> None:
     view_tasks(["ta"])  # access via shortcut
     result = view_tasks(["q"])[0]
     assert result.id == s2
+
+
+# --- body marker in list output ---
+
+
+def test_list_tasks_shows_body_marker(get_task_file: GetTaskFile) -> None:
+    task_id = create_task("Story with body").task_id
+    path = get_task_file(task_id)
+    path.write_text(path.read_text() + "\n## Notes\n\nSome notes here.\n")
+    result = list_tasks()
+    assert "(...)" in result

@@ -5,10 +5,7 @@ from tasker.todo import load_todo_tasks
 
 from ._common import get_repo, mcp
 from ._model import TaskInfo, TaskPreview
-
-
-def _list_todo_previews(repo: TaskRepo) -> list[TaskPreview]:
-    return [TaskPreview.from_task(task) for task in load_todo_tasks(repo)]
+from ._render import render_task_line
 
 
 def _list_root_previews(repo: TaskRepo) -> list[TaskPreview]:
@@ -25,16 +22,26 @@ def _load_task_info(repo: TaskRepo, ref: str) -> TaskInfo:
 
 
 @mcp.tool()
-def list_tasks(todo: bool = False) -> list[TaskPreview]:
+def list_tasks(todo: bool = False) -> str:
     """List all root tasks (id, title, status).
 
     Args:
         todo: If True, list only tasks from the TODO list.
     """
     repo = get_repo()
+
     if todo:
-        return _list_todo_previews(repo)
-    return _list_root_previews(repo)
+        tasks = load_todo_tasks(repo)
+        if not tasks:
+            return "No tasks"
+        if all(t.is_closed for t in tasks):
+            return "All tasks finished!"
+        previews = [TaskPreview.from_task(t) for t in tasks if not t.is_closed]
+    else:
+        previews = _list_root_previews(repo)
+
+    lines = [render_task_line(p) for p in previews]
+    return "\n".join(lines) if lines else "No tasks"
 
 
 @mcp.tool()

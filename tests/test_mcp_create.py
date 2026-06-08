@@ -13,8 +13,8 @@ def test_create_root_task_returns_task_info() -> None:
 
 def test_create_root_task_appears_in_list() -> None:
     result = create_task("My story")
-    tasks = list_tasks()
-    assert any(t.id == result.id for t in tasks)
+    output = list_tasks()
+    assert result.id in output
 
 
 def test_create_root_task_capitalizes_title() -> None:

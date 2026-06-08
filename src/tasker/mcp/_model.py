@@ -11,6 +11,7 @@ class TaskPreview(BaseModel):
     id: str
     title: str
     status: TaskStatus
+    has_body: bool = False
 
     @classmethod
     def from_task(cls, task: Task) -> Self:
@@ -18,6 +19,7 @@ class TaskPreview(BaseModel):
             id=task.id,
             title=task.title,
             status=task.status,
+            has_body=bool(task.description or task.extra_sections),
         )
 
 

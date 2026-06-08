@@ -1,7 +1,7 @@
 ---
 id: s13t0701
 slug: render-core-listtasks-as-concise
-status: pending
+status: done
 ---
 
 # Render core + list_tasks as concise text
