@@ -12,7 +12,7 @@ from tasker.resolve import (
     resolve_ref,
     save_recent_for_refs,
 )
-from tasker.todo import load_todo_tasks
+from tasker.todo import classify_todo, load_todo_tasks
 from tasker.utils import console
 
 from ._common import app, complete_task_ref, get_task_repo, iter_in_review_tasks
@@ -176,7 +176,7 @@ def _collect_review_tasks(repo: TaskRepo, *, task_refs: list[str]) -> _ReviewTas
     if tasks:
         return _ReviewTasks(tasks)
 
-    active_todo = [t for t in load_todo_tasks(repo) if not t.is_closed]
+    active_todo = classify_todo(load_todo_tasks(repo)).active
     if active_todo:
         return _ReviewTasks(active_todo, nothing_to_review=True, todo_fallback=True)
 
@@ -203,9 +203,9 @@ def _collect_todo_tasks(repo: TaskRepo, *, show_all: bool) -> _TodoTasks:
     if show_all or not todo_tasks:
         return _TodoTasks(todo_tasks)
 
-    active = [t for t in todo_tasks if not t.is_closed]
-    if active:
-        return _TodoTasks(active)
+    view = classify_todo(todo_tasks)
+    if view.active:
+        return _TodoTasks(view.active)
 
     return _TodoTasks(todo_tasks, all_finished=True)
 

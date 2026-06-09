@@ -7,10 +7,13 @@ from tasker.base_types import Task, TaskStatus, is_root_task_id
 from tasker.parse import parse_task_ref
 
 
-class TaskPreview(BaseModel):
+class TaskIdentity(BaseModel):
     id: str
     title: str
     status: TaskStatus
+
+
+class TaskPreview(TaskIdentity):
     has_body: bool = False
 
     @classmethod
@@ -23,7 +26,7 @@ class TaskPreview(BaseModel):
         )
 
 
-class TaskInfo(TaskPreview):
+class TaskInfo(TaskIdentity):
     parent_id: str | None
     description: str | None
     subtasks: dict[TaskStatus, list[str]]

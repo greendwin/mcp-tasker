@@ -1,7 +1,7 @@
 ---
 id: s13t0705
 slug: extract-resolvemutateflush-helper-in-statusmethodspy
-status: pending
+status: done
 ---
 
 # Extract resolve-mutate-flush helper in _status_methods.py

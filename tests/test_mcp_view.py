@@ -61,6 +61,12 @@ def test_view_tasks_includes_description() -> None:
     assert result.description == "Some details"
 
 
+def test_view_tasks_has_no_has_body_field() -> None:
+    # has_body is a list-row affordance; the detailed view carries the body
+    # itself, so the detail model must not declare a (always-false) has_body field.
+    assert "has_body" not in TaskInfo.model_fields
+
+
 def test_view_tasks_no_description_is_none() -> None:
     task_id = create_task("My story").task_id
     result = view_tasks([task_id])[0]

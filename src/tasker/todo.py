@@ -1,4 +1,5 @@
 import string
+from typing import NamedTuple
 
 from .base_types import Task
 from .exceptions import TaskValidateError
@@ -40,6 +41,18 @@ def add_todo(repo: TaskRepo, task_id: str) -> bool:
     todo_ids.append(task_id)
     save_todo_ids(repo, todo_ids)
     return True
+
+
+class TodoClassification(NamedTuple):
+    active: list[Task]
+    all_finished: bool
+
+
+def classify_todo(tasks: list[Task]) -> TodoClassification:
+    # `all_finished is True` only when the list is non-empty but every task is
+    # closed -- distinct from an empty list (no tasks at all).
+    active = [t for t in tasks if not t.is_closed]
+    return TodoClassification(active=active, all_finished=bool(tasks) and not active)
 
 
 def load_todo_tasks(repo: TaskRepo) -> list[Task]:

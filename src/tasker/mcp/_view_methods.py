@@ -1,7 +1,7 @@
 from tasker.parse import parse_task_file
 from tasker.repo import TaskRepo
 from tasker.resolve import resolve_ref
-from tasker.todo import load_todo_tasks
+from tasker.todo import classify_todo, load_todo_tasks
 
 from ._common import get_repo, mcp
 from ._model import TaskInfo, TaskPreview
@@ -23,7 +23,12 @@ def _load_task_info(repo: TaskRepo, ref: str) -> TaskInfo:
 
 @mcp.tool()
 def list_tasks(todo: bool = False) -> str:
-    """List all root tasks (id, title, status).
+    """
+    List root tasks as compact lines: ``<sign> <id>  <title> (...)``.
+
+    Status signs: ``.`` pending, ``~`` in-progress, ``?`` in-review,
+    ``x`` done, ``-`` cancelled. A trailing ``(...)`` marks a task that has
+    a body (description or extra sections) -- view it for the full detail.
 
     Args:
         todo: If True, list only tasks from the TODO list.
@@ -31,12 +36,10 @@ def list_tasks(todo: bool = False) -> str:
     repo = get_repo()
 
     if todo:
-        tasks = load_todo_tasks(repo)
-        if not tasks:
-            return "No tasks"
-        if all(t.is_closed for t in tasks):
+        view = classify_todo(load_todo_tasks(repo))
+        if view.all_finished:
             return "All tasks finished!"
-        previews = [TaskPreview.from_task(t) for t in tasks if not t.is_closed]
+        previews = [TaskPreview.from_task(t) for t in view.active]
     else:
         previews = _list_root_previews(repo)
 

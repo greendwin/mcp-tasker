@@ -1,5 +1,6 @@
 from tasker.base_types import TaskStatus
-from tasker.mcp._model import TaskPreview
+
+from ._model import TaskPreview
 
 _STATUS_SIGNS: dict[TaskStatus, str] = {
     TaskStatus.PENDING: ".",
