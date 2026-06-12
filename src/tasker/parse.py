@@ -240,7 +240,6 @@ class _ParsedContent:
     title: str
     slug: str | None
     description: str | None
-    extra_sections: str | None
     status: TaskStatus
     subtasks: list[ParsedSubtask]
 
@@ -265,7 +264,6 @@ def parse_task(
             extended=extended,
             title=parsed.title,
             description=parsed.description,
-            extra_sections=parsed.extra_sections,
             status=parsed.status,
         ),
         parsed.subtasks,
@@ -412,40 +410,41 @@ def _parse_content(content: str, *, task_ref: str) -> _ParsedContent:
             current_lines.append(line)
     sections.append((current_heading, current_lines))
 
-    # Extract description (text before any ## heading)
-    description: str | None = None
+    # Collect the whole free-form body: the no-heading lead block and every
+    # non-managed section in original order.
+    # `## Subtasks` is the only managed section and is extracted separately.
+    # It is always re-emitted last on render, so a source file with
+    # prose after subtasks is normalized to put the body first on the first
+    # render and is byte-stable thereafter.
     subtasks: list[ParsedSubtask] = []
-    extra_parts: list[str] = []
+    body_parts: list[str] = []
 
     for heading, sec_lines in sections:
-        if heading is None:
-            # text before any heading = description
-            desc_lines = _strip_blank_lines(sec_lines)
-            description = "\n".join(desc_lines) or None
-        elif heading == "## Subtasks":
-            for line in sec_lines:
-                if not line.strip():
-                    continue
-                parsed_sub = _parse_subtask_line(line)
-                if parsed_sub is None:
-                    raise TaskValidateError(
-                        f"Invalid subtask line in '## Subtasks': {line!r}",
-                        task_ref=task_ref,
-                    )
-                subtasks.append(parsed_sub)
-        else:
-            # preserve non-managed sections verbatim
-            sec_text = _strip_blank_lines([heading] + sec_lines)
-            extra_parts.append("\n".join(sec_text))
+        if heading != "## Subtasks":
+            prefix = [heading] if heading is not None else []
+            sec_text = _strip_blank_lines(prefix + sec_lines)
+            if sec_text:
+                body_parts.append("\n".join(sec_text))
+            continue
 
-    extra_sections = "\n\n".join(extra_parts) or None
+        for line in sec_lines:
+            if not line.strip():
+                continue
+            parsed_sub = _parse_subtask_line(line)
+            if parsed_sub is None:
+                raise TaskValidateError(
+                    f"Invalid subtask line in '## Subtasks': {line!r}",
+                    task_ref=task_ref,
+                )
+            subtasks.append(parsed_sub)
+
+    description = "\n\n".join(body_parts) or None
 
     return _ParsedContent(
         id=id_val,
         title=title,
         slug=slug,
         description=description,
-        extra_sections=extra_sections,
         status=status,
         subtasks=subtasks,
     )

@@ -296,9 +296,9 @@ def test_parse_preserves_depends_section() -> None:
         "- s02 - needs API design\n"
     )
     task, _ = parse_task(content, task_id="s01", slug="my-task", extended=False)
-    assert task.extra_sections is not None
-    assert "## Depends" in task.extra_sections
-    assert "s02 - needs API design" in task.extra_sections
+    assert task.description is not None
+    assert "## Depends" in task.description
+    assert "s02 - needs API design" in task.description
 
 
 def test_parse_preserves_custom_section() -> None:
@@ -308,13 +308,10 @@ def test_parse_preserves_custom_section() -> None:
         "## Notes\n\nSome notes here.\n"
     )
     task, _ = parse_task(content, task_id="s01", slug="my-task", extended=False)
-    assert task.description == "Description text."
-    assert task.extra_sections is not None
-    assert "## Notes" in task.extra_sections
-    assert "Some notes here." in task.extra_sections
+    assert task.description == "Description text.\n\n## Notes\n\nSome notes here."
 
 
-def test_parse_preserves_section_after_subtasks() -> None:
+def test_parse_collects_section_after_subtasks_into_body() -> None:
     content = (
         "---\nid: s01\nstatus: pending\n---\n\n"
         "# My task\n\n"
@@ -324,11 +321,11 @@ def test_parse_preserves_section_after_subtasks() -> None:
     )
     task, subtasks = parse_task(content, task_id="s01", slug="my-task", extended=False)
     assert len(subtasks) == 1
-    assert task.extra_sections is not None
-    assert "Post-subtask notes." in task.extra_sections
+    assert task.description is not None
+    assert "Post-subtask notes." in task.description
 
 
-def test_parse_preserves_multiple_extra_sections() -> None:
+def test_parse_collects_multiple_sections_into_body() -> None:
     content = (
         "---\nid: s01\nstatus: pending\n---\n\n"
         "# My task\n\n"
@@ -336,12 +333,10 @@ def test_parse_preserves_multiple_extra_sections() -> None:
         "## Notes\n\nSome notes.\n"
     )
     task, _ = parse_task(content, task_id="s01", slug="my-task", extended=False)
-    assert task.extra_sections is not None
-    assert "## Depends" in task.extra_sections
-    assert "## Notes" in task.extra_sections
+    assert task.description == "## Depends\n\n- s02\n\n## Notes\n\nSome notes."
 
 
-def test_extra_sections_roundtrip() -> None:
+def test_body_with_sections_roundtrip() -> None:
     content = (
         "---\nid: s01\nstatus: pending\n---\n\n"
         "# My task\n\nDescription.\n\n"
@@ -362,10 +357,112 @@ def test_extra_sections_roundtrip() -> None:
     assert "Description." in rendered
 
 
-def test_no_extra_sections_when_absent() -> None:
+def test_body_starting_with_section_roundtrips() -> None:
+    content = (
+        "---\nid: s01\nstatus: pending\n---\n\n"
+        "# My task\n\n"
+        "## Notes\n\nSome notes here.\n"
+    )
+    task, _ = parse_task(content, task_id="s01", slug="my-task", extended=False)
+    assert task.description == "## Notes\n\nSome notes here."
+
+    rendered = render_task(task)
+    reparsed, _ = parse_task(rendered, task_id="s01", slug="my-task", extended=False)
+    assert reparsed.description == task.description
+
+
+def test_subtasks_between_prose_sections_roundtrips() -> None:
+    content = (
+        "---\nid: s01\nstatus: pending\n---\n\n"
+        "# My task\n\n"
+        "## Notes\n\nFirst section.\n\n"
+        "## Subtasks\n\n"
+        "- [ ] s01t01: First\n\n"
+        "## More\n\nSecond section.\n"
+    )
+    task, subtasks = parse_task(content, task_id="s01", slug="my-task", extended=False)
+    assert task.description == (
+        "## Notes\n\nFirst section.\n\n## More\n\nSecond section."
+    )
+    task.subtasks = [
+        Task(id=s.id, slug=s.slug, title=s.title, status=s.status) for s in subtasks
+    ]
+
+    rendered = render_task(task)
+    # both prose sections preserved, Subtasks normalised to the end
+    assert rendered.index("## Notes") < rendered.index("## Subtasks")
+    assert rendered.index("## More") < rendered.index("## Subtasks")
+
+    reparsed, _ = parse_task(rendered, task_id="s01", slug="my-task", extended=False)
+    assert reparsed.description == task.description
+
+
+def test_render_parse_render_is_byte_stable_for_multi_section_file() -> None:
+    content = (
+        "---\nid: s01\nstatus: pending\n---\n\n"
+        "# My task\n\n"
+        "Lead paragraph.\n\n"
+        "## Notes\n\nFirst section.\n\n"
+        "## Subtasks\n\n"
+        "- [ ] s01t01: First\n\n"
+        "## More\n\nSecond section.\n"
+    )
+    task, subtasks = parse_task(content, task_id="s01", slug="my-task", extended=False)
+    task.subtasks = [
+        Task(id=s.id, slug=s.slug, title=s.title, status=s.status) for s in subtasks
+    ]
+
+    render1 = render_task(task)
+    reparsed, reparsed_subtasks = parse_task(
+        render1, task_id="s01", slug="my-task", extended=False
+    )
+    reparsed.subtasks = [
+        Task(id=s.id, slug=s.slug, title=s.title, status=s.status)
+        for s in reparsed_subtasks
+    ]
+    render2 = render_task(reparsed)
+
+    assert render1 == render2
+    assert reparsed.description == task.description
+
+
+def test_render_parse_render_byte_stable_when_body_starts_with_section() -> None:
+    content = (
+        "---\nid: s01\nstatus: pending\n---\n\n"
+        "# My task\n\n"
+        "## Notes\n\nFirst section.\n\n"
+        "## Subtasks\n\n"
+        "- [ ] s01t01: First\n"
+    )
+    task, subtasks = parse_task(content, task_id="s01", slug="my-task", extended=False)
+    task.subtasks = [
+        Task(id=s.id, slug=s.slug, title=s.title, status=s.status) for s in subtasks
+    ]
+
+    render1 = render_task(task)
+    reparsed, reparsed_subtasks = parse_task(
+        render1, task_id="s01", slug="my-task", extended=False
+    )
+    reparsed.subtasks = [
+        Task(id=s.id, slug=s.slug, title=s.title, status=s.status)
+        for s in reparsed_subtasks
+    ]
+    render2 = render_task(reparsed)
+
+    assert render1 == render2
+    assert reparsed.description == task.description
+
+
+def test_no_body_when_absent() -> None:
     content = "---\nid: s01\nstatus: pending\n---\n\n" "# My task\n\nDescription.\n"
     task, _ = parse_task(content, task_id="s01", slug="my-task", extended=False)
-    assert task.extra_sections is None
+    assert task.description == "Description."
+
+
+def test_empty_body_is_none() -> None:
+    content = "---\nid: s01\nstatus: pending\n---\n\n" "# My task\n"
+    task, _ = parse_task(content, task_id="s01", slug="my-task", extended=False)
+    assert task.description is None
 
 
 # ---------------------------------------------------------------------------

@@ -342,7 +342,6 @@ def _merge_task(existing: Task, fresh: Task) -> None:
     existing.slug = fresh.slug
     existing.extended = fresh.extended
     existing.description = fresh.description
-    existing.extra_sections = fresh.extra_sections
     existing.deleted = fresh.deleted
     existing.archived = fresh.archived
 

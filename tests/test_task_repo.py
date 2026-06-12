@@ -502,9 +502,7 @@ def test_unarchive_flag_moves_file_back(
     assert not (tasks_archive_root / f"{task.ref}.md").exists()
 
 
-def test_resolve_ref_loads_archived_transparently(
-    tasks_root: Path, tasks_archive_root: Path
-) -> None:
+def test_resolve_ref_loads_archived_transparently(tasks_root: Path) -> None:
     from tasker.cli import app
 
     story_id = create_task("My story").task_id
@@ -517,9 +515,7 @@ def test_resolve_ref_loads_archived_transparently(
     assert task.title == "My story"
 
 
-def test_list_root_tasks_archived_flag(
-    tasks_root: Path, tasks_archive_root: Path
-) -> None:
+def test_list_root_tasks_archived_flag(tasks_root: Path) -> None:
     from tasker.cli import app
 
     story_id = create_task("My story").task_id

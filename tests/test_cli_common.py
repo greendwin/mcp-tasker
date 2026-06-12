@@ -19,25 +19,24 @@ def _complete(incomplete: str = "") -> list[tuple[str, str]]:
     return complete_task_ref(ctx, [], incomplete)
 
 
-def test_returns_empty_when_no_tasker_dir(project_root: object) -> None:
-    # tasks_root fixture NOT used here so no tasker/ dir exists
+def test_returns_empty_when_no_tasker_dir() -> None:
     assert _complete() == []
 
 
-def test_returns_task_ref(tasks_root: object) -> None:
+def test_returns_task_ref() -> None:
     ref = create_task("Story one")
     completions = _complete()
     values = [v for v, _ in completions]
     assert ref.task_ref in values
 
 
-def test_returns_task_title_as_help(tasks_root: object) -> None:
+def test_returns_task_title_as_help() -> None:
     create_task("Story one")
     completions = _complete()
     assert any(h == "Story one" for _, h in completions)
 
 
-def test_returns_multiple_tasks(tasks_root: object) -> None:
+def test_returns_multiple_tasks() -> None:
     ref1 = create_task("Story one")
     ref2 = create_task("Story two")
     values = [v for v, _ in _complete()]
@@ -45,7 +44,7 @@ def test_returns_multiple_tasks(tasks_root: object) -> None:
     assert ref2.task_ref in values
 
 
-def test_filters_by_incomplete_prefix(tasks_root: object) -> None:
+def test_filters_by_incomplete_prefix() -> None:
     ref1 = create_task("Story one")
     ref2 = create_task("Story two")
     values = [v for v, _ in _complete(ref1.task_id)]
@@ -53,7 +52,7 @@ def test_filters_by_incomplete_prefix(tasks_root: object) -> None:
     assert ref2.task_ref not in values
 
 
-def test_returns_inline_subtasks(tasks_root: object) -> None:
+def test_returns_inline_subtasks() -> None:
     root = create_task("Story one")
     child = add_subtask(root.task_id, "Subtask one")
     completions = _complete()
@@ -61,7 +60,7 @@ def test_returns_inline_subtasks(tasks_root: object) -> None:
     assert child.task_ref in values
 
 
-def test_filters_subtasks_by_incomplete_prefix(tasks_root: object) -> None:
+def test_filters_subtasks_by_incomplete_prefix() -> None:
     root = create_task("Story one")
     child = add_subtask(root.task_id, "Subtask one")
     values = [v for v, _ in _complete(child.task_id)]
@@ -69,7 +68,7 @@ def test_filters_subtasks_by_incomplete_prefix(tasks_root: object) -> None:
     assert root.task_ref not in values
 
 
-def test_empty_incomplete_returns_all(tasks_root: object) -> None:
+def test_empty_incomplete_returns_all() -> None:
     root = create_task("Story one")
     child = add_subtask(root.task_id, "Subtask one")
     values = [v for v, _ in _complete("")]
@@ -238,7 +237,7 @@ def test_plain_text_recent_is_read_correctly(tasks_root: Path) -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_q_resolves_to_recent_task(s1: str, tasks_root: Path) -> None:
+def test_q_resolves_to_recent_task(s1: str) -> None:
     t01 = add_subtask(s1, "Task A").task_id
     assert_invoke(app, ["start", t01])  # sets recent to t01
 
@@ -246,7 +245,7 @@ def test_q_resolves_to_recent_task(s1: str, tasks_root: Path) -> None:
     assert_invoke(app, ["edit", "q", "--title", "Updated via q"])
 
 
-def test_q_errors_when_no_recent(tasks_root: Path) -> None:
+def test_q_errors_when_no_recent() -> None:
     assert_invoke(app, ["edit", "q", "--title", "nope"], expect_error=True)
 
 
@@ -265,7 +264,7 @@ def test_q_does_not_update_recent(s1: str, tasks_root: Path) -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_p_resolves_to_parent_of_recent(s1: str, tasks_root: Path) -> None:
+def test_p_resolves_to_parent_of_recent(s1: str) -> None:
     t01 = add_subtask(s1, "Task A").task_id
     assert_invoke(app, ["start", t01])  # recent = s01t01
 
@@ -273,7 +272,7 @@ def test_p_resolves_to_parent_of_recent(s1: str, tasks_root: Path) -> None:
     assert_invoke(app, ["edit", "p", "--title", "Parent edited via p"])
 
 
-def test_p_resolves_to_parent_of_nested_task(tasks_root: Path) -> None:
+def test_p_resolves_to_parent_of_nested_task() -> None:
     s1 = create_task("Story one").task_id
     t01 = add_subtask(s1, "Task A", details="d").task_id
     t0101 = add_subtask(t01, "Subtask A1").task_id
@@ -283,7 +282,7 @@ def test_p_resolves_to_parent_of_nested_task(tasks_root: Path) -> None:
     assert_invoke(app, ["edit", "p", "--title", "Mid-level edited via p"])
 
 
-def test_p_on_root_task_resolves_to_itself(tasks_root: Path) -> None:
+def test_p_on_root_task_resolves_to_itself() -> None:
     s1 = create_task("Story one").task_id
     assert_invoke(app, ["edit", s1, "--title", "Set recent"])  # recent = s01
 
@@ -291,7 +290,7 @@ def test_p_on_root_task_resolves_to_itself(tasks_root: Path) -> None:
     assert_invoke(app, ["edit", "p", "--title", "Root edited via p"])
 
 
-def test_p_errors_when_no_recent(tasks_root: Path) -> None:
+def test_p_errors_when_no_recent() -> None:
     assert_invoke(app, ["edit", "p", "--title", "nope"], expect_error=True)
 
 
@@ -309,7 +308,7 @@ def test_p_does_not_update_recent(s1: str, tasks_root: Path) -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_p_digits_resolves_sibling(s1: str, tasks_root: Path) -> None:
+def test_p_digits_resolves_sibling(s1: str) -> None:
     t01 = add_subtask(s1, "Task A").task_id
     add_subtask(s1, "Task B")
     assert_invoke(app, ["start", t01])  # recent = s01t01
@@ -318,7 +317,7 @@ def test_p_digits_resolves_sibling(s1: str, tasks_root: Path) -> None:
     assert_invoke(app, ["edit", "p02", "--title", "Sibling edited via p02"])
 
 
-def test_p_digits_resolves_from_nested(tasks_root: Path) -> None:
+def test_p_digits_resolves_from_nested() -> None:
     s1 = create_task("Story one").task_id
     t01 = add_subtask(s1, "Task A", details="d").task_id
     t0101 = add_subtask(t01, "Sub A1").task_id
@@ -329,7 +328,7 @@ def test_p_digits_resolves_from_nested(tasks_root: Path) -> None:
     assert_invoke(app, ["edit", "p02", "--title", "Cousin edited via p02"])
 
 
-def test_p_deep_digits_resolves_nested_path(tasks_root: Path) -> None:
+def test_p_deep_digits_resolves_nested_path() -> None:
     s1 = create_task("Story one").task_id
     t01 = add_subtask(s1, "Task A", details="d").task_id
     add_subtask(t01, "Sub A1")
@@ -339,11 +338,11 @@ def test_p_deep_digits_resolves_nested_path(tasks_root: Path) -> None:
     assert_invoke(app, ["edit", "p0101", "--title", "Deep edited via p0101"])
 
 
-def test_p_digits_errors_when_no_recent(tasks_root: Path) -> None:
+def test_p_digits_errors_when_no_recent() -> None:
     assert_invoke(app, ["edit", "p01", "--title", "nope"], expect_error=True)
 
 
-def test_p_digits_errors_for_nonexistent_sibling(s1: str, tasks_root: Path) -> None:
+def test_p_digits_errors_for_nonexistent_sibling(s1: str) -> None:
     t01 = add_subtask(s1, "Task A").task_id
     assert_invoke(app, ["start", t01])  # recent = s01t01
 
@@ -356,7 +355,7 @@ def test_p_digits_errors_for_nonexistent_sibling(s1: str, tasks_root: Path) -> N
 # ---------------------------------------------------------------------------
 
 
-def test_pp_resolves_to_grandparent(tasks_root: Path) -> None:
+def test_pp_resolves_to_grandparent() -> None:
     s1 = create_task("Story one").task_id
     t01 = add_subtask(s1, "Task A", details="d").task_id
     t0101 = add_subtask(t01, "Sub A1").task_id
@@ -366,7 +365,7 @@ def test_pp_resolves_to_grandparent(tasks_root: Path) -> None:
     assert_invoke(app, ["edit", "pp", "--title", "Grandparent edited via pp"])
 
 
-def test_pp_on_level1_resolves_to_root(s1: str, tasks_root: Path) -> None:
+def test_pp_on_level1_resolves_to_root(s1: str) -> None:
     t01 = add_subtask(s1, "Task A").task_id
     assert_invoke(app, ["start", t01])  # recent = s01t01
 
@@ -374,7 +373,7 @@ def test_pp_on_level1_resolves_to_root(s1: str, tasks_root: Path) -> None:
     assert_invoke(app, ["edit", "pp", "--title", "Root edited via pp"])
 
 
-def test_pp_on_root_resolves_to_itself(tasks_root: Path) -> None:
+def test_pp_on_root_resolves_to_itself() -> None:
     s1 = create_task("Story one").task_id
     assert_invoke(app, ["edit", s1, "--title", "Set recent"])  # recent = s01
 
@@ -382,7 +381,7 @@ def test_pp_on_root_resolves_to_itself(tasks_root: Path) -> None:
     assert_invoke(app, ["edit", "pp", "--title", "Root edited via pp"])
 
 
-def test_pp_errors_when_no_recent(tasks_root: Path) -> None:
+def test_pp_errors_when_no_recent() -> None:
     assert_invoke(app, ["edit", "pp", "--title", "nope"], expect_error=True)
 
 
@@ -401,7 +400,7 @@ def test_pp_does_not_update_recent(tasks_root: Path) -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_pp_digits_resolves_uncle(tasks_root: Path) -> None:
+def test_pp_digits_resolves_uncle() -> None:
     s1 = create_task("Story one").task_id
     t01 = add_subtask(s1, "Task A", details="d").task_id
     add_subtask(t01, "Sub A1")
@@ -413,11 +412,11 @@ def test_pp_digits_resolves_uncle(tasks_root: Path) -> None:
     assert_invoke(app, ["edit", "pp02", "--title", "Uncle edited via pp02"])
 
 
-def test_pp_digits_errors_when_no_recent(tasks_root: Path) -> None:
+def test_pp_digits_errors_when_no_recent() -> None:
     assert_invoke(app, ["edit", "pp01", "--title", "nope"], expect_error=True)
 
 
-def test_pp_digits_errors_for_nonexistent_task(tasks_root: Path) -> None:
+def test_pp_digits_errors_for_nonexistent_task() -> None:
     s1 = create_task("Story one").task_id
     t01 = add_subtask(s1, "Task A", details="d").task_id
     t0101 = add_subtask(t01, "Sub A1").task_id
@@ -427,7 +426,7 @@ def test_pp_digits_errors_for_nonexistent_task(tasks_root: Path) -> None:
     assert_invoke(app, ["edit", "pp99", "--title", "nope"], expect_error=True)
 
 
-def test_ppp_resolves_three_levels_up(tasks_root: Path) -> None:
+def test_ppp_resolves_three_levels_up() -> None:
     s1 = create_task("Story one").task_id
     t01 = add_subtask(s1, "Task A", details="d").task_id
     t0101 = add_subtask(t01, "Sub A1", details="d").task_id
@@ -443,7 +442,7 @@ def test_ppp_resolves_three_levels_up(tasks_root: Path) -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_q_digits_resolves_child(s1: str, tasks_root: Path) -> None:
+def test_q_digits_resolves_child(s1: str) -> None:
     t01 = add_subtask(s1, "Task A", details="d").task_id
     add_subtask(t01, "Sub A1")
     assert_invoke(app, ["edit", t01, "--title", "Set recent"])  # recent = s01t01
@@ -452,7 +451,7 @@ def test_q_digits_resolves_child(s1: str, tasks_root: Path) -> None:
     assert_invoke(app, ["edit", "q01", "--title", "Child edited via q01"])
 
 
-def test_q_digits_resolves_from_root(tasks_root: Path) -> None:
+def test_q_digits_resolves_from_root() -> None:
     s1 = create_task("Story one").task_id
     add_subtask(s1, "Task A")
     # recent = s01 (root)
@@ -460,7 +459,7 @@ def test_q_digits_resolves_from_root(tasks_root: Path) -> None:
     assert_invoke(app, ["edit", "q01", "--title", "Child of root via q01"])
 
 
-def test_q_deep_digits_resolves_nested(tasks_root: Path) -> None:
+def test_q_deep_digits_resolves_nested() -> None:
     s1 = create_task("Story one").task_id
     t01 = add_subtask(s1, "Task A", details="d").task_id
     add_subtask(t01, "Sub A1")
@@ -471,11 +470,11 @@ def test_q_deep_digits_resolves_nested(tasks_root: Path) -> None:
     assert_invoke(app, ["edit", "q0101", "--title", "Deep child via q0101"])
 
 
-def test_q_digits_errors_when_no_recent(tasks_root: Path) -> None:
+def test_q_digits_errors_when_no_recent() -> None:
     assert_invoke(app, ["edit", "q01", "--title", "nope"], expect_error=True)
 
 
-def test_q_digits_errors_for_nonexistent_child(s1: str, tasks_root: Path) -> None:
+def test_q_digits_errors_for_nonexistent_child(s1: str) -> None:
     add_subtask(s1, "Task A")
     # recent = s01
     # q99 -> s01t99 which doesn't exist
@@ -493,7 +492,7 @@ def test_q_digits_does_not_update_recent(tasks_root: Path) -> None:
     assert _read_recent(tasks_root) == t01
 
 
-def test_q_single_digit_pads_to_two(s1: str, tasks_root: Path) -> None:
+def test_q_single_digit_pads_to_two(s1: str) -> None:
     add_subtask(s1, "Task A")
     add_subtask(s1, "Task B")
     t03 = add_subtask(s1, "Task three").task_id
@@ -503,14 +502,14 @@ def test_q_single_digit_pads_to_two(s1: str, tasks_root: Path) -> None:
     assert_invoke(app, ["edit", "q3", "--title", "Child via q3"])
 
 
-def test_q_three_digits_is_ambiguous(s1: str, tasks_root: Path) -> None:
+def test_q_three_digits_is_ambiguous(s1: str) -> None:
     add_subtask(s1, "Task A")
     # recent = s01
     # q345 has odd length > 1 -> ambiguous, should error
     assert_invoke(app, ["edit", "q345", "--title", "nope"], expect_error=True)
 
 
-def test_p_single_digit_pads_to_two(s1: str, tasks_root: Path) -> None:
+def test_p_single_digit_pads_to_two(s1: str) -> None:
     t01 = add_subtask(s1, "Task A").task_id
     add_subtask(s1, "Task B")
     t03 = add_subtask(s1, "Task three").task_id
@@ -535,13 +534,13 @@ def test_p_digits_does_not_update_recent(s1: str, tasks_root: Path) -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_direct_ref_pads_single_s_digit(s1: str, tasks_root: Path) -> None:
+def test_direct_ref_pads_single_s_digit(s1: str) -> None:
     assert s1 == "s01"
     # s1 should resolve the same as s01
     assert_invoke(app, ["edit", "s1", "--title", "Edited via s1"])
 
 
-def test_direct_ref_pads_both_segments(s1: str, tasks_root: Path) -> None:
+def test_direct_ref_pads_both_segments(s1: str) -> None:
     t01 = add_subtask(s1, "Task A").task_id
     assert t01 == "s01t01"
     # s1t1 / s01t1 / s1t01 should all resolve to s01t01
@@ -550,7 +549,7 @@ def test_direct_ref_pads_both_segments(s1: str, tasks_root: Path) -> None:
     assert_invoke(app, ["edit", "s1t01", "--title", "Via s1t01"])
 
 
-def test_direct_ref_multilevel_t_passthrough(s1: str, tasks_root: Path) -> None:
+def test_direct_ref_multilevel_t_passthrough(s1: str) -> None:
     t01 = add_subtask(s1, "Task A", details="d").task_id
     t0101 = add_subtask(t01, "Sub A1").task_id
     assert t0101 == "s01t0101"
@@ -558,7 +557,7 @@ def test_direct_ref_multilevel_t_passthrough(s1: str, tasks_root: Path) -> None:
     assert_invoke(app, ["edit", "s1t0101", "--title", "Via s1t0101"])
 
 
-def test_direct_ref_odd_t_digits_is_ambiguous(s1: str, tasks_root: Path) -> None:
+def test_direct_ref_odd_t_digits_is_ambiguous(s1: str) -> None:
     add_subtask(s1, "Task A")
     # s1t102 has odd-length t-run > 1 → ambiguous
     result = assert_invoke(
@@ -567,7 +566,7 @@ def test_direct_ref_odd_t_digits_is_ambiguous(s1: str, tasks_root: Path) -> None
     assert "Ambiguous digits in task ref" in result.output
 
 
-def test_direct_ref_preserves_slug_suffix(s1: str, tasks_root: Path) -> None:
+def test_direct_ref_preserves_slug_suffix(s1: str) -> None:
     t01 = add_subtask(s1, "Task A").task_id
     assert t01 == "s01t01"
     # `-slug` tail should survive padding
@@ -642,7 +641,7 @@ def test_reset_multiple_saves_common_ancestor(s1: str, tasks_root: Path) -> None
 # ---------------------------------------------------------------------------
 
 
-def test_move_q_refs_resolve_correctly(tasks_root: Path) -> None:
+def test_move_q_refs_resolve_correctly() -> None:
     """Moving q01 q02 must resolve both refs against the same recent."""
     s1 = create_task("Story one").task_id
     s2 = create_task("Story two").task_id
@@ -671,7 +670,7 @@ def test_move_update_to_parent(tasks_root: Path) -> None:
     assert _read_recent(tasks_root) == s2
 
 
-def test_start_q_refs_resolve_correctly(tasks_root: Path) -> None:
+def test_start_q_refs_resolve_correctly() -> None:
     """Starting q01 q02 must resolve both against the same recent."""
     s1 = create_task("Story one").task_id
     t01 = add_subtask(s1, "Task A").task_id

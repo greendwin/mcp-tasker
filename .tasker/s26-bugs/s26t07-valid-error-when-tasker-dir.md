@@ -14,32 +14,3 @@ status: done
 3. Pass `cls=_TaskerGroup` to the `TyperDI` app so all commands (and DI resolution) are covered
 4. Remove `@console.catching_output` from all individual commands
 5. Raise `SystemExit(1)` after handling `TaskerError` (preserving exception chaining)
-
-## Example
-
-~ ⌚ 10:30:19
-$ t list
-╭─────────────────────────────────────────────────────────── Traceback (most recent call last) ────────────────────────────────────────────────────────────╮
-│ in func:2                                                                                                                                                │
-│                                                                                                                                                          │
-│ /home/greendwin/.local/pipx/venvs/mcp-tasker/lib/python3.10/site-packages/tasker/cli/_common.py:78 in get_task_repo                                      │
-│                                                                                                                                                          │
-│    75                                                                                                                                                    │
-│    76                                                                                                                                                    │
-│    77 def get_task_repo() -> TaskRepo:                                                                                                                   │
-│ ❱  78 │   tasker_dir = discover_tasker_dir()                                                                                                             │
-│    79 │   return TaskRepo(tasker_dir)                                                                                                                    │
-│    80                                                                                                                                                    │
-│    81                                                                                                                                                    │
-│                                                                                                                                                          │
-│ /home/greendwin/.local/pipx/venvs/mcp-tasker/lib/python3.10/site-packages/tasker/layout.py:60 in discover_tasker_dir                                     │
-│                                                                                                                                                          │
-│    57 │   │   return user_dir                                                                                                                            │
-│    58 │                                                                                                                                                  │
-│    59 │   # 3. not found                                                                                                                                 │
-│ ❱  60 │   raise TaskerNotFoundError                                                                                                                      │
-│    61                                                                                                                                                    │
-│    62                                                                                                                                                    │
-│    63 def init_tasker_dir(project_root: Path | None = None) -> Path:                                                                                     │
-╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
-TaskerNotFoundError: Tasker directory not found. Run 'tasker init' or 'tasker init --user' to initialize.

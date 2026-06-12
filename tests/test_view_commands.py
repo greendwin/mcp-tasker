@@ -47,7 +47,7 @@ def test_show_task_prints_description_with_brackets_literally() -> None:
     assert "Fails when [red]config[/red] missing" in result.output
 
 
-def test_show_task_prints_extra_sections_with_brackets_literally(
+def test_show_task_prints_body_sections_with_brackets_literally(
     get_task_file: GetTaskFile,
 ) -> None:
     task_id = create_task("My story").task_id
@@ -804,9 +804,7 @@ def test_closed_history_capped_at_30(tasks_root: Path) -> None:
     assert stored[-1] == sub_ids[30]
 
 
-def test_list_todo_all_finished_no_highlight(
-    tasks_root: Path,
-) -> None:
+def test_list_todo_all_finished_no_highlight() -> None:
     story_id = create_task("My story").task_id
     sub = add_subtask(story_id, "Done todo").task_id
     assert_invoke(app, ["todo", sub])

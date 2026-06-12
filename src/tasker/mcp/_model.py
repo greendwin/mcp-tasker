@@ -22,7 +22,7 @@ class TaskPreview(TaskIdentity):
             id=task.id,
             title=task.title,
             status=task.status,
-            has_body=bool(task.description or task.extra_sections),
+            has_body=bool(task.description),
         )
 
 
@@ -42,17 +42,11 @@ class TaskInfo(TaskIdentity):
         for child in task.subtasks:
             grouped[child.status].append(child.id)
 
-        description_parts = []
-        if task.description:
-            description_parts.append(task.description)
-        if task.extra_sections:
-            description_parts.append(task.extra_sections)
-
         return cls(
             id=task.id,
             parent_id=parent_id,
             title=task.title,
             status=task.status,
-            description="\n\n".join(description_parts) or None,
+            description=task.description,
             subtasks=grouped,
         )

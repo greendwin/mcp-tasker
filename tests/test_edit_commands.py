@@ -523,7 +523,7 @@ def test_edit_shows_recent_marker(s1: str) -> None:
     assert "(q)" in result.output
 
 
-def test_edit_shows_extra_sections(s1: str, get_task_file: GetTaskFile) -> None:
+def test_edit_shows_body_sections(s1: str, get_task_file: GetTaskFile) -> None:
     task_file = get_task_file(s1)
     content = task_file.read_text()
     task_file.write_text(content + "\n## Notes\n\nImportant note here.\n")

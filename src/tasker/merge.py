@@ -22,7 +22,6 @@ class TaskMergeResult:
     title: Merged[str] | None
     slug: Merged[str | None] | None
     description: Merged[str | None] | None
-    extra_sections: Merged[str | None] | None
 
 
 @dataclass(slots=True)
@@ -136,11 +135,6 @@ def merge_scalar_fields(
             base.description if base else None,
             ours.description,
             theirs.description,
-        ),
-        extra_sections=merge(
-            base.extra_sections if base else None,
-            ours.extra_sections,
-            theirs.extra_sections,
         ),
     )
 
@@ -261,16 +255,6 @@ def merge_task_file(
         fields.description,
         ours_task.description,
         theirs_task.description,
-    )
-
-    if fields.extra_sections is None or fields.extra_sections.value:
-        # either has conflict or has extra_sections
-        r.lines.append("")
-    r.append_merged(
-        "{}",
-        fields.extra_sections,
-        ours_task.extra_sections,
-        theirs_task.extra_sections,
     )
 
     merged_entries = merge_subtask_lists(

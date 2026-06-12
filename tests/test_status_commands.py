@@ -208,7 +208,7 @@ def test_start_no_description_no_extra_output(story_id: str) -> None:
     assert "None" not in result.output
 
 
-def test_start_shows_extra_sections(get_task_file: GetTaskFile) -> None:
+def test_start_shows_body_sections(get_task_file: GetTaskFile) -> None:
     task_id = create_task("Leaf story").task_id
     task_file = get_task_file(task_id)
     content = task_file.read_text()

@@ -141,7 +141,7 @@ def test_new_multi_word_with_options(tasks_root: Path) -> None:
     assert "# Design file structure" in content
 
 
-def test_new_single_word_still_works(tasks_root: Path) -> None:
+def test_new_single_word_still_works() -> None:
     result = assert_invoke(app, ["new", "Design"])
     assert "Task s01-design created" in result.output
 

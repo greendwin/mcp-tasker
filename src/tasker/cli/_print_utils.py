@@ -351,16 +351,11 @@ def print_task(task: Task, *, markers: MarkersDict, preview: bool) -> None:
         console.print("")
     console.print(item)
 
-    # note: show description and extra section in compact way
+    # note: show the task body in a compact way
     if task.description:
         if not preview:
             console.print("")
         console.print(escape_markup(task.description))
-
-    if task.extra_sections:
-        if task.description or not preview:
-            console.print("")
-        console.print(escape_markup(task.extra_sections))
 
     if preview or not task.subtasks:
         return

@@ -73,7 +73,7 @@ def test_view_tasks_no_description_is_none() -> None:
     assert result.description is None
 
 
-def test_view_tasks_includes_extra_sections_only(get_task_file: GetTaskFile) -> None:
+def test_view_tasks_body_is_section_only(get_task_file: GetTaskFile) -> None:
     task_id = create_task("My story").task_id
     path = get_task_file(task_id)
     path.write_text(path.read_text() + "\n## Notes\n\nSome notes here.\n")
@@ -82,7 +82,7 @@ def test_view_tasks_includes_extra_sections_only(get_task_file: GetTaskFile) -> 
     assert result.description == "## Notes\n\nSome notes here."
 
 
-def test_view_tasks_merges_description_and_extra_sections(
+def test_view_tasks_body_includes_lead_and_sections(
     get_task_file: GetTaskFile,
 ) -> None:
     task_id = create_task("My story").task_id

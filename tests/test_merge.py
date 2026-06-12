@@ -23,7 +23,6 @@ def _task(**overrides: Any) -> Task:
         "title": "Default title",
         "slug": "default-slug",
         "description": "Default description",
-        "extra_sections": None,
     }
     defaults.update(overrides)
     return Task(**defaults)
@@ -41,7 +40,6 @@ class TestAllIdentical:
         assert result.title == Merged("Default title")
         assert result.slug == Merged("default-slug")
         assert result.description == Merged("Default description")
-        assert result.extra_sections == Merged(None)
 
 
 class TestOnlyOursChanged:
@@ -132,7 +130,6 @@ class TestMultipleFields:
         assert result.status == Merged(TaskStatus.PENDING)
         assert result.slug == Merged("default-slug")
         assert result.description == Merged("Default description")
-        assert result.extra_sections == Merged(None)
 
 
 class TestBaseNone:
@@ -186,7 +183,6 @@ class TestEachScalarField:
             ("title", "Base", "Ours", "Theirs"),
             ("slug", "base-slug", "ours-slug", "theirs-slug"),
             ("description", "Base desc", "Ours desc", "Theirs desc"),
-            ("extra_sections", "Base extra", "Ours extra", "Theirs extra"),
         ],
     )
     def test_conflict_per_field(
@@ -209,7 +205,6 @@ class TestEachScalarField:
             ("title", "Base", "Changed"),
             ("slug", "base-slug", "changed-slug"),
             ("description", "Base desc", "Changed desc"),
-            ("extra_sections", None, "New extra"),
         ],
     )
     def test_ours_only_per_field(
@@ -231,7 +226,6 @@ class TestEachScalarField:
             ("title", "Base", "Changed"),
             ("slug", "base-slug", "changed-slug"),
             ("description", "Base desc", "Changed desc"),
-            ("extra_sections", None, "New extra"),
         ],
     )
     def test_theirs_only_per_field(
@@ -598,7 +592,6 @@ def _make_file(
     status: str = "pending",
     slug: str | None = None,
     description: str | None = None,
-    extra_sections: str | None = None,
     subtask_lines: list[str] | None = None,
 ) -> str:
     """Build a task markdown file string for testing."""
@@ -612,9 +605,6 @@ def _make_file(
     if description is not None:
         lines.append("")
         lines.append(description)
-    if extra_sections is not None:
-        lines.append("")
-        lines.append(extra_sections)
     if subtask_lines is not None:
         lines.append("")
         lines.append("## Subtasks")
@@ -839,13 +829,13 @@ class TestMergeTaskFileSubtaskAdditions:
         assert ids == ["s01t01", "s01t03", "s01t05"]
 
 
-class TestMergeTaskFileExtraSectionsConflict:
-    """Extra sections conflict: markers around extra sections block."""
+class TestMergeTaskFileBodySectionConflict:
+    """Diverging edits to a body section produce one body conflict block."""
 
-    def test_extra_sections_conflict(self) -> None:
-        base = _make_file(extra_sections="## Notes\n\nBase notes")
-        ours = _make_file(extra_sections="## Notes\n\nOur notes")
-        theirs = _make_file(extra_sections="## Notes\n\nTheir notes")
+    def test_body_section_conflict(self) -> None:
+        base = _make_file(description="## Notes\n\nBase notes")
+        ours = _make_file(description="## Notes\n\nOur notes")
+        theirs = _make_file(description="## Notes\n\nTheir notes")
         result = _merge(base, ours, theirs)
         assert result.has_conflicts is True
         assert "<<<<<<< ours" in result.content
@@ -882,7 +872,7 @@ class TestMergeTaskFileSlugConflict:
 
 
 class TestMergeTaskFileEmptyDescriptionNotRendered:
-    """Empty-string description/extra_sections should not produce blank paragraphs."""
+    """Empty body should not produce blank paragraphs or newline artifacts."""
 
     def test_empty_string_description_omitted(self) -> None:
         """When merged description is empty string, output should match
@@ -916,8 +906,8 @@ class TestMergeTaskFileEmptyDescriptionNotRendered:
         # With no description, nothing should remain after title
         assert all(ln == "" for ln in after_title)
 
-    def test_empty_string_extra_sections_omitted(self) -> None:
-        """Output should not have quadruple newlines from empty extra_sections."""
+    def test_empty_body_no_newline_artifacts(self) -> None:
+        """Output should not have quadruple newlines from an empty body."""
         content = _make_file()
         result = _merge(content, content, content)
         assert result.has_conflicts is False

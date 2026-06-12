@@ -111,7 +111,7 @@ def update_task_status_and_flags(task: Task, *, allow_downgrade: bool) -> None:
         # note: root tasks must be file-based
         return
 
-    if task.description or task.extra_sections:
+    if task.description:
         return
 
     if not subtasks:

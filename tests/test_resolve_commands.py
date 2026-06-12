@@ -12,11 +12,7 @@ from tests.helpers import assert_invoke
 
 
 class TestResolveNoConflicts:
-    def test_prints_no_conflicts_message(
-        self,
-        monkeypatch: pytest.MonkeyPatch,
-        project_root: Path,
-    ) -> None:
+    def test_prints_no_conflicts_message(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setattr(git, "list_conflicted_files", lambda *_a, **_kw: [])
 
         result = assert_invoke(app, ["resolve"])
@@ -141,11 +137,7 @@ class TestResolveMultipleMixed:
 
 
 class TestResolveSkipsBrokenFile:
-    def test_skips_with_warning(
-        self,
-        monkeypatch: pytest.MonkeyPatch,
-        project_root: Path,
-    ) -> None:
+    def test_skips_with_warning(self, monkeypatch: pytest.MonkeyPatch) -> None:
         # File with name that cannot be parsed as a task
         cf = ConflictedFile(
             path=".tasker/.gitignore",
