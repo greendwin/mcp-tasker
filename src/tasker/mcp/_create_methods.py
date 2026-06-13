@@ -1,7 +1,6 @@
 from tasker.resolve import resolve_ref
 
-from ._common import get_repo, mcp
-from ._model import TaskInfo
+from ._common import MutationResult, get_repo, mcp
 
 
 @mcp.tool()
@@ -9,7 +8,7 @@ def create_task(
     title: str,
     parent: str | None = None,
     description: str | None = None,
-) -> TaskInfo:
+) -> MutationResult:
     """Create a root task or subtask (when parent is given)."""
     repo = get_repo()
 
@@ -22,4 +21,4 @@ def create_task(
         task = repo.add_subtask(parent_task, title=title, description=description)
 
     repo.flush_to_disk()
-    return TaskInfo.from_task(task)
+    return MutationResult.from_task(task)

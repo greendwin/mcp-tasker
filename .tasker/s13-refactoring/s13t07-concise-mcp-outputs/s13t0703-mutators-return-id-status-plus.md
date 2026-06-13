@@ -1,7 +1,7 @@
 ---
 id: s13t0703
 slug: mutators-return-id-status-plus
-status: pending
+status: done
 ---
 
 # Mutators return {id, status} plus affected on force

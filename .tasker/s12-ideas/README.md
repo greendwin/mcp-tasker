@@ -25,7 +25,8 @@ status: pending
 - [x] s12t17: Support incomplete numeric shortcuts like q3 -> q03
 - [ ] s12t18: Support -p suffix, like 'tap' aka parent of 'ta'
 - [ ] [s12t20](s12t20-get-rid-of-sxxtyy-ids.md): Get rid of sXXtYY ids
-- [ ] [s12t21](s12t21-support-merging-archived-tasks-in.md): Support merging archived tasks in `tasker resolve`
+- [ ] [s12t21](s12t21-support-merging-archived-tasks-in.md): Support merging archived tasks in 'tasker resolve'
 - [ ] [s12t22](s12t22-install-shortcuts-to-bashrc-of.md): Install shortcuts to .bashrc of .zshrc/.zshuser
 - [ ] [s12t23](s12t23-todo-list-must-be-commited.md): Todo list must be commited to git, don't ignore it
 - [ ] s12t24: Order tasks in 'list' by 'depends-on' relations
+- [ ] [s12t25](s12t25-resolve-conflicting-ids-on-tasker.md): Resolve conflicting ids on 'tasker resolve'

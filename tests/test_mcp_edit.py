@@ -1,7 +1,8 @@
 import pytest
 
+from tasker.base_types import TaskStatus
 from tasker.exceptions import TaskValidateError
-from tasker.mcp import TaskInfo, edit_task, view_tasks
+from tasker.mcp import MutationResult, edit_task, view_tasks
 from tasker.parse import parse_task_file
 
 from .helpers import GetTaskFile, add_subtask, create_task
@@ -12,14 +13,16 @@ def story_id() -> str:
     return create_task("My story").task_id
 
 
-def test_edit_task_returns_task_info(story_id: str) -> None:
+def test_edit_task_returns_mutation_result(story_id: str) -> None:
     result = edit_task(story_id, title="Updated title")
-    assert isinstance(result, TaskInfo)
+    assert isinstance(result, MutationResult)
 
 
 def test_edit_title(story_id: str) -> None:
     result = edit_task(story_id, title="New title")
-    assert result.title == "New title"
+    assert result.id == story_id
+    markdown = view_tasks([story_id])
+    assert "New title" in markdown
 
 
 def test_edit_title_persists(story_id: str) -> None:
@@ -30,7 +33,9 @@ def test_edit_title_persists(story_id: str) -> None:
 
 def test_edit_description(story_id: str) -> None:
     result = edit_task(story_id, description="A description")
-    assert result.description == "A description"
+    assert result.id == story_id
+    markdown = view_tasks([story_id])
+    assert "A description" in markdown
 
 
 def test_edit_description_persists(story_id: str) -> None:
@@ -56,8 +61,7 @@ def test_edit_replaces_multi_section_body(
     seeded = parse_task_file(task_file).task.description
     assert seeded is not None and "## Notes" in seeded
 
-    result = edit_task(story_id, description="Replacement body")
-    assert result.description == "Replacement body"
+    edit_task(story_id, description="Replacement body")
 
     markdown = view_tasks([story_id])
     assert "Replacement body" in markdown
@@ -71,7 +75,8 @@ def test_edit_replaces_multi_section_body(
 def test_edit_subtask(story_id: str) -> None:
     sub_ref = add_subtask(story_id, "Sub", "Details").task_ref
     result = edit_task(sub_ref, title="Updated sub")
-    assert result.title == "Updated sub"
+    markdown = view_tasks([result.id])
+    assert "Updated sub" in markdown
 
 
 def test_edit_not_found_raises() -> None:
@@ -81,4 +86,12 @@ def test_edit_not_found_raises() -> None:
 
 def test_edit_no_changes(story_id: str) -> None:
     result = edit_task(story_id)
-    assert result.title == "My story"
+    assert result.id == story_id
+    assert result.status == TaskStatus.PENDING
+    markdown = view_tasks([story_id])
+    assert "My story" in markdown
+
+
+def test_edit_returns_status_unchanged(story_id: str) -> None:
+    result = edit_task(story_id, title="New title")
+    assert result.status == TaskStatus.PENDING

@@ -1,5 +1,6 @@
 __all__ = [
     "mcp",
+    "MutationResult",
     "TaskInfo",
     "TaskPreview",
     "resource_task",
@@ -15,7 +16,7 @@ __all__ = [
     "create_task",
 ]
 
-from ._common import mcp
+from ._common import MutationResult, mcp
 from ._create_methods import create_task
 from ._model import TaskInfo, TaskPreview
 from ._status_methods import (
