@@ -3,28 +3,30 @@ from typing import Any, Protocol
 
 import pytest
 
-from tasker.base_types import TaskStatus
+from tasker.base_types import Task, TaskStatus
 from tasker.cli import app
 from tasker.exceptions import TaskHasSubtasksError
 from tasker.mcp import (
     MutationResult,
-    TaskInfo,
     cancel_task,
     edit_task,
     finish_task,
     reset_task,
-    resource_task,
     review_task,
     start_task,
-    view_tasks,
 )
-from tasker.mcp._render import TASK_BLOCK_SEPARATOR
+from tasker.mcp._common import get_repo
+from tasker.resolve import resolve_ref
 
 from .helpers import add_subtask, assert_invoke, create_task
 
 
-def _all_subtask_ids(info: TaskInfo) -> list[str]:
-    return [tid for ids in info.subtasks.values() for tid in ids]
+def _load_task(ref: str) -> Task:
+    return resolve_ref(get_repo(), ref).task
+
+
+def _all_subtask_ids(task: Task) -> list[str]:
+    return [child.id for child in task.subtasks]
 
 
 class _ForceMutator(Protocol):
@@ -57,7 +59,7 @@ def test_start_task_returns_mutation_result(leaf_ref: str) -> None:
 def test_start_task_persists_to_disk(story_id: str, leaf_ref: str) -> None:
     start_task(leaf_ref)
     # verify by viewing the parent — its status should update to in-progress
-    parent = resource_task(story_id)
+    parent = _load_task(story_id)
     assert parent.status == TaskStatus.IN_PROGRESS
 
 
@@ -76,7 +78,7 @@ def test_review_task_returns_in_review(leaf_ref: str) -> None:
 
 def test_review_task_persists_to_disk(story_id: str, leaf_ref: str) -> None:
     review_task(leaf_ref)
-    parent = resource_task(story_id)
+    parent = _load_task(story_id)
     assert parent.status == TaskStatus.IN_PROGRESS
 
 
@@ -139,12 +141,10 @@ def test_force_mutators_apply_to_subtasks(
     expected_status: str,
 ) -> None:
     mutator(story_id, force=True)
-    full_info = resource_task(story_id)
-    all_ids = _all_subtask_ids(full_info)
+    all_ids = _all_subtask_ids(_load_task(story_id))
     assert len(all_ids) > 0
-    markdown = view_tasks(all_ids)
-    blocks = markdown.split(TASK_BLOCK_SEPARATOR)
-    assert all(f"status: {expected_status}" in block for block in blocks)
+    for cid in all_ids:
+        assert _load_task(cid).status == TaskStatus(expected_status)
 
 
 # --- affected (cascade reporting) ---
@@ -155,7 +155,7 @@ def test_force_reports_cascaded_children(
     story_id: str, leaf_ref: str, mutator: _ForceMutator
 ) -> None:
     start_task(leaf_ref)
-    child_ids = _all_subtask_ids(resource_task(story_id))
+    child_ids = _all_subtask_ids(_load_task(story_id))
     result = mutator(story_id, force=True)
     assert set(result.affected) == set(child_ids)
     assert story_id not in result.affected
@@ -231,7 +231,7 @@ def test_finish_noncascade_ack_omits_empty_affected(leaf_ref: str) -> None:
 
 
 def test_finish_cascade_ack_includes_affected(story_id: str, leaf_ref: str) -> None:
-    child_ids = _all_subtask_ids(resource_task(story_id))
+    child_ids = _all_subtask_ids(_load_task(story_id))
     payload = _serialize(finish_task(story_id, force=True))
     assert set(payload["affected"]) == set(child_ids)
 
@@ -257,7 +257,7 @@ def test_done_task_returns_done(leaf_ref: str) -> None:
 def test_done_task_persists_to_disk(story_id: str, leaf_ref: str) -> None:
     finish_task(leaf_ref)
 
-    parent = resource_task(story_id)
+    parent = _load_task(story_id)
     assert parent.status == TaskStatus.DONE
 
 
@@ -302,8 +302,8 @@ def test_mcp_finish_task_force_excludes_forced_children(
     finish_task(story_id, force=True)
     stored = (tasks_root / ".closed").read_text().splitlines()
     assert story_id in stored
-    full = resource_task(story_id)
-    child_ids = _all_subtask_ids(full)
+    parent = _load_task(story_id)
+    child_ids = _all_subtask_ids(parent)
     assert child_ids  # sanity
     for cid in child_ids:
         assert cid not in stored
@@ -312,8 +312,8 @@ def test_mcp_finish_task_force_excludes_forced_children(
 def test_mcp_cancel_task_force_excludes_forced_children(
     story_id: str, leaf_ref: str, tasks_root: Path
 ) -> None:
-    full = resource_task(story_id)
-    child_ids = _all_subtask_ids(full)
+    parent = _load_task(story_id)
+    child_ids = _all_subtask_ids(parent)
     assert child_ids  # sanity
     cancel_task(story_id, force=True)
     stored = (tasks_root / ".closed").read_text().splitlines()

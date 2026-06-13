@@ -1,7 +1,7 @@
 ---
 id: s13t0704
 slug: remove-resources-retire-models-docs
-status: pending
+status: done
 ---
 
 # Remove resources, retire models, docs and tox

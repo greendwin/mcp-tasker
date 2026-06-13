@@ -1,6 +1,5 @@
 from tasker.cli import app, get_task_repo
 from tasker.mcp import (
-    TaskInfo,
     finish_task,
     list_tasks,
     review_task,
@@ -153,12 +152,6 @@ def test_view_tasks_embedded_headings_survive_and_do_not_split() -> None:
     assert "# Embedded heading" in child_block
     assert "## Embedded sub" in child_block
     assert "Text." in child_block
-
-
-def test_view_tasks_has_no_has_body_field() -> None:
-    # has_body is a list-row affordance; the detailed view carries the body
-    # itself, so the detail model must not declare a (always-false) has_body field.
-    assert "has_body" not in TaskInfo.model_fields
 
 
 # --- list_tasks with todo filter ---

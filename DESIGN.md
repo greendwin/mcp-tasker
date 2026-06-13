@@ -510,21 +510,18 @@ tasker mcp --port 8080
 
 ### Tools
 
+Read tools (`list_tasks`, `view_tasks`) return plain text / trimmed markdown — not JSON. The mutating tools (`create_task`, `edit_task`, `start_task`, `review_task`, `reset_task`, `finish_task`, `cancel_task`) return a concise `{id, status}` ack; `affected` is added only when a cascading `force` closes or resets subtasks.
+
 | Tool | Parameters | Description |
 |---|---|---|
-| `create_task` | `title`, `parent?`, `description?` | Create a root task or subtask |
-| `list_tasks` | `todo?` | List all root tasks (`todo=true` returns only pinned tasks) |
+| `create_task` | `title`, `parent?`, `description?` | Create a root task or subtask; returns the concise `{id, status}` ack |
+| `list_tasks` | `todo?` | Compact one-line-per-task **text**, one row per root task (`todo=true` returns only pinned/TODO tasks) |
 | `view_tasks` | `task_refs` | View tasks by IDs as trimmed markdown: heading, `status:`/`parent:` metadata, verbatim body, and a `## Subtasks` checklist |
-| `edit_task` | `task_ref`, `title?`, `description?`, `slug?` | Update a task's title, slug, or description (replaces the whole task body) |
-| `start_task` | `task_ref` | Mark task in-progress |
-| `review_task` | `task_ref` | Mark task in-review (submit for review) |
-| `reset_task` | `task_ref`, `force?` | Reset task to pending (`force` resets non-pending subtasks) |
-| `finish_task` | `task_ref`, `force?` | Mark task done (`force` closes open subtasks) |
-| `cancel_task` | `task_ref`, `force?` | Cancel a task (`force` cancels open subtasks) |
+| `edit_task` | `task_ref`, `title?`, `description?`, `slug?` | Update a task's title, slug, or description (replaces the whole task body); returns the concise `{id, status}` ack |
+| `start_task` | `task_ref` | Mark task in-progress; returns the concise `{id, status}` ack |
+| `review_task` | `task_ref` | Mark task in-review (submit for review); returns the concise `{id, status}` ack |
+| `reset_task` | `task_ref`, `force?` | Reset task to pending (`force` resets non-pending subtasks); returns the concise `{id, status}` ack |
+| `finish_task` | `task_ref`, `force?` | Mark task done (`force` closes open subtasks); returns the concise `{id, status}` ack |
+| `cancel_task` | `task_ref`, `force?` | Cancel a task (`force` cancels open subtasks); returns the concise `{id, status}` ack |
 
-### Resources
-
-| URI | Description |
-|---|---|
-| `task://index` | All root tasks (same as `list_tasks`) |
-| `task://{ref}` | Single task by ID (same as `view_tasks`) |
+Status legend for the compact `list_tasks` rows and the `## Subtasks` lines: `.` pending, `~` in-progress, `?` in-review, `x` done, `-` cancelled. A trailing `(...)` marks a task that has a body — view it for the full detail.

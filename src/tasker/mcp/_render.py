@@ -1,8 +1,6 @@
 from tasker.base_types import Task, TaskStatus
 from tasker.parse import task_parent_id
 
-from ._model import TaskPreview
-
 TASK_BLOCK_SEPARATOR = "\n\n---\n\n"
 
 _STATUS_SIGNS: dict[TaskStatus, str] = {
@@ -26,12 +24,12 @@ def truncate_title(title: str, max_len: int = 60) -> str:
     return title[:cut_at] + "..."
 
 
-def render_task_line(preview: TaskPreview) -> str:
+def render_task_line(task: Task) -> str:
     # one task line: '<sign> <id>  <truncated-title>[ (...)]'
-    sign = _STATUS_SIGNS[preview.status]
-    title = truncate_title(preview.title)
-    line = f"{sign} {preview.id}  {title}"
-    if preview.has_body:
+    sign = _STATUS_SIGNS[task.status]
+    title = truncate_title(task.title)
+    line = f"{sign} {task.id}  {title}"
+    if task.description:
         line += " (...)"
     return line
 
@@ -50,9 +48,7 @@ def render_task_markdown(task: Task) -> str:
         sections.append(task.description)
 
     if task.subtasks:
-        child_lines = [
-            render_task_line(TaskPreview.from_task(child)) for child in task.subtasks
-        ]
+        child_lines = [render_task_line(child) for child in task.subtasks]
         sections.append("## Subtasks\n\n" + "\n".join(child_lines))
 
     return "\n\n".join(sections)
