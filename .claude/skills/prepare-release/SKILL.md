@@ -18,7 +18,7 @@ Optional argument: `major`, `minor`, `patch`, or an explicit `X.Y.Z` — sets th
 2. Detect baseline tag
 3. Read commits since baseline
 4. Decide version
-5. Draft README patch notes + check DESIGN.md drift
+5. Draft README patch notes + check README & DESIGN.md doc drift
 6. Write pyproject.toml, README.md, DESIGN.md
 7. uv lock --upgrade
 8. uv run tox (with one retry on skill-caused failures)
@@ -82,9 +82,11 @@ Determine the version bump before drafting notes.
 - Prerelease format (`1.4.0a1`, `2.0.0rc2`) → allow but skip README patch notes (only bump pyproject).
 - Any valid greater stable semver → accept.
 
-## 5. Draft README patch notes + check DESIGN.md drift
+## 5. Draft README patch notes + check README & DESIGN.md doc drift
 
 Nothing is written to disk yet.
+
+Release notes are not enough. A release that adds a flag, a command, or an MCP tool must also leave the README's **documentation body** — Quick Start, the `## Usage` subsections, the Shortcuts table, and the MCP "Available tools" table — in sync with the actual program state. Draft the patch notes, then check both README doc drift and DESIGN.md drift before writing anything.
 
 ### README patch notes
 
@@ -103,6 +105,25 @@ Goal: produce a new `### X.Y.Z` section for `README.md`'s `## Release Notes` tha
 - Curate, don't enumerate. Collapse related commits into one bullet. Drop commits that are pure internal churn (version bumps, tox config tweaks, CI noise) unless they affect users.
 - Group bug fixes under a single `Bug fixes:` bullet with comma-separated items, matching the existing pattern.
 - Keep bullets short — one line each is the norm.
+
+### README doc drift check
+
+Goal: keep the README's documentation body (everything **above** `## Release Notes`) honest about the current app state — not just the release-notes section. Same surgical discipline as DESIGN.md below: only touch what this release's commits actually changed.
+
+**Step 1 — is the README doc body implicated?** Scan the release's commits. The README body is implicated if commits touch any user-facing surface that the README documents:
+- CLI commands or flags — the `## Quick Start` block and the `## Usage` subsections (`Create tasks`, `Update status`, `View tasks`, `TODO list`, `Edit tasks`, `Organize`, `Resolve merge conflicts`).
+- Task-reference shortcuts — the `### Shortcuts` table.
+- MCP tools (added, removed, renamed, or signature/description changes) — the `### Available tools` table and the MCP configuration snippets.
+- Installation, requirements, or supported Python versions.
+
+If no commits match, **skip this step** and report: "README docs: no drift detected for this release."
+
+**Step 2 — surgical edits.** For each implicated area:
+1. Grep the actual source for the current surface (Typer commands/flags where commands live, MCP tools in the MCP server module, `requires-python` in `pyproject.toml`).
+2. Read the matching README section.
+3. Reconcile: add the new flag/command/tool row, correct a changed description, remove what no longer exists. Match the existing formatting (the usage blocks are annotated `bash` code fences; tools and shortcuts are Markdown tables).
+
+Do **not** rewrite whole sections, restyle prose that is merely dated, or audit unrelated sections. Only fix drift caused by *this release's* commits — a full README-vs-source audit is out of scope.
 
 ### DESIGN.md drift check
 
@@ -131,7 +152,8 @@ Do **not** rewrite whole sections. Do **not** "improve" prose that is merely dat
 After drafting, write immediately — no approval gate:
 1. Update `pyproject.toml`: change the `version = "X.Y.Z"` line under `[project]`. Do not touch anything else in that file.
 2. Prepend the new `### X.Y.Z` section to `README.md`'s `## Release Notes` (directly above the previous release entry). Skip this for prerelease versions.
-3. Apply the DESIGN.md edits if any.
+3. Apply the README doc-body edits from the drift check (Quick Start, Usage subsections, Shortcuts table, MCP tools table) if any.
+4. Apply the DESIGN.md edits if any.
 
 ## 7. Idempotent re-run detection
 
@@ -189,6 +211,8 @@ including any uncertainty or prefix-tally disagreements>
 - <release note 1>
 - <release note 2>
 
+README docs synced: <doc-body edits applied, or "no drift detected for this release.">
+
 === DESIGN.md ===
 
 <edits applied, or "No drift detected for this release.">
@@ -236,5 +260,5 @@ Do **not** execute any `git` command. Print and stop.
 - Never edits `pyproject.toml` constraints (only the `version` field).
 - Never touches `tox.ini` or CI configuration.
 - Never uses `--no-verify`, `--no-gpg-sign`, or equivalent skip-hook flags.
-- Never rewrites DESIGN.md sections that aren't implicated by this release.
+- Never rewrites README or DESIGN.md sections that aren't implicated by this release.
 - Never edits files outside: `pyproject.toml`, `uv.lock`, `README.md`, `DESIGN.md`.
