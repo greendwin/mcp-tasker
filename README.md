@@ -216,17 +216,17 @@ tasker mcp --port 8080
 
 Once connected, the MCP server exposes:
 
-| Tool          | Description                                                  |
-| ------------- | ------------------------------------------------------------ |
-| `create_task` | Create a root task or subtask                                |
+| Tool | Description |
+| ---- | ---- |
+| `create_task` | Create a root task or subtask |
 | `list_tasks`  | List all root tasks (pass `todo=true` for only pinned tasks) |
-| `view_tasks`  | View detailed info for multiple tasks                        |
-| `edit_task`   | Update a task's title, description, or slug                  |
-| `start_task`  | Mark task in-progress                                        |
-| `review_task` | Mark task in-review (submit for review)                      |
-| `reset_task`  | Reset task to pending                                        |
-| `finish_task` | Mark task done                                               |
-| `cancel_task` | Cancel a task                                                |
+| `view_tasks`  | View detailed info for multiple tasks |
+| `edit_task`   | Update a task's title, description, or slug |
+| `start_task`  | Mark task in-progress |
+| `review_task` | Mark task in-review (submit for review) |
+| `reset_task`  | Reset task to pending |
+| `finish_task` | Mark task done |
+| `cancel_task` | Cancel a task |
 
 ## Development
 
@@ -252,6 +252,12 @@ uv run isort src tests
 - Python >= 3.10
 
 ## Release Notes
+
+### 1.8.0
+- Task body unified into a single free-form `description`; editing a task no longer orphans or duplicates extra `##` sections on write
+- MCP: read tools `list_tasks` and `view_tasks` now return plain text / trimmed markdown instead of structured JSON
+- MCP: mutating tools (`create_task`, `edit_task`, and the status changes) return a concise `{id, status}` ack instead of a full task preview
+- MCP: removed the `task://` resources (`task://index`, `task://{ref}`) — use the `list_tasks` / `view_tasks` tools for reads
 
 ### 1.7.0
 - `tasker resolve` auto-merges conflicted task files after a git merge — three-way field-level merge with git-style conflict markers for unresolvable differences
