@@ -1,7 +1,7 @@
 ---
 id: s13t08
 slug: move-jinja-filter-registration-to
-status: pending
+status: done
 ---
 
 # Register Jinja filters at module level in render.py

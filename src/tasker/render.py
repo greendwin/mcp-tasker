@@ -13,7 +13,7 @@ STATUS_CHECKBOX: dict[TaskStatus, str] = {
     TaskStatus.CANCELLED: "x",
 }
 
-_jinja = Environment(
+_jinja_env = Environment(
     loader=PackageLoader("tasker", "templates"),
     keep_trailing_newline=True,
     trim_blocks=True,
@@ -41,10 +41,12 @@ def render_subtask_line(sub: ParsedSubtask) -> str:
     return f"- [{checkbox}] {sub.id}: {review_tag}{sub.title}"
 
 
+_jinja_env.filters["checkbox"] = _to_checkbox
+_jinja_env.filters["subtask_line"] = render_subtask_line
+
+
 def render_task(task: Task) -> str:
-    _jinja.filters["checkbox"] = _to_checkbox
-    _jinja.filters["subtask_line"] = render_subtask_line
-    return _jinja.get_template("task.md.j2").render(
+    return _jinja_env.get_template("task.md.j2").render(
         id=task.id,
         slug=task.slug,
         title=task.title,
