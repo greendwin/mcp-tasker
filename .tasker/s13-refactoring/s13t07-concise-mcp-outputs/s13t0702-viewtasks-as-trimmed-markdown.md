@@ -1,7 +1,7 @@
 ---
 id: s13t0702
 slug: viewtasks-as-trimmed-markdown
-status: pending
+status: done
 ---
 
 # View_tasks as trimmed markdown

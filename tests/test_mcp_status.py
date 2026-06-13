@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import Protocol
 
 import pytest
 
@@ -6,6 +7,8 @@ from tasker.base_types import TaskStatus
 from tasker.cli import app
 from tasker.exceptions import TaskHasSubtasksError
 from tasker.mcp import (
+    TaskInfo,
+    TaskPreview,
     cancel_task,
     finish_task,
     reset_task,
@@ -14,8 +17,17 @@ from tasker.mcp import (
     start_task,
     view_tasks,
 )
+from tasker.mcp._render import TASK_BLOCK_SEPARATOR
 
 from .helpers import add_subtask, assert_invoke, create_task
+
+
+def _all_subtask_ids(info: TaskInfo) -> list[str]:
+    return [tid for ids in info.subtasks.values() for tid in ids]
+
+
+class _ForceMutator(Protocol):
+    def __call__(self, task_ref: str, force: bool = ...) -> TaskPreview: ...
 
 
 @pytest.fixture()
@@ -105,16 +117,27 @@ def test_reset_pending_nonleaf_is_ok(story_id: str, leaf_ref: str) -> None:
     assert ti.status == "pending"
 
 
-def test_reset_task_force_resets_subtasks(story_id: str, leaf_ref: str) -> None:
-    start_task(leaf_ref)
-    result = reset_task(story_id, force=True)
-    assert result.status == TaskStatus.PENDING
-    # Verify all subtasks are reset by fetching the full task info
+@pytest.mark.parametrize(
+    "mutator, expected_status",
+    [
+        (reset_task, "pending"),
+        (finish_task, "done"),
+        (cancel_task, "cancelled"),
+    ],
+)
+def test_force_mutators_apply_to_subtasks(
+    story_id: str,
+    leaf_ref: str,
+    mutator: _ForceMutator,
+    expected_status: str,
+) -> None:
+    mutator(story_id, force=True)
     full_info = resource_task(story_id)
-    all_ids = [tid for ids in full_info.subtasks.values() for tid in ids]
+    all_ids = _all_subtask_ids(full_info)
     assert len(all_ids) > 0
-    subtask_infos = view_tasks(all_ids)
-    assert all(s.status == TaskStatus.PENDING for s in subtask_infos)
+    markdown = view_tasks(all_ids)
+    blocks = markdown.split(TASK_BLOCK_SEPARATOR)
+    assert all(f"status: {expected_status}" in block for block in blocks)
 
 
 # --- done_task ---
@@ -137,33 +160,12 @@ def test_done_task_nonleaf_raises(story_id: str, leaf_ref: str) -> None:
         finish_task(story_id)
 
 
-def test_done_task_force_closes_subtasks(story_id: str, leaf_ref: str) -> None:
-    result = finish_task(story_id, force=True)
-    assert result.status == TaskStatus.DONE
-    # Verify all subtasks are closed by fetching the full task info
-    full_info = resource_task(story_id)
-    all_ids = [tid for ids in full_info.subtasks.values() for tid in ids]
-    assert len(all_ids) > 0
-    subtask_infos = view_tasks(all_ids)
-    assert all(s.status == TaskStatus.DONE for s in subtask_infos)
-
-
 # --- cancel_task ---
 
 
 def test_cancel_task_returns_cancelled(leaf_ref: str) -> None:
     result = cancel_task(leaf_ref)
     assert result.status == TaskStatus.CANCELLED
-
-
-def test_cancel_task_force_cancels_subtasks(story_id: str, leaf_ref: str) -> None:
-    result = cancel_task(story_id, force=True)
-    assert result.status == TaskStatus.CANCELLED
-    # Verify all subtasks are cancelled by fetching the full task info
-    full_info = resource_task(story_id)
-    all_ids = [tid for ids in full_info.subtasks.values() for tid in ids]
-    subtask_infos = view_tasks(all_ids)
-    assert all(s.status == TaskStatus.CANCELLED for s in subtask_infos)
 
 
 def test_cancel_task_already_cancelled(leaf_ref: str) -> None:
@@ -194,7 +196,7 @@ def test_mcp_finish_task_force_excludes_forced_children(
     stored = (tasks_root / ".closed").read_text().splitlines()
     assert story_id in stored
     full = resource_task(story_id)
-    child_ids = [tid for ids in full.subtasks.values() for tid in ids]
+    child_ids = _all_subtask_ids(full)
     assert child_ids  # sanity
     for cid in child_ids:
         assert cid not in stored

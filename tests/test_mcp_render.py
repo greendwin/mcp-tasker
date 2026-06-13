@@ -1,9 +1,65 @@
-from tasker.base_types import TaskStatus
+from tasker.base_types import Task, TaskStatus
 from tasker.mcp._model import TaskPreview
 from tasker.mcp._render import (
+    render_task_error,
     render_task_line,
+    render_task_markdown,
     truncate_title,
 )
+
+# --- render_task_markdown ---
+
+
+def test_render_markdown_root_has_no_parent_line() -> None:
+    task = Task(id="s26", title="Root story", slug="root-story")
+    result = render_task_markdown(task)
+    assert result.startswith("# s26: Root story")
+    assert "status: pending" in result
+    assert "parent:" not in result
+
+
+def test_render_markdown_subtask_has_parent_line() -> None:
+    task = Task(id="s26t01", title="Child", slug="child")
+    result = render_task_markdown(task)
+    assert "parent: s26" in result
+
+
+def test_render_markdown_includes_body_verbatim() -> None:
+    task = Task(id="s26", title="Story", slug="story", description="Body text.")
+    result = render_task_markdown(task)
+    assert "Body text." in result
+
+
+def test_render_markdown_omits_body_when_none() -> None:
+    task = Task(id="s26", title="Story", slug="story")
+    assert render_task_markdown(task) == "# s26: Story\nstatus: pending"
+
+
+def test_render_markdown_lists_subtasks() -> None:
+    child = Task(id="s26t01", title="Child", slug="child")
+    task = Task(id="s26", title="Story", slug="story", subtasks=[child])
+    result = render_task_markdown(task)
+    assert "## Subtasks" in result
+    assert "s26t01" in result.split("## Subtasks", 1)[1]
+
+
+def test_render_markdown_omits_subtasks_section_when_empty() -> None:
+    task = Task(id="s26", title="Story", slug="story")
+    assert "## Subtasks" not in render_task_markdown(task)
+
+
+# --- render_task_error ---
+
+
+def test_render_task_error_format() -> None:
+    assert render_task_error("s99", "not found") == "# s99: not found"
+
+
+def test_render_task_error_collapses_newlines_in_message() -> None:
+    result = render_task_error("s99", "first line\n\nsecond line")
+    assert "\n" not in result
+    assert result == "# s99: first line second line"
+
 
 # --- truncate_title ---
 

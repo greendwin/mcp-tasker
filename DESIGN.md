@@ -514,7 +514,7 @@ tasker mcp --port 8080
 |---|---|---|
 | `create_task` | `title`, `parent?`, `description?` | Create a root task or subtask |
 | `list_tasks` | `todo?` | List all root tasks (`todo=true` returns only pinned tasks) |
-| `view_tasks` | `task_refs` | View tasks by IDs: title, status, description (the whole task body, excluding `## Subtasks`), and subtask IDs |
+| `view_tasks` | `task_refs` | View tasks by IDs as trimmed markdown: heading, `status:`/`parent:` metadata, verbatim body, and a `## Subtasks` checklist |
 | `edit_task` | `task_ref`, `title?`, `description?`, `slug?` | Update a task's title, slug, or description (replaces the whole task body) |
 | `start_task` | `task_ref` | Mark task in-progress |
 | `review_task` | `task_ref` | Mark task in-review (submit for review) |

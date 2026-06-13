@@ -6,7 +6,13 @@ from typing import Literal, NamedTuple, overload
 from tasker.layout import discover_tasker_dir
 from tasker.utils import console, escape_markup, read_text
 
-from .base_types import EXTENDED_TASK_FILENAME, Task, TaskStatus, build_task_ref
+from .base_types import (
+    EXTENDED_TASK_FILENAME,
+    Task,
+    TaskStatus,
+    build_task_ref,
+    is_root_task_id,
+)
 from .exceptions import TaskValidateError
 
 # ID: s<digits> or s<digits>t<digits> (t appears once; each level adds two digits)
@@ -46,6 +52,7 @@ def parse_task_ref(task_ref: str) -> ParsedRef:
     m = re.match(r"^(s\d+(?:t(?:\d{2})+)?)", task_ref)
     if not m:
         raise TaskValidateError(f"Invalid task ref: {task_ref!r}", task_ref=task_ref)
+
     task_id = m.group(1)
     rest = task_ref[m.end() :]
     slug = rest[1:] if rest.startswith("-") else None
@@ -68,12 +75,18 @@ def parse_task_ref(task_ref: str) -> ParsedRef:
     )
 
 
-def normalize_task_id(raw: str) -> str:
-    """Expand a direct task ref to its canonical form.
+def task_parent_id(task: Task) -> str | None:
+    if is_root_task_id(task.id):
+        return None
 
-    Pads short digit groups (``s1`` -> ``s01``), drops a trailing ``-slug``,
-    and returns *raw* unchanged when it does not match a direct ref.
-    """
+    return parse_task_ref(task.id).parent_id
+
+
+def normalize_task_id(raw: str) -> str:
+    # expand a direct task ref to its canonical form:
+    # * pads short digit groups (`s1` -> `s01`)
+    # * drops a trailing `-slug`
+    # * return *raw* unchanged when it does not match a direct ref
     m = re.fullmatch(r"s(\d+)(?:t(\d+))?(?:-.*)?", raw)
     if not m:
         return raw

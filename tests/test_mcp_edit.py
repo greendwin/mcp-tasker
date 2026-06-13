@@ -24,8 +24,8 @@ def test_edit_title(story_id: str) -> None:
 
 def test_edit_title_persists(story_id: str) -> None:
     edit_task(story_id, title="New title")
-    info = view_tasks([story_id])[0]
-    assert info.title == "New title"
+    markdown = view_tasks([story_id])
+    assert f"# {story_id}: New title" in markdown
 
 
 def test_edit_description(story_id: str) -> None:
@@ -35,14 +35,14 @@ def test_edit_description(story_id: str) -> None:
 
 def test_edit_description_persists(story_id: str) -> None:
     edit_task(story_id, description="A description")
-    info = view_tasks([story_id])[0]
-    assert info.description == "A description"
+    markdown = view_tasks([story_id])
+    assert "A description" in markdown
 
 
 def test_edit_slug_persists(story_id: str) -> None:
     edit_task(story_id, slug="new-slug")
-    info = view_tasks([story_id])[0]
-    assert info.id == story_id
+    markdown = view_tasks([story_id])
+    assert f"# {story_id}: " in markdown
 
 
 def test_edit_replaces_multi_section_body(
@@ -59,8 +59,9 @@ def test_edit_replaces_multi_section_body(
     result = edit_task(story_id, description="Replacement body")
     assert result.description == "Replacement body"
 
-    info = view_tasks([story_id])[0]
-    assert info.description == "Replacement body"
+    markdown = view_tasks([story_id])
+    assert "Replacement body" in markdown
+    assert "## Notes" not in markdown
 
     rendered = task_file.read_text()
     assert "## Notes" not in rendered

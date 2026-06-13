@@ -3,8 +3,8 @@ from collections import defaultdict
 from pydantic import BaseModel
 from typing_extensions import Self
 
-from tasker.base_types import Task, TaskStatus, is_root_task_id
-from tasker.parse import parse_task_ref
+from tasker.base_types import Task, TaskStatus
+from tasker.parse import task_parent_id
 
 
 class TaskIdentity(BaseModel):
@@ -33,10 +33,7 @@ class TaskInfo(TaskIdentity):
 
     @classmethod
     def from_task(cls, task: Task) -> Self:
-        if is_root_task_id(task.id):
-            parent_id = None
-        else:
-            parent_id = parse_task_ref(task.ref).parent_id
+        parent_id = task_parent_id(task)
 
         grouped: dict[TaskStatus, list[str]] = defaultdict(list)
         for child in task.subtasks:

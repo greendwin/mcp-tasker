@@ -1,3 +1,4 @@
+from tasker.exceptions import TaskValidateError
 from tasker.parse import parse_task_file
 from tasker.repo import TaskRepo
 from tasker.resolve import resolve_ref
@@ -5,7 +6,12 @@ from tasker.todo import classify_todo, load_todo_tasks
 
 from ._common import get_repo, mcp
 from ._model import TaskInfo, TaskPreview
-from ._render import render_task_line
+from ._render import (
+    TASK_BLOCK_SEPARATOR,
+    render_task_error,
+    render_task_line,
+    render_task_markdown,
+)
 
 
 def _list_root_previews(repo: TaskRepo) -> list[TaskPreview]:
@@ -48,16 +54,26 @@ def list_tasks(todo: bool = False) -> str:
 
 
 @mcp.tool()
-def view_tasks(task_refs: list[str]) -> list[TaskInfo]:
-    """View tasks by IDs: title, status, description, and subtask IDs.
+def view_tasks(task_refs: list[str]) -> str:
+    """View tasks by IDs as trimmed markdown.
 
-    ``description`` is the entire free-form task body, excluding the managed
-    ``## Subtasks`` section.
+    Each task renders as ``# <id>: <full title>`` followed by ``status:`` /
+    ``parent:`` metadata lines (``parent:`` omitted for root tasks), the
+    verbatim task body, and a ``## Subtasks`` checklist reusing the compact
+    line format. A bad/deleted/unknown ref becomes a ``# <ref>: <error>`` stub
+    instead of failing the batch. Blocks are joined by ``\\n\\n---\\n\\n``.
 
     Use this instead of reading task files from disk.
     """
     repo = get_repo()
-    return [_load_task_info(repo, ref) for ref in task_refs]
+    blocks: list[str] = []
+    for ref in task_refs:
+        try:
+            task = resolve_ref(repo, ref).task
+            blocks.append(render_task_markdown(task))
+        except TaskValidateError as exc:
+            blocks.append(render_task_error(ref, str(exc)))
+    return TASK_BLOCK_SEPARATOR.join(blocks)
 
 
 @mcp.resource("task://index", mime_type="application/json")

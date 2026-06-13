@@ -1,15 +1,13 @@
-import pytest
-
-from tasker.base_types import TaskStatus
 from tasker.cli import app, get_task_repo
-from tasker.exceptions import TaskValidateError
 from tasker.mcp import (
     TaskInfo,
     finish_task,
     list_tasks,
+    review_task,
     start_task,
     view_tasks,
 )
+from tasker.mcp._render import TASK_BLOCK_SEPARATOR
 from tasker.todo import load_todo_ids, save_todo_ids
 
 from .helpers import GetTaskFile, add_subtask, assert_invoke, create_task
@@ -44,110 +42,123 @@ def test_list_tasks_multiple_root_tasks() -> None:
     assert "Second story" in result
 
 
-def test_view_tasks_returns_task_info() -> None:
-    task_id = create_task("My story").task_id
-    result = view_tasks([task_id])[0]
-    assert isinstance(result, TaskInfo)
-    assert result.id == task_id
-    assert result.title == "My story"
-    assert result.status == TaskStatus.PENDING
-    assert result.subtasks == {}
+# --- view_tasks markdown rendering ---
 
 
-def test_view_tasks_includes_description() -> None:
+def test_view_tasks_renders_heading_status_and_body() -> None:
     task_id = create_task("My story").task_id
-    sub_ref = add_subtask(task_id, "Sub", "Some details").task_ref
-    result = view_tasks([sub_ref])[0]
-    assert result.description == "Some details"
+    sub = add_subtask(task_id, "Sub", "Some details")
+
+    result = view_tasks([sub.task_ref])
+    assert isinstance(result, str)
+    assert f"# {sub.task_id}: Sub" in result
+    assert "status: pending" in result
+    assert "Some details" in result
+
+
+def test_view_tasks_renders_full_untruncated_title() -> None:
+    long_title = (
+        "A very long task title that exceeds the sixty character limit by quite a lot"
+    )
+    assert len(long_title) > 60
+    task_id = create_task(long_title).task_id
+
+    result = view_tasks([task_id])
+    assert f"# {task_id}: {long_title}" in result
+    assert "..." not in result
+
+
+def test_view_tasks_root_omits_parent_line() -> None:
+    task_id = create_task("My story").task_id
+    result = view_tasks([task_id])
+    assert "parent:" not in result
+
+
+def test_view_tasks_subtask_includes_parent_line() -> None:
+    parent_id = create_task("My story").task_id
+    sub = add_subtask(parent_id, "Sub")
+    result = view_tasks([sub.task_ref])
+    assert f"parent: {parent_id}" in result
+
+
+def test_view_tasks_body_section_only_renders_verbatim(
+    get_task_file: GetTaskFile,
+) -> None:
+    task_id = create_task("My story").task_id
+    path = get_task_file(task_id)
+    path.write_text(path.read_text() + "\n## Notes\n\nSome notes here.\n")
+
+    result = view_tasks([task_id])
+    assert "## Notes\n\nSome notes here." in result
+
+
+def test_view_tasks_no_subtasks_omits_subtasks_section() -> None:
+    task_id = create_task("My story").task_id
+    result = view_tasks([task_id])
+    assert "## Subtasks" not in result
+
+
+def test_view_tasks_lists_subtasks_with_status_signs() -> None:
+    task_id = create_task("My story").task_id
+    sub_pending_id = add_subtask(task_id, "Pending sub").task_id
+    sub_inprog = add_subtask(task_id, "Started sub")
+    sub_done = add_subtask(task_id, "Done sub")
+    sub_review = add_subtask(task_id, "Review sub")
+    start_task(sub_inprog.task_ref)
+    finish_task(sub_done.task_ref)
+    review_task(sub_review.task_ref)
+
+    result = view_tasks([task_id])
+    assert "## Subtasks" in result
+    assert f". {sub_pending_id}" in result
+    assert f"~ {sub_inprog.task_id}" in result
+    assert f"x {sub_done.task_id}" in result
+    assert f"? {sub_review.task_id}" in result
+
+
+def test_view_tasks_bad_ref_does_not_raise() -> None:
+    result = view_tasks(["s99"])
+    assert result.startswith("# s99: ")
+    assert "not found" in result
+
+
+def test_view_tasks_batch_mixes_good_and_bad_refs() -> None:
+    task_id = create_task("Good story").task_id
+    result = view_tasks([task_id, "s99"])
+
+    blocks = result.split(TASK_BLOCK_SEPARATOR)
+    assert len(blocks) == 2
+    assert f"# {task_id}: Good story" in result
+    assert "# s99: " in result
+    assert "not found" in result
+
+
+def test_view_tasks_empty_list_returns_empty_string() -> None:
+    assert view_tasks([]) == ""
+
+
+def test_view_tasks_embedded_headings_survive_and_do_not_split() -> None:
+    parent_id = create_task("Parent story").task_id
+    sub = add_subtask(
+        parent_id,
+        "Child",
+        "# Embedded heading\n\n## Embedded sub\n\nText.",
+    )
+
+    result = view_tasks([parent_id, sub.task_ref])
+    blocks = result.split(TASK_BLOCK_SEPARATOR)
+    assert len(blocks) == 2
+
+    child_block = blocks[1]
+    assert "# Embedded heading" in child_block
+    assert "## Embedded sub" in child_block
+    assert "Text." in child_block
 
 
 def test_view_tasks_has_no_has_body_field() -> None:
     # has_body is a list-row affordance; the detailed view carries the body
     # itself, so the detail model must not declare a (always-false) has_body field.
     assert "has_body" not in TaskInfo.model_fields
-
-
-def test_view_tasks_no_description_is_none() -> None:
-    task_id = create_task("My story").task_id
-    result = view_tasks([task_id])[0]
-    assert result.description is None
-
-
-def test_view_tasks_body_is_section_only(get_task_file: GetTaskFile) -> None:
-    task_id = create_task("My story").task_id
-    path = get_task_file(task_id)
-    path.write_text(path.read_text() + "\n## Notes\n\nSome notes here.\n")
-
-    result = view_tasks([task_id])[0]
-    assert result.description == "## Notes\n\nSome notes here."
-
-
-def test_view_tasks_body_includes_lead_and_sections(
-    get_task_file: GetTaskFile,
-) -> None:
-    task_id = create_task("My story").task_id
-    path = get_task_file(task_id)
-    content = path.read_text()
-    content = content.replace(
-        "# My story\n",
-        "# My story\n\nSome details.\n\n## Notes\n\nSome notes here.\n",
-    )
-    path.write_text(content)
-
-    result = view_tasks([task_id])[0]
-    assert result.description == "Some details.\n\n## Notes\n\nSome notes here."
-
-
-def test_view_tasks_subtasks_grouped_by_status() -> None:
-    task_id = create_task("My story").task_id
-    sub_id = add_subtask(task_id, "Sub").task_id
-    result = view_tasks([task_id])[0]
-    assert result.subtasks == {"pending": [sub_id]}
-
-
-def test_view_tasks_subtasks_values_are_id_strings() -> None:
-    task_id = create_task("My story").task_id
-    add_subtask(task_id, "Sub")
-    result = view_tasks([task_id])[0]
-    # subtask values are plain strings (IDs), not objects
-    assert isinstance(result.subtasks["pending"][0], str)
-
-
-def test_view_tasks_subtasks_multiple_statuses() -> None:
-    task_id = create_task("My story").task_id
-    sub1_id = add_subtask(task_id, "Pending sub").task_id
-    sub2_ref = add_subtask(task_id, "Started sub").task_ref
-    sub3_ref = add_subtask(task_id, "Done sub").task_ref
-    start_task(sub2_ref)
-    finish_task(sub3_ref)
-    result = view_tasks([task_id])[0]
-    assert result.subtasks["pending"] == [sub1_id]
-    assert len(result.subtasks["in-progress"]) == 1
-    assert len(result.subtasks["done"]) == 1
-
-
-def test_view_tasks_not_found_raises() -> None:
-    with pytest.raises(TaskValidateError):
-        view_tasks(["s99"])
-
-
-def test_view_tasks_returns_multiple() -> None:
-    id1 = create_task("First").task_id
-    id2 = create_task("Second").task_id
-    results = view_tasks([id1, id2])
-    assert len(results) == 2
-    ids = {r.id for r in results}
-    assert ids == {id1, id2}
-
-
-def test_view_tasks_empty_list() -> None:
-    assert view_tasks([]) == []
-
-
-def test_view_tasks_returns_task_info_instances() -> None:
-    task_id = create_task("Story").task_id
-    results = view_tasks([task_id])
-    assert isinstance(results[0], TaskInfo)
 
 
 # --- list_tasks with todo filter ---
@@ -209,24 +220,23 @@ def test_view_tasks_resolves_t_letter_shortcut() -> None:
     s1 = create_task("Story one").task_id
     create_task("Story two")
     assert_invoke(app, ["todo", s1])
-    result = view_tasks(["ta"])[0]
-    assert result.id == s1
-    assert result.title == "Story one"
+    result = view_tasks(["ta"])
+    assert f"# {s1}: Story one" in result
 
 
 def test_view_tasks_resolves_t_letter_with_child_digits() -> None:
     s1 = create_task("Story one").task_id
     sub_id = add_subtask(s1, "Child").task_id
     assert_invoke(app, ["todo", s1])
-    result = view_tasks(["ta01"])[0]
-    assert result.id == sub_id
+    result = view_tasks(["ta01"])
+    assert f"# {sub_id}: Child" in result
 
 
 def test_view_tasks_resolves_q_shortcut() -> None:
     s1 = create_task("Story one").task_id
     assert_invoke(app, ["show", s1])
-    result = view_tasks(["q"])[0]
-    assert result.id == s1
+    result = view_tasks(["q"])
+    assert f"# {s1}: Story one" in result
 
 
 def test_view_tasks_shortcut_does_not_update_recent() -> None:
@@ -235,8 +245,8 @@ def test_view_tasks_shortcut_does_not_update_recent() -> None:
     assert_invoke(app, ["todo", s1])
     assert_invoke(app, ["show", s2])  # set recent to s2
     view_tasks(["ta"])  # access via shortcut
-    result = view_tasks(["q"])[0]
-    assert result.id == s2
+    result = view_tasks(["q"])
+    assert f"# {s2}: Story two" in result
 
 
 # --- body marker in list output ---

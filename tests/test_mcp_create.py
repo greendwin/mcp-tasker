@@ -24,8 +24,8 @@ def test_create_root_task_capitalizes_title() -> None:
 
 def test_create_root_task_with_description() -> None:
     result = create_task("My story", description="Some details")
-    full = view_tasks([result.id])[0]
-    assert full.description == "Some details"
+    full = view_tasks([result.id])
+    assert "Some details" in full
 
 
 def test_create_subtask_under_parent() -> None:
@@ -37,13 +37,13 @@ def test_create_subtask_under_parent() -> None:
 def test_create_subtask_appears_in_parent_subtasks() -> None:
     parent_id = helper_create_task("Parent").task_id
     child = create_task("Child task", parent=parent_id)
-    parent = view_tasks([parent_id])[0]
-    all_ids = [tid for ids in parent.subtasks.values() for tid in ids]
-    assert child.id in all_ids
+    parent = view_tasks([parent_id])
+    subtasks_part = parent.split("## Subtasks", 1)[1]
+    assert child.id in subtasks_part
 
 
 def test_create_subtask_with_description() -> None:
     parent_id = helper_create_task("Parent").task_id
     result = create_task("Child task", parent=parent_id, description="Details here")
-    full = view_tasks([result.id])[0]
-    assert full.description == "Details here"
+    full = view_tasks([result.id])
+    assert "Details here" in full
