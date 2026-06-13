@@ -28,7 +28,7 @@ def list_tasks(todo: bool = False) -> str:
 
     Status signs: ``.`` pending, ``~`` in-progress, ``?`` in-review,
     ``x`` done, ``-`` cancelled. A trailing ``(...)`` marks a task that has
-    a body (description or extra sections) -- view it for the full detail.
+    a body -- view it for the full detail.
 
     Args:
         todo: If True, list only tasks from the TODO list.
@@ -51,7 +51,8 @@ def list_tasks(todo: bool = False) -> str:
 def view_tasks(task_refs: list[str]) -> list[TaskInfo]:
     """View tasks by IDs: title, status, description, and subtask IDs.
 
-    The description includes any non-Subtasks ``##`` sections.
+    ``description`` is the entire free-form task body, excluding the managed
+    ``## Subtasks`` section.
 
     Use this instead of reading task files from disk.
     """

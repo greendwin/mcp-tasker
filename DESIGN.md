@@ -28,7 +28,7 @@ Tasks **auto-upgrade** when structure requires it:
 
 Tasks **auto-downgrade** when structure allows it (triggered during `move`):
 - Extended task with no file-based subtasks remaining → basic form (dir collapsed to single file)
-- File-based non-root task with no description, no extra sections, and no subtasks → inline form (file removed, becomes a bullet in parent)
+- File-based non-root task with no description and no subtasks → inline form (file removed, becomes a bullet in parent)
 
 ---
 
@@ -514,8 +514,8 @@ tasker mcp --port 8080
 |---|---|---|
 | `create_task` | `title`, `parent?`, `description?` | Create a root task or subtask |
 | `list_tasks` | `todo?` | List all root tasks (`todo=true` returns only pinned tasks) |
-| `view_tasks` | `task_refs` | View tasks by IDs: title, status, description (including any non-Subtasks `##` sections), and subtask IDs |
-| `edit_task` | `task_ref`, `title?`, `description?`, `slug?` | Update a task's title, description, or slug |
+| `view_tasks` | `task_refs` | View tasks by IDs: title, status, description (the whole task body, excluding `## Subtasks`), and subtask IDs |
+| `edit_task` | `task_ref`, `title?`, `description?`, `slug?` | Update a task's title, slug, or description (replaces the whole task body) |
 | `start_task` | `task_ref` | Mark task in-progress |
 | `review_task` | `task_ref` | Mark task in-review (submit for review) |
 | `reset_task` | `task_ref`, `force?` | Reset task to pending (`force` resets non-pending subtasks) |

@@ -1,7 +1,7 @@
 ---
 id: s26
 slug: bugs
-status: pending
+status: done
 ---
 
 # Bugs
@@ -22,4 +22,4 @@ status: pending
 - [x] [s26t12](s26t12-when-failing-resetting-extra-error.md): When failing resetting - extra Error: 1
 - [x] [s26t13](s26t13-list-todo-dont-expand-subtasks.md): List --todo don't expand subtasks
 - [x] s26t14: Description can be null in MCP when there are only extra sections
-- [ ] [s26t15](s26t15-edittask-mcp-prepend-description-instead/): Edit_task mcp prepend description instead of replaacing it
+- [x] [s26t15](s26t15-edittask-mcp-prepend-description-instead/): Edit_task mcp prepend description instead of replaacing it

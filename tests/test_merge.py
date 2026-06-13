@@ -690,6 +690,29 @@ class TestMergeTaskFileDescriptionConflict:
         assert ">>>>>>> theirs" in result.content
 
 
+class TestMergeTaskFileUnifiedBodyGranularity:
+    """The whole body is one merge unit, so non-overlapping body edits conflict."""
+
+    def test_lead_and_section_edits_conflict(self) -> None:
+        """Pin unified-body merge granularity.
+
+        A branch editing only the lead paragraph and another editing only a
+        section used to auto-merge. Because the body is now a single merge
+        unit, these non-overlapping edits conflict instead.
+        """
+        base = _make_file(description="Lead paragraph.\n\n## Notes\n\nShared notes.")
+        ours = _make_file(
+            description="Edited lead paragraph.\n\n## Notes\n\nShared notes."
+        )
+        theirs = _make_file(description="Lead paragraph.\n\n## Notes\n\nEdited notes.")
+        result = _merge(base, ours, theirs)
+        assert result.has_conflicts is True
+        assert "<<<<<<< ours" in result.content
+        assert "Edited lead paragraph." in result.content
+        assert "Edited notes." in result.content
+        assert ">>>>>>> theirs" in result.content
+
+
 class TestMergeTaskFileSubtaskConflict:
     """Subtask with conflicting title/status gets markers."""
 

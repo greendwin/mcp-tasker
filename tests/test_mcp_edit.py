@@ -2,8 +2,9 @@ import pytest
 
 from tasker.exceptions import TaskValidateError
 from tasker.mcp import TaskInfo, edit_task, view_tasks
+from tasker.parse import parse_task_file
 
-from .helpers import add_subtask, create_task
+from .helpers import GetTaskFile, add_subtask, create_task
 
 
 @pytest.fixture()
@@ -42,6 +43,28 @@ def test_edit_slug_persists(story_id: str) -> None:
     edit_task(story_id, slug="new-slug")
     info = view_tasks([story_id])[0]
     assert info.id == story_id
+
+
+def test_edit_replaces_multi_section_body(
+    story_id: str, get_task_file: GetTaskFile
+) -> None:
+    task_file = get_task_file(story_id)
+    content = task_file.read_text()
+    task_file.write_text(
+        content + "\nLead paragraph.\n\n## Notes\n\nImportant note here.\n"
+    )
+    seeded = parse_task_file(task_file).task.description
+    assert seeded is not None and "## Notes" in seeded
+
+    result = edit_task(story_id, description="Replacement body")
+    assert result.description == "Replacement body"
+
+    info = view_tasks([story_id])[0]
+    assert info.description == "Replacement body"
+
+    rendered = task_file.read_text()
+    assert "## Notes" not in rendered
+    assert "Important note here." not in rendered
 
 
 def test_edit_subtask(story_id: str) -> None:

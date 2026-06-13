@@ -61,6 +61,28 @@ def test_edit_details_on_root_task(s1: str, get_task_file: GetTaskFile) -> None:
     assert parsed.task.description == "Root description"
 
 
+def test_edit_details_replaces_multi_section_body(
+    s1: str, get_task_file: GetTaskFile
+) -> None:
+    task_file = get_task_file(s1)
+    content = task_file.read_text()
+    task_file.write_text(
+        content + "\nLead paragraph.\n\n## Notes\n\nImportant note here.\n"
+    )
+    seeded = parse_task_file(task_file).task.description
+    assert seeded is not None and "## Notes" in seeded
+
+    assert_invoke(app, ["edit", s1, "--details", "Replacement body"])
+
+    parsed = parse_task_file(task_file)
+    assert parsed.task.description == "Replacement body"
+
+    rendered = task_file.read_text()
+    assert "## Notes" not in rendered
+    assert "Important note here." not in rendered
+    assert "Lead paragraph." not in rendered
+
+
 def test_edit_details_upgrades_inline_task(
     s1: str, tasks_root: Path, get_task_file: GetTaskFile
 ) -> None:

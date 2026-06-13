@@ -1,7 +1,7 @@
 ---
 id: s26t1504
 slug: documentation-wording
-status: pending
+status: done
 ---
 
 # Documentation wording
