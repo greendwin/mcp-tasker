@@ -1,7 +1,7 @@
 ---
 id: s26t1602
 slug: strict-task-schema-extraforbid
-status: pending
+status: done
 ---
 
 # Strict Task schema (extra=forbid)

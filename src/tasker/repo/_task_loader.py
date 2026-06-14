@@ -1,3 +1,4 @@
+import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import NamedTuple
@@ -132,6 +133,42 @@ class TaskLoader:
         _cleanup_old_dirs(pending_dir_cleanups)
 
 
+def _normalize_body(text: str | None) -> str:
+    return re.sub(r"\s+", " ", text or "").strip()
+
+
+def _verify_render_faithful(task: Task, rendered: str) -> None:
+    # Re-parse the just-rendered output and compare it against the in-memory task.
+    # A serialization that drops or mangles the round-tripped fields must abort
+    # the flush loudly instead of silently overwriting the on-disk file.
+    #
+    # Title, status, and the free-prose body are all re-derived by parsing, so
+    # all three are checked here; a future round-trip field must consciously
+    # extend this guard to be protected.
+    assert task.slug is not None, "render guard only runs for file-backed tasks"
+
+    reparsed, _ = parse_task(
+        rendered,
+        task_id=task.id,
+        slug=task.slug,
+        extended=task.extended,
+    )
+
+    if reparsed.title != task.title or reparsed.status != task.status:
+        raise TaskValidateError(
+            f"Rendering task {task.ref!r} would lose title/status; "
+            f"refusing to overwrite the existing file",
+            task_ref=task.ref,
+        )
+
+    if _normalize_body(reparsed.description) != _normalize_body(task.description):
+        raise TaskValidateError(
+            f"Rendering task {task.ref!r} would lose body content; "
+            f"refusing to overwrite the existing file",
+            task_ref=task.ref,
+        )
+
+
 class _PendingDirCleanup(NamedTuple):
     old_dir: Path
     task_id: str
@@ -152,6 +189,7 @@ def _flush_task(
         new_filename = append_task_filename(parent_dir, task.ref, task.extended)
 
         if orig is None or new_filename != orig.filename or rendered != orig.content:
+            _verify_render_faithful(task, rendered)
             write_text(new_filename, rendered)
 
             original_state[task.id] = OriginalState(

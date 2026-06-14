@@ -1,7 +1,7 @@
 ---
 id: s26
 slug: bugs
-status: pending
+status: done
 ---
 
 # Bugs
@@ -23,4 +23,4 @@ status: pending
 - [x] [s26t13](s26t13-list-todo-dont-expand-subtasks.md): List --todo don't expand subtasks
 - [x] s26t14: Description can be null in MCP when there are only extra sections
 - [x] [s26t15](s26t15-edittask-mcp-prepend-description-instead/): Edit_task mcp prepend description instead of replaacing it
-- [ ] [s26t16](s26t16-description-are-wiped-on-flush/): Description are wiped on flush
+- [x] [s26t16](s26t16-description-are-wiped-on-flush/): Description are wiped on flush

@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections.abc import Iterator
 from enum import Enum
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 EXTENDED_TASK_FILENAME = "README.md"
 
@@ -17,6 +17,8 @@ class TaskStatus(str, Enum):
 
 
 class Task(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     id: str  # unique id that can be used to reference a task
     title: str  # short summary of a task
     status: TaskStatus = TaskStatus.PENDING

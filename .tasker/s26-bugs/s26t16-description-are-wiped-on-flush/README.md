@@ -1,7 +1,7 @@
 ---
 id: s26t16
 slug: description-are-wiped-on-flush
-status: pending
+status: done
 ---
 
 # Description are wiped on flush
@@ -34,5 +34,5 @@ See `docs/adr/0002-flush-fail-loud-on-body-loss.md`.
 ## Subtasks
 
 - [x] [s26t1601](s26t1601-fix-generateslug-hyphen-mangling.md): Fix generate_slug hyphen mangling
-- [ ] [s26t1602](s26t1602-strict-task-schema-extraforbid.md): Strict Task schema (extra=forbid)
-- [ ] [s26t1603](s26t1603-flush-roundtrip-guard.md): Flush round-trip guard
+- [x] [s26t1602](s26t1602-strict-task-schema-extraforbid.md): Strict Task schema (extra=forbid)
+- [x] [s26t1603](s26t1603-flush-roundtrip-guard.md): Flush round-trip guard

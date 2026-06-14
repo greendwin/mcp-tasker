@@ -2,9 +2,10 @@ from pathlib import Path
 
 import pytest
 
-from tasker.exceptions import TaskerError
-from tasker.render import append_task_filename
-from tasker.repo import TaskRepo
+from tasker.base_types import Task
+from tasker.exceptions import TaskerError, TaskValidateError
+from tasker.render import append_task_filename, render_task
+from tasker.repo import TaskRepo, _task_loader
 from tasker.repo._utils import (
     find_next_root_task_id,
     generate_slug,
@@ -306,6 +307,162 @@ def test_dont_reset_nested_tasks(tasks_root: Path) -> None:
     # ensure that subtask still exists
     assert task_path.exists()
     assert subtask_ref in task_path.read_text()
+
+
+# --- flush render-faithfulness guard ---
+
+
+def patch_render(monkeypatch: pytest.MonkeyPatch, **updates: object) -> None:
+    real_render = render_task
+
+    def _lossy_render(task: Task) -> str:
+        return real_render(task.model_copy(update=updates))
+
+    monkeypatch.setattr(_task_loader, "render_task", _lossy_render)
+
+
+def test_flush_mangled_title_raises_and_leaves_file_intact(
+    tasks_root: Path,
+    get_task_file: GetTaskFile,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo = make_repo(tasks_root)
+    repo.create_root_task(
+        title="My story",
+        description="Important prose that must survive",
+        slug=None,
+        extended=False,
+    )
+    repo.flush_to_disk()
+
+    task_file = get_task_file("s01")
+    original_content = task_file.read_text()
+    assert "My story" in original_content
+
+    patch_render(monkeypatch, title="Corrupted title")
+
+    task = repo.resolve_ref("s01")
+    repo.add_subtask(task, title="Force a rewrite")
+
+    with pytest.raises(TaskValidateError, match="lose title/status"):
+        repo.flush_to_disk()
+
+    assert task_file.read_text() == original_content
+
+
+def test_flush_lossy_render_raises_and_leaves_file_intact(
+    tasks_root: Path,
+    get_task_file: GetTaskFile,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo = make_repo(tasks_root)
+    repo.create_root_task(
+        title="My story",
+        description="Important prose that must survive",
+        slug=None,
+        extended=False,
+    )
+    repo.flush_to_disk()
+
+    task_file = get_task_file("s01")
+    original_content = task_file.read_text()
+    assert "Important prose that must survive" in original_content
+
+    patch_render(monkeypatch, description=None)
+
+    task = repo.resolve_ref("s01")
+    repo.add_subtask(task, title="Force a rewrite")
+
+    with pytest.raises(TaskValidateError, match="lose body content"):
+        repo.flush_to_disk()
+
+    assert task_file.read_text() == original_content
+
+
+def test_flush_partial_body_loss_raises_and_leaves_file_intact(
+    tasks_root: Path,
+    get_task_file: GetTaskFile,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo = make_repo(tasks_root)
+    repo.create_root_task(
+        title="My story",
+        description="First kept paragraph.\n\nSecond dropped paragraph.",
+        slug=None,
+        extended=False,
+    )
+    repo.flush_to_disk()
+
+    task_file = get_task_file("s01")
+    original_content = task_file.read_text()
+    assert "First kept paragraph." in original_content
+    assert "Second dropped paragraph." in original_content
+
+    patch_render(monkeypatch, description="First kept paragraph.")
+
+    task = repo.resolve_ref("s01")
+    repo.add_subtask(task, title="Force a rewrite")
+
+    with pytest.raises(TaskValidateError, match="lose body content"):
+        repo.flush_to_disk()
+
+    assert task_file.read_text() == original_content
+
+
+def test_flush_empty_body_round_trips_cleanly(tasks_root: Path) -> None:
+    repo = make_repo(tasks_root)
+    task = repo.create_root_task(
+        title="My story", description=None, slug=None, extended=False
+    )
+    repo.flush_to_disk()
+
+    # absent body must not spuriously trip the guard on a forced rewrite
+    repo.add_subtask(task, title="Force a rewrite")
+    repo.flush_to_disk()
+
+
+def test_flush_faithful_render_writes_body(
+    tasks_root: Path, get_task_file: GetTaskFile
+) -> None:
+    repo = make_repo(tasks_root)
+    repo.create_root_task(
+        title="My story",
+        description="## Background\n\nSome real body content here.",
+        slug=None,
+        extended=False,
+    )
+    repo.flush_to_disk()
+
+    content = get_task_file("s01").read_text()
+    assert "Some real body content here." in content
+
+
+def test_flush_whitespace_only_diff_does_not_trip_guard(
+    tasks_root: Path,
+    get_task_file: GetTaskFile,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo = make_repo(tasks_root)
+    repo.create_root_task(
+        title="My story",
+        description="Line one\n\nLine two",
+        slug=None,
+        extended=False,
+    )
+    repo.flush_to_disk()
+
+    patch_render(monkeypatch, description="Line one    Line two")
+
+    task = repo.resolve_ref("s01")
+    repo.add_subtask(task, title="Force a rewrite")
+
+    # whitespace-only divergence between in-memory and re-parsed body is tolerated
+    repo.flush_to_disk()
+
+    # the rewrite must actually reach disk, proving the guard was invoked on the
+    # about-to-write branch and tolerated the diff rather than skipping the write
+    content = get_task_file("s01").read_text()
+    assert "Line one    Line two" in content
 
 
 # --- upgrade_to_filebased ---
