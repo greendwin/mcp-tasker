@@ -102,30 +102,39 @@ def test_load_story_raises_on_duplicate_id(
 # --- generate_slug ---
 
 
-def test_generate_slug_basic() -> None:
-    assert generate_slug("My story title") == "my-story-title"
-
-
-def test_generate_slug_lowercases() -> None:
-    assert generate_slug("UPPER CASE") == "upper-case"
-
-
-def test_generate_slug_strips_special_chars() -> None:
-    assert generate_slug("Hello, World!") == "hello-world"
-
-
-def test_generate_slug_truncates_to_five_words() -> None:
-    assert (
-        generate_slug("one two three four five six seven") == "one-two-three-four-five"
-    )
-
-
-def test_generate_slug_preserves_numbers() -> None:
-    assert generate_slug("Task 42 part 2") == "task-42-part-2"
-
-
-def test_generate_slug_collapses_extra_spaces() -> None:
-    assert generate_slug("too   many   spaces") == "too-many-spaces"
+@pytest.mark.parametrize(
+    "title, expected",
+    [
+        pytest.param("My story title", "my-story-title", id="basic"),
+        pytest.param("UPPER CASE", "upper-case", id="lowercases"),
+        pytest.param("Hello, World!", "hello-world", id="strips-special-chars"),
+        pytest.param("User's report", "user-s-report", id="splits-on-apostrophe"),
+        pytest.param("foo_bar baz", "foo-bar-baz", id="splits-on-underscore"),
+        pytest.param(
+            "one two three four five six seven",
+            "one-two-three-four-five",
+            id="truncates-to-five-words",
+        ),
+        pytest.param("Task 42 part 2", "task-42-part-2", id="preserves-numbers"),
+        pytest.param(
+            "too   many   spaces", "too-many-spaces", id="collapses-extra-spaces"
+        ),
+        pytest.param(
+            "Safe-reattach by content search",
+            "safe-reattach-by-content-search",
+            id="preserves-internal-hyphen",
+        ),
+        pytest.param(
+            "Extract shared skill-dir overwrite primitive",
+            "extract-shared-skill-dir-overwrite",
+            id="caps-parts-after-normalization",
+        ),
+        pytest.param("", "", id="empty-title"),
+        pytest.param("---", "", id="punctuation-only-title"),
+    ],
+)
+def test_generate_slug(title: str, expected: str) -> None:
+    assert generate_slug(title) == expected
 
 
 # --- create_story ---

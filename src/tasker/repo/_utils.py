@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from tasker.base_types import Task, TaskStatus, is_root_task_id
-from tasker.parse import make_child_ref, parse_task_ref
+from tasker.parse import make_child_ref, normalize_slug, parse_task_ref
 from tasker.render import append_task_filename
 
 if TYPE_CHECKING:
@@ -13,8 +13,8 @@ if TYPE_CHECKING:
 
 
 def generate_slug(title: str) -> str:
-    words = re.sub(r"[^a-z0-9\s]", "", title.lower()).split()[:5]
-    return "-".join(words)
+    # return first five parts of the normalized title
+    return "-".join(normalize_slug(title).split("-")[:5])
 
 
 def find_next_root_task_id(loader: TaskLoader) -> str:
