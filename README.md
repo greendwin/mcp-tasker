@@ -253,6 +253,9 @@ uv run isort src tests
 
 ## Release Notes
 
+### 1.8.1
+- Bug fixes: flush aborts loudly instead of silently wiping a task's body when a render would drop title/status or prose; `generate_slug` keeps internal hyphens/underscores as word separators instead of deleting them
+
 ### 1.8.0
 - Task body unified into a single free-form `description`; editing a task no longer orphans or duplicates extra `##` sections on write
 - MCP: read tools `list_tasks` and `view_tasks` now return plain text / trimmed markdown instead of structured JSON
