@@ -1,7 +1,7 @@
 ---
 id: s26
 slug: bugs
-status: done
+status: pending
 ---
 
 # Bugs
@@ -24,3 +24,4 @@ status: done
 - [x] s26t14: Description can be null in MCP when there are only extra sections
 - [x] [s26t15](s26t15-edittask-mcp-prepend-description-instead/): Edit_task mcp prepend description instead of replaacing it
 - [x] [s26t16](s26t16-description-are-wiped-on-flush/): Description are wiped on flush
+- [ ] s26t17: Parent task keep in-progress after moving away all subtasks by --id

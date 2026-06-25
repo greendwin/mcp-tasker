@@ -38,3 +38,5 @@ Improve user experience
 - [x] s19t31: Allow reference tasks by their name aka 'tasker add bugs ...'
 - [ ] [s19t32](s19t32-interactive-mode-for-tasker-list.md): Interactive mode for 'tasker list'
 - [ ] s19t33: Add mpc installation helper 'tasker mcp --install'
+- [ ] [s19t34](s19t34-get-rid-of-subtasks-section.md): Get rid of 'subtasks' section
+- [ ] [s19t35](s19t35-support-tasks-order.md): Support tasks order

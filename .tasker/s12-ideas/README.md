@@ -30,3 +30,4 @@ status: pending
 - [ ] [s12t23](s12t23-todo-list-must-be-commited.md): Todo list must be commited to git, don't ignore it
 - [ ] s12t24: Order tasks in 'list' by 'depends-on' relations
 - [ ] [s12t25](s12t25-resolve-conflicting-ids-on-tasker.md): Resolve conflicting ids on 'tasker resolve'
+- [ ] [s12t26](s12t26-tasker-ui.md): Tasker UI
