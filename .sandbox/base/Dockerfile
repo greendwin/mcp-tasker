@@ -26,6 +26,14 @@ ENV PATH="/home/${USERNAME}/.local/bin:${PATH}"
 
 RUN curl -fsSL https://claude.ai/install.sh | bash
 
+# uv is shared across all variants — it manages Python interpreters and is also
+# the installer for Python-based tooling (e.g. mcp-tasker), so it belongs in the
+# base image rather than any single variant.
+RUN curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# mcp-tasker is the task-tracker MCP server; make it available everywhere.
+RUN uv tool install mcp-tasker
+
 RUN git config --global user.name "Claude Agent" \
     && git config --global user.email "agent@claude.ai"
 

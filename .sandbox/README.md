@@ -5,6 +5,9 @@ a shared project workspace, and a pluggable variant system for different languag
 
 See the top-level [`README.md`](../README.md) for WSL setup and a variants overview.
 
+The shared base image ships `uv` and the `mcp-tasker` MCP server, so they're
+available in every variant regardless of language stack.
+
 ## Layout
 
 ```
@@ -13,11 +16,11 @@ sandbox/
   docker-compose.yml                    base compose file (variant-agnostic)
   run.sh                                one-shot: build (if needed) → up → claude
   base/
-    Dockerfile                          generic dev image (ubuntu + tmux/zsh/nvim/node/claude)
+    Dockerfile                          generic dev image (ubuntu + tmux/zsh/nvim/node/claude + uv/mcp-tasker)
     zshrc, tmux.conf                    mounted read-only into the container
   variants/
-    python-uv/        Dockerfile + compose.override.yml
-    python-poetry/    Dockerfile + compose.override.yml
+    python/           Dockerfile + compose.override.yml  (uv + poetry)
+    typescript/       Dockerfile + compose.override.yml  (node TS toolchain)
     php/              Dockerfile + compose.override.yml
     minimal/          Dockerfile + compose.override.yml  (no language stack)
   scripts/
@@ -68,7 +71,9 @@ docker compose down   # stop the old variant
 ```
 
 Each variant's image is tagged `<COMPOSE_PROJECT_NAME>-<variant>:latest`, so
-switching doesn't rebuild unnecessarily.
+switching doesn't rebuild unnecessarily. The base image (`BASE_IMAGE`, default
+`agent-sandbox-base:latest`) is *shared* across all sandboxes regardless of
+`COMPOSE_PROJECT_NAME`, so it's built once and reused everywhere.
 
 ## Stopping
 
@@ -78,8 +83,9 @@ docker compose down        # remove containers, keep volumes (auth + caches)
 docker compose down -v     # nuke everything including caches and venvs
 ```
 
-Named volumes owned by a variant (e.g. `venv`, `tox`, `uv-cache`, `vendor`,
-`composer-cache`) live under the compose project namespace — you can list them
+Named volumes owned by a variant (e.g. `venv`, `tox`, `uv-cache`, `uv-data`,
+`poetry-cache`, `node-modules`, `vendor`, `composer-cache`) live under the
+compose project namespace — you can list them
 with `docker volume ls | grep "$COMPOSE_PROJECT_NAME"`.
 
 ## Rebuilding
@@ -89,6 +95,14 @@ After changing a `Dockerfile` or `claude_install.sh`:
 ```bash
 ./scripts/build.sh
 docker compose up -d --force-recreate
+```
+
+`build.sh` builds the shared base image only when it's missing, then builds the
+active variant. To refresh the shared base itself (a no-cache rebuild that
+updates *every* sandbox using it), pass `--force`:
+
+```bash
+./scripts/build.sh --force
 ```
 
 ## Adding a variant

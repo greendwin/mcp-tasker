@@ -6,9 +6,11 @@ services:
       - tox:/work/.tox
       - uv-cache:/home/${USER}/.cache/uv
       - uv-data:/home/${USER}/.local/share/uv
+      - poetry-cache:/home/${USER}/.cache/pypoetry
 
 volumes:
   venv:
   tox:
   uv-cache:
   uv-data:
+  poetry-cache:
