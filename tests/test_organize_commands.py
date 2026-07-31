@@ -7,7 +7,7 @@ import pytest
 from tasker.base_types import TaskStatus
 from tasker.cli import app
 from tasker.layout import ARCHIVE_DIR
-from tasker.parse import parse_task_file
+from tasker.parse import ParseTaskResult, parse_task_file
 from tasker.repo import TaskRepo
 from tasker.todo import load_todo_ids
 
@@ -969,7 +969,113 @@ def test_move_all_subtasks_downgrades_parent_to_inline(
     story_file = next(tasks_root.glob(f"{s1}-*.md"))
     story_content = story_file.read_text()
     assert "Container" in story_content
-    assert f"- [ ] {t01}: Container" in story_content
+    assert f"- [x] {t01}: Container" in story_content
+
+
+# ---------------------------------------------------------------------------
+# Emptied story settles to done
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "child_action",
+    [None, "start", "done", "cancel"],
+    ids=["pending", "in-progress", "done", "cancelled"],
+)
+def test_move_id_empties_story_settles_to_done(
+    child_action: str | None, s1: str, s2: str, tasks_root: Path
+) -> None:
+    """Moving a story's only child away via --id must recompute the now-empty
+    source story to done, regardless of that child's status (repro from the bug
+    report; the rule is uniform across departed-child statuses)."""
+    t01 = add_subtask(s1, "Only child").task_id
+    if child_action is not None:
+        assert_invoke(app, [child_action, t01])
+
+    assert_invoke(app, ["move", t01, "--id", f"{s2}t01"])
+
+    story_file = next(tasks_root.glob(f"{s1}-*.md"))
+    parsed = parse_task_file(story_file)
+    assert parsed.task.status == TaskStatus.DONE
+
+
+def test_move_parent_empties_story_settles_to_done(
+    s1: str, s2: str, tasks_root: Path
+) -> None:
+    """Emptying a story by moving its only child away via --parent settles the
+    source to done, same as --id (shared remove-last-child path)."""
+    t01 = add_subtask(s1, "Only child").task_id
+    assert_invoke(app, ["start", t01])
+
+    assert_invoke(app, ["move", t01, "--parent", s2])
+
+    story_file = next(tasks_root.glob(f"{s1}-*.md"))
+    parsed = parse_task_file(story_file)
+    assert parsed.task.status == TaskStatus.DONE
+
+
+@pytest.mark.parametrize(
+    "child_action",
+    [None, "start", "done", "cancel"],
+    ids=["pending", "in-progress", "done", "cancelled"],
+)
+def test_delete_last_child_empties_story_settles_to_done(
+    child_action: str | None, s1: str, tasks_root: Path
+) -> None:
+    """Deleting a story's only child empties it, so the source story must
+    recompute to done, uniform across the deleted child's status."""
+    t01 = add_subtask(s1, "Only child").task_id
+    if child_action is not None:
+        assert_invoke(app, [child_action, t01])
+
+    assert_invoke(app, ["move", t01, "--delete"])
+
+    story_file = next(tasks_root.glob(f"{s1}-*.md"))
+    parsed = parse_task_file(story_file)
+    assert parsed.task.status == TaskStatus.DONE
+
+
+def _subtask_status(parsed: ParseTaskResult, task_id: str) -> TaskStatus:
+    for sub in parsed.subtasks:
+        if sub.id == task_id:
+            return sub.status
+    raise AssertionError(f"{task_id!r} not found among subtasks")
+
+
+def test_empty_inner_story_cascades_to_all_closed_ancestor(
+    s1: str, s2: str, tasks_root: Path
+) -> None:
+    """Emptying an inner story flips it to done and, since it is the ancestor's
+    only child, the ancestor cascades to done as well."""
+    t01 = add_subtask(s1, "Inner story").task_id
+    t0101 = add_subtask(t01, "Leaf").task_id
+    assert_invoke(app, ["start", t0101])
+
+    assert_invoke(app, ["move", t0101, "--parent", s2])
+
+    story_file = next(tasks_root.glob(f"{s1}-*.md"))
+    parsed = parse_task_file(story_file)
+    assert _subtask_status(parsed, t01) == TaskStatus.DONE
+    assert parsed.task.status == TaskStatus.DONE
+
+
+def test_empty_inner_story_keeps_open_ancestor_in_progress(
+    s1: str, s2: str, tasks_root: Path
+) -> None:
+    """Emptying an inner story must not cascade past an ancestor that still has
+    an open sibling — the ancestor stays in-progress."""
+    t01 = add_subtask(s1, "Inner story").task_id
+    t0101 = add_subtask(t01, "Leaf").task_id
+    assert_invoke(app, ["start", t0101])
+    t02 = add_subtask(s1, "Open sibling").task_id
+    assert_invoke(app, ["start", t02])
+
+    assert_invoke(app, ["move", t0101, "--parent", s2])
+
+    story_file = next(tasks_root.glob(f"{s1}-*.md"))
+    parsed = parse_task_file(story_file)
+    assert _subtask_status(parsed, t01) == TaskStatus.DONE
+    assert parsed.task.status == TaskStatus.IN_PROGRESS
 
 
 # ---------------------------------------------------------------------------
@@ -1204,7 +1310,7 @@ def test_move_parent_shows_existing_sibling(s1: str, s2: str) -> None:
     assert "Pre-existing" in result.output
 
 
-def test_move_root_shows_root_list(s1: str, s2: str) -> None:
+def test_move_root_shows_root_list(s1: str) -> None:
     t01 = add_subtask(s1, "Task A").task_id
     result = assert_invoke(app, ["move", t01, "--root"])
     assert "Task A" in result.output

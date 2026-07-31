@@ -1,7 +1,7 @@
 ---
 id: s26t17
 slug: parent-task-keep-in-progress
-status: pending
+status: done
 ---
 
 # Parent task keep in-progress after moving away all subtasks by --id
