@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, NamedTuple
 
-from tasker.base_types import Task, is_root_task_id, walk_tasks
+from tasker.base_types import Task, TaskStatus, is_root_task_id, walk_tasks
 from tasker.exceptions import TaskValidateError
 from tasker.parse import ParsedRef, make_child_ref, parse_task_ref
 
@@ -84,9 +84,14 @@ def delete_task_impl(task: Task, *, loader: TaskLoader) -> None:
     for t in walk_tasks(task):
         t.deleted = True
 
+    _mark_parent_done_if_empty(task, loader=loader)
+
     # update parent status (deleted tasks are filtered out)
     update_parents_status(
-        task, loader=loader, update_itself=False, allow_downgrade=True
+        task,
+        loader=loader,
+        update_itself=False,
+        allow_downgrade=True,
     )
 
 
@@ -143,10 +148,33 @@ def _detach_from_parent(task: Task, *, loader: TaskLoader) -> None:
     assert task in parent.subtasks
     parent.subtasks.remove(task)
 
+    _mark_parent_done_if_empty(task, loader=loader)
+
     # allow_downgrade=True: extended→basic collapse is only permitted during move
     update_parents_status(
-        parent, update_itself=True, allow_downgrade=True, loader=loader
+        parent,
+        loader=loader,
+        update_itself=True,
+        allow_downgrade=True,
     )
+
+
+def _mark_parent_done_if_empty(task: Task, *, loader: TaskLoader) -> None:
+    # this handles case when parent become a simple task:
+    # in this case lets treat this parent as a story not a regular task
+    # so if this story does not have childs then it's *finished*
+
+    if is_root_task_id(task.id):
+        return
+
+    task_ref = parse_task_ref(task.id)
+    parent = loader.resolve_ref(task_ref.parent_id)
+
+    if any(not t.deleted for t in parent.subtasks):
+        # task has non-delete children
+        return
+
+    parent.status = TaskStatus.DONE
 
 
 def _reregister_tree(
