@@ -260,6 +260,66 @@ def test_parse_raises_on_unknown_front_matter_field() -> None:
         parse_task_file(bad)
 
 
+def _fm(*, order: str | None = None) -> str:
+    order_line = f"order: {order}\n" if order is not None else ""
+    return f"---\nid: s01\nstatus: pending\n{order_line}---\n\n# My task\n"
+
+
+@pytest.mark.parametrize("value", [2000, 0, -5])
+def test_parse_order_field(value: int) -> None:
+    task, _ = parse_task(
+        _fm(order=str(value)), task_id="s01", slug="my-task", extended=False
+    )
+    assert task.order == value
+
+
+def test_parse_no_order_is_none() -> None:
+    task, _ = parse_task(_fm(), task_id="s01", slug="my-task", extended=False)
+    assert task.order is None
+
+
+def test_parse_raises_on_malformed_order() -> None:
+    with pytest.raises(TaskValidateError, match="Invalid order value"):
+        parse_task(_fm(order="abc"), task_id="s01", slug="my-task", extended=False)
+
+
+@pytest.mark.parametrize("value", [2000, 0, -5])
+def test_render_emits_order_when_set(value: int) -> None:
+    task = Task(id="s01", slug="my-task", title="My task", order=value)
+    rendered = render_task(task)
+    assert rendered.count(f"order: {value}") == 1
+
+
+def test_render_omits_order_when_none() -> None:
+    task = Task(id="s01", slug="my-task", title="My task")
+    rendered = render_task(task)
+    assert "order:" not in rendered
+
+
+@pytest.mark.parametrize("value", [2000, 0, -5])
+def test_order_round_trips(value: int) -> None:
+    task = Task(id="s01", slug="my-task", title="My task", order=value)
+    reparsed, _ = parse_task(
+        render_task(task), task_id="s01", slug="my-task", extended=False
+    )
+    assert reparsed.order == value
+
+
+def test_plain_task_byte_identical_without_order() -> None:
+    content = "---\nid: s01\nslug: my-task\nstatus: pending\n---\n\n# My task\n"
+    task, _ = parse_task(content, task_id="s01", slug="my-task", extended=False)
+    rendered = render_task(task)
+    assert rendered == content
+    assert "order:" not in rendered
+
+
+def test_parse_task_file_reads_order_from_disk() -> None:
+    path = _DIR / "s01-my-task.md"
+    write_text(path, _fm(order="2000"))
+    task = parse_task_file(path).task
+    assert task.order == 2000
+
+
 def test_parse_raises_on_invalid_subtask_line() -> None:
     content = (
         "---\nid: s01\nstatus: pending\n---\n\n"

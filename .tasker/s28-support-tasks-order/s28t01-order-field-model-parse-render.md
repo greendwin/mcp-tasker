@@ -1,7 +1,7 @@
 ---
 id: s28t01
 slug: order-field-model-parse-render
-status: pending
+status: done
 ---
 
 # Order field: model, parse, render (round-trip)

@@ -52,6 +52,7 @@ def render_task(task: Task) -> str:
         title=task.title,
         description=task.description,
         status=task.status.value,
+        order=task.order,
         subtasks=task.subtasks,
     )
 

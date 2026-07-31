@@ -27,6 +27,7 @@ class Task(BaseModel):
     slug: str | None = None
     extended: bool = False
     description: str | None = None
+    order: int | None = None
     subtasks: list[Task] = []
     deleted: bool = False
     archived: bool = False

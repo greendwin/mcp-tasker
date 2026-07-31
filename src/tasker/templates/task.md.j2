@@ -4,6 +4,9 @@ id: {{ id }}
 slug: {{ slug }}
 {% endif %}
 status: {{ status }}
+{% if order is not none %}
+order: {{ order }}
+{% endif %}
 ---
 
 # {{ title }}

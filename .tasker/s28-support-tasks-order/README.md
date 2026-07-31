@@ -41,7 +41,7 @@ Tasks currently sort strictly by id: root stories by id, subtasks by physical fi
 
 ## Subtasks
 
-- [ ] [s28t01](s28t01-order-field-model-parse-render.md): Order field: model, parse, render (round-trip)
+- [x] [s28t01](s28t01-order-field-model-parse-render.md): Order field: model, parse, render (round-trip)
 - [ ] [s28t02](s28t02-display-sort-by-order-id.md): Display sort by (order, id)
 - [ ] [s28t03](s28t03-clear-order-on-plain-move.md): Clear order on plain move
 - [ ] [s28t04](s28t04-sparse-reorder-engine-deep-module.md): Sparse reorder engine (deep module)
