@@ -32,7 +32,7 @@ class SubtaskMergeEntry:
 
 
 @dataclass(slots=True)
-class _ConflictingSubtask:
+class ConflictingSubtask:
     # note: None means was not exist
     base: ParsedSubtask | None
     # note: None means deleted
@@ -40,14 +40,14 @@ class _ConflictingSubtask:
     theirs: ParsedSubtask | None
 
 
-_MergedSubtask: TypeAlias = ParsedSubtask | _ConflictingSubtask
+MergedSubtask: TypeAlias = ParsedSubtask | ConflictingSubtask
 
 
 def merge_subtask_lists(
     base_task: list[ParsedSubtask] | None,
     ours_task: list[ParsedSubtask],
     theirs_task: list[ParsedSubtask],
-) -> list[_MergedSubtask]:
+) -> list[MergedSubtask]:
     base_map = {t.id: t for t in base_task} if base_task is not None else {}
     ours_map = {t.id: t for t in ours_task}
     theirs_map = {t.id: t for t in theirs_task}
@@ -83,7 +83,7 @@ def merge_subtask_lists(
             continue
 
         # otherwise: delete-modify conflict
-        result.append(_ConflictingSubtask(base, ours, theirs))
+        result.append(ConflictingSubtask(base, ours, theirs))
 
     return result
 
@@ -92,7 +92,7 @@ def _try_merge_subtask(
     base: ParsedSubtask | None,
     ours: ParsedSubtask,
     theirs: ParsedSubtask,
-) -> _MergedSubtask:
+) -> MergedSubtask:
     has_base = base is not None
     merge = partial(_merge_field, has_base=has_base)
 
@@ -101,7 +101,7 @@ def _try_merge_subtask(
     slug = merge(base.slug if base else None, ours.slug, theirs.slug)
 
     if title is None or status is None or slug is None:
-        return _ConflictingSubtask(base, ours, theirs)
+        return ConflictingSubtask(base, ours, theirs)
 
     assert ours.id == theirs.id
 

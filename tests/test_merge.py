@@ -6,9 +6,9 @@ import pytest
 
 from tasker.base_types import Task, TaskStatus
 from tasker.merge import (
+    ConflictingSubtask,
     Merged,
     MergeFileResult,
-    _ConflictingSubtask,
     merge_scalar_fields,
     merge_subtask_lists,
     merge_task_file,
@@ -317,7 +317,7 @@ class TestSubtaskBothDifferentChange:
         theirs = [_sub(title="Theirs")]
         result = merge_subtask_lists(base, ours, theirs)
         assert len(result) == 1
-        assert isinstance(result[0], _ConflictingSubtask)
+        assert isinstance(result[0], ConflictingSubtask)
         assert result[0].ours is not None and result[0].ours.title == "Ours"
         assert result[0].theirs is not None and result[0].theirs.title == "Theirs"
 
@@ -349,7 +349,7 @@ class TestSubtaskDeleteModifyConflict:
         theirs: list[ParsedSubtask] = []
         result = merge_subtask_lists(base, ours, theirs)
         assert len(result) == 1
-        assert isinstance(result[0], _ConflictingSubtask)
+        assert isinstance(result[0], ConflictingSubtask)
         assert result[0].ours is not None and result[0].ours.title == "Modified"
         assert result[0].theirs is None
 
@@ -359,7 +359,7 @@ class TestSubtaskDeleteModifyConflict:
         theirs = [_sub(status=TaskStatus.DONE)]
         result = merge_subtask_lists(base, ours, theirs)
         assert len(result) == 1
-        assert isinstance(result[0], _ConflictingSubtask)
+        assert isinstance(result[0], ConflictingSubtask)
         assert result[0].ours is None
         assert (
             result[0].theirs is not None and result[0].theirs.status == TaskStatus.DONE
@@ -421,7 +421,7 @@ class TestSubtaskBothAddedSame:
         theirs = [_sub(tid="s01t04", title="Theirs")]
         result = merge_subtask_lists(base, ours, theirs)
         assert len(result) == 1
-        assert isinstance(result[0], _ConflictingSubtask)
+        assert isinstance(result[0], ConflictingSubtask)
 
     def test_both_added_different_status(self) -> None:
         base: list[ParsedSubtask] = []
@@ -429,7 +429,7 @@ class TestSubtaskBothAddedSame:
         theirs = [_sub(tid="s01t04", status=TaskStatus.DONE)]
         result = merge_subtask_lists(base, ours, theirs)
         assert len(result) == 1
-        assert isinstance(result[0], _ConflictingSubtask)
+        assert isinstance(result[0], ConflictingSubtask)
         assert result[0].ours is not None and result[0].ours.title == "Task one"
 
 
@@ -449,8 +449,12 @@ class TestSubtaskOrdering:
             _sub(tid="s01t20", title="Theirs new"),
         ]
         result = merge_subtask_lists(base, ours, theirs)
-        assert all(isinstance(e, ParsedSubtask) for e in result)
-        ids = [e.id for e in result]  # type: ignore[union-attr]
+
+        ids = []
+        for e in result:
+            assert isinstance(e, ParsedSubtask)
+            ids.append(e.id)
+
         assert ids == ["s01t01", "s01t02", "s01t10", "s01t20"]
 
 
@@ -470,7 +474,7 @@ class TestSubtaskNoBase:
         theirs = [_sub(title="B")]
         result = merge_subtask_lists(None, ours, theirs)
         assert len(result) == 1
-        assert isinstance(result[0], _ConflictingSubtask)
+        assert isinstance(result[0], ConflictingSubtask)
 
     def test_ours_only_addition(self) -> None:
         ours = [_sub(tid="s01t02", title="Only ours")]
@@ -529,14 +533,14 @@ class TestSubtaskMixedScenario:
         ]
         result = merge_subtask_lists(base, ours, theirs)
 
-        def _entry_id(e: ParsedSubtask | _ConflictingSubtask) -> str:
+        def _entry_id(e: ParsedSubtask | ConflictingSubtask) -> str:
             if isinstance(e, ParsedSubtask):
                 return e.id
             src = e.ours or e.theirs or e.base
             assert src is not None
             return src.id
 
-        def _by_id(tid: str) -> ParsedSubtask | _ConflictingSubtask:
+        def _by_id(tid: str) -> ParsedSubtask | ConflictingSubtask:
             for e in result:
                 if _entry_id(e) == tid:
                     return e
@@ -549,7 +553,7 @@ class TestSubtaskMixedScenario:
 
         # s01t02: delete-modify conflict
         s01t02 = _by_id("s01t02")
-        assert isinstance(s01t02, _ConflictingSubtask)
+        assert isinstance(s01t02, ConflictingSubtask)
 
         # s01t03: theirs changed status, ours unchanged
         s01t03 = _by_id("s01t03")
