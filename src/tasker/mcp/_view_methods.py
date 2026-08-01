@@ -52,10 +52,12 @@ def view_tasks(task_refs: list[str]) -> str:
     """
     repo = get_repo()
     blocks: list[str] = []
+
     for ref in task_refs:
         try:
             task = resolve_ref(repo, ref).task
             blocks.append(render_task_markdown(task))
         except TaskValidateError as exc:
             blocks.append(render_task_error(ref, str(exc)))
+
     return TASK_BLOCK_SEPARATOR.join(blocks)

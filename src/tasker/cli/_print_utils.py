@@ -154,7 +154,7 @@ def _build_print_entries(repo: TaskRepo, config: ShowTaskConfig) -> list[PrintEn
             has_force_show=has_force_show,
         )
 
-    visible_roots = {}
+    visible_roots: dict[str, Task] = {}
     for task in ctx.visible.values():
         cur = task
         while True:
@@ -166,7 +166,8 @@ def _build_print_entries(repo: TaskRepo, config: ShowTaskConfig) -> list[PrintEn
             cur = parent
 
     ctx.markers = compute_markers(repo, *ctx.visible.values())
-    for root in sorted(visible_roots.values(), key=lambda p: p.id):
+
+    for root in sorted(visible_roots.values()):
         _collect_print_entries(ctx, root, indent=0)
 
     return ctx.entries
@@ -222,7 +223,7 @@ def _collect_print_entries(
     )
     ctx.entries.append(entry)
 
-    for child in task.subtasks:
+    for child in sorted(task.subtasks):
         if child.id in ctx.visible:
             _collect_print_entries(ctx, child, indent=indent + 1)
 
@@ -361,7 +362,7 @@ def print_task(task: Task, *, markers: MarkersDict, preview: bool) -> None:
         return
 
     console.print("\n[bold]Subtasks:[/bold]")
-    for subtask in task.subtasks:
+    for subtask in sorted(task.subtasks):
         item = format_task_list_item(
             subtask,
             indent=1,

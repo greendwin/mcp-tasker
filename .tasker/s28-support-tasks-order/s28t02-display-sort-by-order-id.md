@@ -1,7 +1,7 @@
 ---
 id: s28t02
 slug: display-sort-by-order-id
-status: pending
+status: done
 ---
 
 # Display sort by (order, id)

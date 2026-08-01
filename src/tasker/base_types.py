@@ -46,6 +46,23 @@ class Task(BaseModel):
             return build_task_ref(self.id, self.slug)
         return self.id
 
+    def __lt__(self, other: object) -> bool:
+        if not isinstance(other, Task):
+            return NotImplemented
+
+        self_ordered = self.order is not None
+        other_ordered = other.order is not None
+        if self_ordered != other_ordered:
+            # ordered goes first
+            return self_ordered > other_ordered
+
+        if self_ordered:
+            assert self.order is not None and other.order is not None
+            if self.order != other.order:
+                return self.order < other.order
+
+        return self.id < other.id
+
 
 def build_task_ref(task_id: str, slug: str) -> str:
     return f"{task_id}-{slug}"
