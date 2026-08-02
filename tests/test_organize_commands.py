@@ -1,4 +1,5 @@
 import json
+import re
 from pathlib import Path
 from unittest import mock
 
@@ -1640,3 +1641,119 @@ def test_move_id_json_renames(s1: str, s2: str) -> None:
     data = json.loads(result.output)
     assert "renames" in data
     assert data["renames"][0]["old_id"] == t01
+
+
+# ---------------------------------------------------------------------------
+# move clears `order` when the sibling set changes
+# ---------------------------------------------------------------------------
+
+
+def _stored_path(tasks_root: Path, task_id: str) -> Path:
+    # the path `parse_task_file` accepts: a leaf is a flat `<ref>.md` file; a
+    # parent with file-backed subtasks is an extended `<ref>/` directory
+    for entry in tasks_root.rglob(f"{task_id}-*"):
+        if entry.is_file() and entry.suffix == ".md":
+            return entry
+        if entry.is_dir() and (entry / "README.md").is_file():
+            return entry
+    raise AssertionError(f"No stored file for {task_id!r} under {tasks_root}")
+
+
+def _fm_file(stored: Path) -> Path:
+    return stored / "README.md" if stored.is_dir() else stored
+
+
+def _inject_order(tasks_root: Path, task_id: str, order: int) -> None:
+    # emulate persisted `order:` storage (the `order` CLI lands in a later slice)
+    path = _fm_file(_stored_path(tasks_root, task_id))
+    content = path.read_text()
+    new_content, count = re.subn(
+        r"(?m)^(status: .*)$", rf"\1\norder: {order}", content, count=1
+    )
+    assert count == 1, f"No status line to anchor order after in {path}"
+    path.write_text(new_content)
+
+
+def test_move_ordered_subtask_to_new_parent_clears_order(
+    s1: str, s2: str, tasks_root: Path
+) -> None:
+    t01 = add_subtask(s1, "Alpha", details="body here").task_id
+    _inject_order(tasks_root, t01, 1000)
+
+    assert_invoke(app, ["move", t01, "--parent", s2])
+
+    moved = _stored_path(tasks_root, f"{s2}t01")
+    assert moved.is_file() and moved.suffix == ".md"  # stayed a file, not inline
+    assert parse_task_file(moved).task.order is None
+
+
+def test_move_ordered_subtask_to_root_clears_order(s1: str, tasks_root: Path) -> None:
+    t01 = add_subtask(s1, "Alpha", details="body here").task_id
+    _inject_order(tasks_root, t01, 1000)
+
+    assert_invoke(app, ["move", t01, "--root"])
+
+    new_root = next(tasks_root.glob("s*-alpha.md"))
+    assert parse_task_file(new_root).task.order is None
+
+
+def test_move_id_to_different_parent_clears_order(
+    s1: str, s2: str, tasks_root: Path
+) -> None:
+    t01 = add_subtask(s1, "Alpha", details="body here").task_id
+    _inject_order(tasks_root, t01, 1000)
+
+    assert_invoke(app, ["move", t01, "--id", f"{s2}t01"])
+
+    moved = _stored_path(tasks_root, f"{s2}t01")
+    assert parse_task_file(moved).task.order is None
+
+
+def test_move_id_rename_same_parent_keeps_order(s1: str, tasks_root: Path) -> None:
+    t01 = add_subtask(s1, "Alpha", details="body here").task_id
+    _inject_order(tasks_root, t01, 1000)
+
+    # pure rename within the same parent -- sibling set unchanged, order stays
+    assert_invoke(app, ["move", t01, "--id", f"{s1}t05"])
+
+    renamed = _stored_path(tasks_root, f"{s1}t05")
+    assert parse_task_file(renamed).task.order == 1000
+
+
+def test_move_id_rename_root_keeps_order(tasks_root: Path) -> None:
+    s01 = create_task("Alpha").task_id
+    _inject_order(tasks_root, s01, 1000)
+
+    # pure rename of the root task
+    assert_invoke(app, ["move", s01, "--id", "s05"])
+
+    renamed = _stored_path(tasks_root, "s05")
+    assert parse_task_file(renamed).task.order == 1000
+
+
+def test_move_ordered_container_with_file_subtasks_stays_extended(
+    s1: str, s2: str, tasks_root: Path
+) -> None:
+    t01 = add_subtask(s1, "Container", details="body here").task_id
+    add_subtask(t01, "Child", details="child body")  # makes t01 an extended dir
+    _inject_order(tasks_root, t01, 1000)
+
+    assert_invoke(app, ["move", t01, "--parent", s2])
+
+    moved = _stored_path(tasks_root, f"{s2}t01")
+    assert moved.is_dir()  # stayed extended (directory), not downgraded
+    assert parse_task_file(moved).task.order is None
+
+
+def test_move_ordered_root_under_parent_clears_order(
+    s1: str, s2: str, tasks_root: Path
+) -> None:
+    # a root task carries `order` relative to its root siblings; moving it under
+    # a parent changes the sibling set, so the stale root rank must be dropped
+    add_subtask(s1, "Child", details="child body")  # keeps s1 a file after move
+    _inject_order(tasks_root, s1, 1000)
+
+    assert_invoke(app, ["move", s1, "--parent", s2])
+
+    moved = _stored_path(tasks_root, f"{s2}t01")
+    assert parse_task_file(moved).task.order is None

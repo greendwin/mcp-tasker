@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from tasker.base_types import Task, TaskStatus, is_root_task_id
-from tasker.parse import make_child_ref, normalize_slug, parse_task_ref
+from tasker.parse import make_child_ref, normalize_slug
 from tasker.render import append_task_filename
 
 if TYPE_CHECKING:
@@ -80,15 +80,11 @@ def update_parents_status(
     if update_itself:
         update_task_status_and_flags(task, allow_downgrade=allow_downgrade)
 
-    cur_id = task.id
-    while not is_root_task_id(cur_id):
-        ri = parse_task_ref(cur_id)
-        parent = loader.resolve_ref(ri.parent_id)
-
+    cur = task
+    while parent := loader.get_parent(cur):
         assert not parent.is_inline, "parent should not be inline due to subtasks"
         update_task_status_and_flags(parent, allow_downgrade=allow_downgrade)
-
-        cur_id = parent.id
+        cur = parent
 
 
 def update_task_status_and_flags(task: Task, *, allow_downgrade: bool) -> None:
@@ -140,14 +136,11 @@ def build_task_path_from_root(task: Task, *, loader: TaskLoader) -> Path:
 
     stack: list[Task] = []
 
-    cur_id = task.id
-    while not is_root_task_id(cur_id):
-        ref = parse_task_ref(cur_id)
-        parent = loader.resolve_ref(ref.parent_id)
+    cur = task
+    while parent := loader.get_parent(cur):
         assert parent.extended, "parent must be directory-based"
-
         stack.append(parent)
-        cur_id = parent.id
+        cur = parent
 
     root_task = stack[-1]
     parent_dir = loader.get_tasks_root(archived=root_task.archived)

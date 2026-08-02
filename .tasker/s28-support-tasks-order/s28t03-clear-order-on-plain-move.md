@@ -1,13 +1,13 @@
 ---
 id: s28t03
 slug: clear-order-on-plain-move
-status: pending
+status: done
 ---
 
 # Clear order on plain move
 
 **Goal**
-A plain `tasker move` (`--parent`, `--root`, or `--id`) clears the moved task's `order` so it re-enters its new sibling set in the unset tail. If the task was a file *solely* to hold its order, it auto-downgrades back to inline.
+A plain `tasker move` clears the moved task's `order` **when the move changes its sibling set** (parent changes, or to/from root), so it re-enters the new sibling set in the unset tail. A pure `--id` rename within the same parent keeps `order`. If a cleared task was a file *solely* to hold its order, it auto-downgrades back to inline.
 
 **Decisions & constraints**
 - `order` is a rank relative to a *specific* sibling set; carrying a value across a re-home is meaningless (sparse numbers from the old parent would drop it arbitrarily among new siblings). So plain `move` drops it.
@@ -18,7 +18,8 @@ A plain `tasker move` (`--parent`, `--root`, or `--id`) clears the moved task's 
 **Edge cases**
 - Task with a description or file-based subtasks: order cleared, but stays a file (no downgrade).
 - Task moved that had no order: no-op on the order dimension.
-- `move --id` (rename within same parent implied by new id): still clears order — the new id may land it in a different sibling context.
+- `move --id` that changes the parent (new id under a different parent): clears order — the sibling set changed.
+- `move --id` that is a pure rename within the same parent: keeps order — the sibling set is unchanged, so the rank is still meaningful.
 
 **Key files**
 - `src/tasker/cli/_organize_commands.py` (move command)
@@ -26,5 +27,6 @@ A plain `tasker move` (`--parent`, `--root`, or `--id`) clears the moved task's 
 
 **Acceptance criteria**
 - Moving an ordered task under a new parent leaves it with `order` unset (sorts in the new parent's unset tail by id).
+- A pure `--id` rename within the same parent keeps `order` (same sibling set — rank still meaningful).
 - A task that was auto-upgraded to a file only for its order, moved and thereby cleared, downgrades back to an inline bullet in the destination.
 - A task with a description keeps its file after a move that clears order.
