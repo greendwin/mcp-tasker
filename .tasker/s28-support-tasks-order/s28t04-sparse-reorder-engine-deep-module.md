@@ -1,7 +1,7 @@
 ---
 id: s28t04
 slug: sparse-reorder-engine-deep-module
-status: pending
+status: done
 ---
 
 # Sparse reorder engine (deep module)
