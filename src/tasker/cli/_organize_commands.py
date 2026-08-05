@@ -6,7 +6,7 @@ from typer_di import Depends
 from tasker.base_types import Task, is_root_task_id, walk_tasks
 from tasker.exceptions import TaskerError, TaskValidateError
 from tasker.parse import detect_task_type, normalize_task_id, parse_task_ref
-from tasker.repo import TaskRename, TaskRepo
+from tasker.repo import TaskRename, TaskRepo, group_at_anchor
 from tasker.resolve import ResolvedRef, resolve_ref, save_recent_for_refs
 from tasker.todo import load_todo_ids, save_todo_ids
 from tasker.utils import JsonAppend, console
@@ -314,6 +314,63 @@ def cmd_move_task(
         for task_id in edit_ids:
             task = repo.resolve_ref(task_id)
             edit_task_in_editor(repo, task)
+
+
+@app.command(
+    "order",
+    help="Reorder same-parent siblings: group <moved...> at <anchor>'s slot.",
+)
+def cmd_order_tasks(
+    *,
+    anchor_ref: Annotated[
+        str,
+        typer.Argument(
+            help="Anchor task ID; moved tasks land at its slot.",
+            autocompletion=complete_task_ref,
+        ),
+    ],
+    moved_refs: Annotated[
+        Optional[list[str]],
+        typer.Argument(
+            help="Task ID(s) to group at the anchor, in this order.",
+            autocompletion=complete_task_ref,
+        ),
+    ] = None,
+    repo: TaskRepo = Depends(get_task_repo),
+) -> None:
+    if not moved_refs:
+        # TODO: check wording
+        console.print(
+            "[yellow]Warning:[/yellow] Specify at least one task that should be placed "
+            "after an anchor task or use `--front` flag to move your task to "
+            "the beginning of the task list"
+        )
+        return
+
+    anchor = resolve_ref(repo, anchor_ref)
+    moved = [resolve_ref(repo, p) for p in moved_refs]
+
+    # all tasks must be upgraded to file-based
+    repo.upgrade_to_filebased(anchor.task)
+    for r in moved:
+        repo.upgrade_to_filebased(r.task)
+
+    # TODO: test me
+    save_recent_for_refs(repo, anchor, *moved)
+
+    parent = repo.get_parent(anchor.task)
+    if parent is None:
+        # TODO: collect root tasks
+        raise NotImplementedError
+
+    # TODO: validate that all moving tasks are it's siblings too
+    # TODO: move tasks first if they are not siblings
+
+    group_at_anchor(
+        parent.subtasks, anchor_id=anchor.task.id, moved_ids=[r.task.id for r in moved]
+    )
+
+    repo.flush_to_disk()
 
 
 class _ResolveIdRefResult(NamedTuple):

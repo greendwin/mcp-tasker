@@ -190,6 +190,9 @@ def _flush_task(
 ) -> None:
     orig = original_state.get(task.id)
 
+    if task.is_inline:
+        assert task.order is None, "ordered task must be upgraded to file-based first"
+
     new_filename: Path | None = None
     if not task.is_inline and not task.deleted:
         rendered = render_task(task)

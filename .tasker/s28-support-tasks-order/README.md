@@ -1,7 +1,7 @@
 ---
 id: s28
 slug: support-tasks-order
-status: pending
+status: in-progress
 ---
 
 # Support tasks order
@@ -45,7 +45,7 @@ Tasks currently sort strictly by id: root stories by id, subtasks by physical fi
 - [x] [s28t02](s28t02-display-sort-by-order-id.md): Display sort by (order, id)
 - [x] [s28t03](s28t03-clear-order-on-plain-move.md): Clear order on plain move
 - [x] [s28t04](s28t04-sparse-reorder-engine-deep-module.md): Sparse reorder engine (deep module)
-- [ ] [s28t05](s28t05-cli-tasker-order-lt-anchor.md): CLI: tasker order &lt;anchor&gt; &lt;moved...&gt; (base)
+- [~] [s28t05](s28t05-cli-tasker-order-lt-anchor.md): CLI: tasker order <anchor> <moved...>; (base)
 - [ ] [s28t06](s28t06-cli-tasker-order-clear.md): CLI: tasker order --clear
 - [ ] [s28t07](s28t07-cli-tasker-order-front.md): CLI: tasker order --front
 - [ ] [s28t08](s28t08-cli-tasker-order-front-rest.md): CLI: tasker order --front --rest
