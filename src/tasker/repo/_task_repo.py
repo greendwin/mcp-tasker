@@ -210,6 +210,11 @@ class TaskRepo:
     def upgrade_to_filebased(self, task: Task) -> None:
         upgrade_to_filebased(task, loader=self.loader)
 
+    def try_downgrade_task(self, task: Task) -> None:
+        update_parents_status(
+            task, loader=self.loader, update_itself=True, allow_downgrade=True
+        )
+
     def build_task_path(self, task: Task) -> Path:
         return build_task_path_from_root(task, loader=self.loader)
 

@@ -300,3 +300,168 @@ def test_order_json_single_arg_noop() -> None:
     data = json.loads(result.output)
     # a no-op moves nothing; the payload stays well-formed with no moved tasks
     assert data.get("task_refs", []) == []
+
+
+# --- Slice A: clear returns a task to the unset tail ---
+
+
+def test_order_clear_removes_order(story: str, tasks_root: Path) -> None:
+    a = add_subtask(story, "Alpha", details="Alpha").task_id
+    b = add_subtask(story, "Bravo", details="Bravo").task_id
+    c = add_subtask(story, "Charlie", details="Charlie").task_id
+
+    assert_invoke(app, ["order", a, b, c])
+    assert _order_of(tasks_root, b) is not None  # precondition: b is ordered
+
+    assert_invoke(app, ["order", "--clear", b])
+
+    assert _order_of(tasks_root, b) is None
+
+
+def test_order_clear_sends_task_to_id_sorted_tail(story: str) -> None:
+    a = add_subtask(story, "Alpha").task_id  # s..t01
+    b = add_subtask(story, "Bravo").task_id  # s..t02
+    add_subtask(story, "Charlie")  # s..t03, unset tail throughout
+
+    assert_invoke(app, ["order", a, b])  # a, b ordered; Charlie untouched
+    assert_invoke(app, ["order", "--clear", a])  # a back to the unset tail
+
+    out = assert_invoke(app, ["view", story]).output
+    # b is the only ordered task → leads; a and Charlie form the unset tail by id
+    assert out.index("Bravo") < out.index("Alpha") < out.index("Charlie")
+
+
+def test_order_clear_already_unset_is_noop(story: str, tasks_root: Path) -> None:
+    a = add_subtask(story, "Alpha").task_id  # inline, never ordered
+
+    story_path = _fm_file(_stored_path(tasks_root, story))
+    before = story_path.read_bytes()
+
+    assert_invoke(app, ["order", "--clear", a])
+
+    # clearing an already-unset task touches nothing on disk and does not upgrade it
+    assert _fm_file(_stored_path(tasks_root, story)).read_bytes() == before
+    assert not _has_stored_file(tasks_root, a)
+
+
+def test_order_clear_without_tasks_reports_clear_specific_error() -> None:
+    result = assert_invoke(app, ["order", "--clear"], expect_error=True)
+
+    out = result.output.lower()
+    # the error must speak to which tasks to clear — never the base command's
+    # "anchor", which is meaningless under --clear
+    assert "anchor" not in out
+    assert "task" in out
+
+
+# --- Slice B: remaining ordered siblings stay sequenced ---
+
+
+def test_order_clear_keeps_remaining_ordered_sequence(
+    story: str, tasks_root: Path
+) -> None:
+    a = add_subtask(story, "Alpha").task_id
+    b = add_subtask(story, "Bravo").task_id
+    c = add_subtask(story, "Charlie").task_id
+
+    assert_invoke(app, ["order", a, b, c])  # a < b < c
+    assert_invoke(app, ["order", "--clear", b])  # drop the middle one
+
+    oa = _order_of(tasks_root, a)
+    oc = _order_of(tasks_root, c)
+    assert oa is not None and oc is not None
+    # the survivors stay ordered and keep their relative sequence
+    assert oa < oc
+
+
+def test_order_clear_all_ordered_falls_back_to_id(story: str, tasks_root: Path) -> None:
+    a = add_subtask(story, "Alpha", details="Alpha").task_id  # s..t01
+    b = add_subtask(story, "Bravo", details="Bravo").task_id  # s..t02
+
+    assert_invoke(app, ["order", b, a])  # b anchors → b < a while ordered
+    assert_invoke(app, ["order", "--clear", a, b])  # clear the whole ordered set
+
+    assert _order_of(tasks_root, a) is None
+    assert _order_of(tasks_root, b) is None
+    out = assert_invoke(app, ["view", story]).output
+    # with no orders left, siblings sort purely by id (Alpha=t01 before Bravo=t02)
+    assert out.index("Alpha") < out.index("Bravo")
+
+
+# --- Slice C: auto-downgrade mirrors `move` ---
+
+
+def test_order_clear_downgrades_file_only_for_order(
+    story: str, tasks_root: Path
+) -> None:
+    a = add_subtask(story, "Alpha").task_id
+    b = add_subtask(story, "Bravo").task_id  # inline (no --details)
+
+    assert not _has_stored_file(tasks_root, b)  # precondition: inline
+    assert_invoke(app, ["order", a, b])  # upgrades b to a file to hold its order
+    assert _has_stored_file(tasks_root, b)
+
+    assert_invoke(app, ["order", "--clear", b])
+
+    # b became a file solely for its order → it downgrades back to inline
+    assert not _has_stored_file(tasks_root, b)
+
+
+def test_order_clear_keeps_file_when_described(story: str, tasks_root: Path) -> None:
+    a = add_subtask(story, "Alpha").task_id
+    b = add_subtask(story, "Bravo", details="has a body").task_id  # file-backed
+
+    assert_invoke(app, ["order", a, b])
+    assert_invoke(app, ["order", "--clear", b])
+
+    # a described task keeps its file after clear, but loses its order
+    assert _has_stored_file(tasks_root, b)
+    assert _order_of(tasks_root, b) is None
+
+
+# --- Slice D: clear reports its result (recent + summary) ---
+
+
+def test_order_clear_updates_recent(tasks_root: Path) -> None:
+    s1 = create_task("Story one").task_id
+    a = add_subtask(s1, "Alpha").task_id
+    b = add_subtask(s1, "Bravo").task_id
+    assert_invoke(app, ["order", a, b])  # order under s1
+
+    # nudge `.recent` away from s1 with an unrelated ordering under s2
+    s2 = create_task("Story two").task_id
+    c = add_subtask(s2, "Charlie").task_id
+    d = add_subtask(s2, "Delta").task_id
+    assert_invoke(app, ["order", c, d])
+    assert _read_recent(tasks_root) == s2  # precondition: recent points at s2
+
+    assert_invoke(app, ["order", "--clear", a, b])
+
+    # clearing under s1 repoints recent at the cleared tasks' common ancestor
+    assert _read_recent(tasks_root) == s1
+
+
+def test_order_clear_prints_summary(story: str) -> None:
+    a = add_subtask(story, "Alpha").task_id
+    b = add_subtask(story, "Bravo").task_id
+    assert_invoke(app, ["order", a, b])
+
+    result = assert_invoke(app, ["order", "--clear", a, b])
+
+    # the command reports which tasks it cleared
+    assert a in result.output and b in result.output
+
+
+# --- Slice E: clear emits a structured result under --json-output ---
+
+
+def test_order_clear_json_emits_cleared_ids(story: str) -> None:
+    a = add_subtask(story, "Alpha").task_id
+    b = add_subtask(story, "Bravo").task_id
+    assert_invoke(app, ["order", a, b])
+
+    result = assert_invoke(app, ["--json-output", "order", "--clear", a, b])
+
+    data = json.loads(result.output)
+    # the cleared tasks are reported by id, in argument order
+    assert data["task_refs"] == [a, b]

@@ -1,7 +1,7 @@
 ---
 id: s28t06
 slug: cli-tasker-order-clear
-status: pending
+status: done
 ---
 
 # CLI: tasker order --clear

@@ -324,37 +324,41 @@ def _print_renamed_tasks(renames: list[TaskRename]) -> None:
 )
 def cmd_order_tasks(
     *,
-    anchor_ref: Annotated[
-        str,
+    task_refs: Annotated[
+        list[str],
         typer.Argument(
-            help="Anchor task ID; moved tasks land at its slot.",
+            help="Task IDs to edit ordering.",
             autocompletion=complete_task_ref,
         ),
     ],
-    moved_refs: Annotated[
-        Optional[list[str]],
-        typer.Argument(
-            help="Task ID(s) to group at the anchor, in this order.",
-            autocompletion=complete_task_ref,
-        ),
-    ] = None,
+    clear: Annotated[
+        bool,
+        typer.Option("--clear", help="Clear order from the listed tasks."),
+    ] = False,
     repo: TaskRepo = Depends(get_task_repo),
 ) -> None:
+    assert task_refs, "at least one element is expected"
+
+    if clear:
+        _clear_tasks_ordering(repo, task_refs)
+        return
+
+    anchor_ref, *moved_refs = task_refs
+
     if not moved_refs:
-        # TODO: check wording
         console.print(
-            "[yellow]Warning:[/yellow] Specify at least one task that should be placed "
-            "after an anchor task or use `--front` flag to move your task to "
-            "the beginning of the task list"
+            "[yellow]Warning:[/yellow] Specify at least one task to "
+            "place after the anchor.\n\n"
+            "Note: Use `--front` flag to move your task to "
+            "the beginning of the task list."
         )
         return
 
     anchor = resolve_ref(repo, anchor_ref)
     moved = [resolve_ref(repo, p) for p in moved_refs]
 
-    # TODO: check wording
     console.print(
-        f"Ordering tasks after [green]{anchor.task.id}[/green]: "
+        f"Grouping tasks after [green]{anchor.task.id}[/green]: "
         f"{', '.join(p.task.id for p in moved)}"
     )
 
@@ -387,6 +391,21 @@ def cmd_order_tasks(
     print_parent_preview(repo, anchor.task, *moved_tasks)
 
     repo.flush_to_disk()
+
+
+def _clear_tasks_ordering(repo: TaskRepo, task_refs: list[str]) -> None:
+    refs = [resolve_ref(repo, r) for r in task_refs]
+    console.print("Reset ordering for tasks:")
+    for r in sorted(refs, key=lambda x: x.task.id):
+        console.print(f"  - {r.task.id}", context={"task_refs": JsonAppend(r.task.id)})
+        r.task.order = None
+        repo.try_downgrade_task(r.task)
+
+    save_recent_for_refs(repo, *refs)
+    repo.flush_to_disk()
+
+    tasks = [r.task for r in refs]
+    print_parent_preview(repo, *tasks)
 
 
 def _ensure_same_parent(
