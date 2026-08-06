@@ -116,6 +116,18 @@ def test_edit_stores_recent(s1: str, tasks_root: Path) -> None:
     assert _read_recent(tasks_root) == s1
 
 
+def test_order_stores_recent(s1: str, tasks_root: Path) -> None:
+    t01 = add_subtask(s1, "One").task_id
+    t02 = add_subtask(s1, "Two").task_id
+    # point recent elsewhere so the assertion proves `order` rewrote it
+    create_task("Other story")
+
+    assert_invoke(app, ["order", t01, t02])
+
+    # recent is the common ancestor of the referenced siblings — their parent story
+    assert _read_recent(tasks_root) == s1
+
+
 def test_move_stores_recent(tasks_root: Path) -> None:
     s1 = create_task("Story A").task_id
     s2 = create_task("Story B").task_id

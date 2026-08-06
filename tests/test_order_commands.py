@@ -116,18 +116,24 @@ def test_order_leaves_untouched_sibling_bytes_unchanged(
     assert _fm_file(_stored_path(tasks_root, keep)).read_bytes() == before
 
 
-# --- Slice D: non-sibling refs error clearly ---
+# --- Slice F: cross-parent moved ref is relocated under the anchor's parent ---
 
 
-def test_order_cross_parent_refs_errors() -> None:
+def test_order_relocates_cross_parent_moved_under_anchor() -> None:
     s1 = create_task("Story one").task_id
     s2 = create_task("Story two").task_id
-    a = add_subtask(s1, "A").task_id
-    b = add_subtask(s2, "B").task_id
+    a = add_subtask(s1, "Alpha").task_id
+    b = add_subtask(s2, "Bravo").task_id
 
-    result = assert_invoke(app, ["order", a, b], expect_error=True)
+    assert_invoke(app, ["order", a, b])
 
-    assert "sibling" in result.output.lower() or "parent" in result.output.lower()
+    view1 = assert_invoke(app, ["view", s1]).output
+    view2 = assert_invoke(app, ["view", s2]).output
+    # Bravo is pulled under the anchor's parent and ordered right after Alpha
+    assert "Alpha" in view1 and "Bravo" in view1
+    assert view1.index("Alpha") < view1.index("Bravo")
+    # ...and it no longer lives under its former parent
+    assert "Bravo" not in view2
 
 
 # --- Slice E: single-arg is a true no-op with a warning ---
@@ -145,3 +151,70 @@ def test_order_single_arg_is_noop_with_warning(story: str, tasks_root: Path) -> 
     # nothing on disk changed; the anchor did not gain an order
     assert _fm_file(_stored_path(tasks_root, story)).read_bytes() == before
     assert "at least one" in result.output.lower()
+
+
+# --- Slice G: reordering root-level stories (anchor has no parent) ---
+
+
+def test_order_reorders_root_level_stories(tasks_root: Path) -> None:
+    s1 = create_task("One").task_id
+    s2 = create_task("Two").task_id
+    s3 = create_task("Three").task_id
+
+    assert_invoke(app, ["order", s1, s3, s2])
+
+    o1 = _order_of(tasks_root, s1)
+    o3 = _order_of(tasks_root, s3)
+    o2 = _order_of(tasks_root, s2)
+    assert o1 is not None and o2 is not None and o3 is not None
+    # anchor first, then moved in argument order (s3 before s2) at root scope
+    assert o1 < o3 < o2
+
+
+# --- Slice I: a subtask is promoted to root when the anchor is a root task ---
+
+
+def test_order_promotes_subtask_to_root_under_root_anchor() -> None:
+    s1 = create_task("Anchor root").task_id
+    s2 = create_task("Story two").task_id
+    sub = add_subtask(s2, "Promote me").task_id
+
+    assert_invoke(app, ["order", s1, sub])
+
+    # the subtask now lives at root, ordered right after the anchor
+    listing = assert_invoke(app, ["list"]).output
+    assert "Anchor root" in listing and "Promote me" in listing
+    assert listing.index("Anchor root") < listing.index("Promote me")
+    # ...and it no longer lives under its former parent
+    assert "Promote me" not in assert_invoke(app, ["view", s2]).output
+
+
+# --- Slice J: relocated (renamed) tasks are reported in the output ---
+
+
+def test_order_prints_relocated_tasks() -> None:
+    s1 = create_task("Story one").task_id
+    s2 = create_task("Story two").task_id
+    a = add_subtask(s1, "Alpha").task_id
+    b = add_subtask(s2, "Bravo").task_id  # cross-parent → relocated + renamed
+
+    result = assert_invoke(app, ["order", a, b])
+
+    # the relocated task's former id is reported in the rename listing
+    assert b in result.output
+
+
+# --- Slice K: moved tasks are reported at their new position, in argument order ---
+
+
+def test_order_reports_moved_tasks_in_new_order(story: str) -> None:
+    a = add_subtask(story, "Alpha").task_id
+    b = add_subtask(story, "Bravo").task_id
+    c = add_subtask(story, "Charlie").task_id
+
+    result = assert_invoke(app, ["order", a, b, c])
+
+    out = result.output
+    # the moved tasks are reported, in argument order (b before c)
+    assert b in out and c in out
+    assert out.index(b) < out.index(c)

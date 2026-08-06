@@ -293,14 +293,7 @@ def cmd_move_task(
 
     if all_renames:
         console.print("")
-        console.print("[yellow]Renamed tasks:[/yellow]")
-        for rn in all_renames:
-            console.print(
-                f"  [cyan]{rn.old_id}[/cyan] → [blue]{rn.new_id}[/blue]",
-                context={
-                    "renames": JsonAppend({"old_id": rn.old_id, "new_id": rn.new_id})
-                },
-            )
+        _print_renamed_tasks(all_renames)
 
     if not delete:
         # include parent link to recent list
@@ -314,6 +307,15 @@ def cmd_move_task(
         for task_id in edit_ids:
             task = repo.resolve_ref(task_id)
             edit_task_in_editor(repo, task)
+
+
+def _print_renamed_tasks(renames: list[TaskRename]) -> None:
+    console.print("[yellow]Renamed tasks:[/yellow]")
+    for rn in renames:
+        console.print(
+            f"  [cyan]{rn.old_id}[/cyan] → [blue]{rn.new_id}[/blue]",
+            context={"renames": JsonAppend({"old_id": rn.old_id, "new_id": rn.new_id})},
+        )
 
 
 @app.command(
@@ -349,28 +351,71 @@ def cmd_order_tasks(
 
     anchor = resolve_ref(repo, anchor_ref)
     moved = [resolve_ref(repo, p) for p in moved_refs]
+    save_recent_for_refs(repo, anchor, *moved)
+
+    # TODO: check wording
+    console.print(
+        f"Ordering tasks after [green]{anchor.task.id}[/green]: "
+        f"{', '.join(p.task.id for p in moved)}"
+    )
+
+    moved_tasks = [p.task for p in moved]
+    renames = _ensure_same_parent(repo, anchor.task, moved_tasks)
+
+    if renames:
+        _print_renamed_tasks(renames)
+        repo.flush_to_disk()
 
     # all tasks must be upgraded to file-based
     repo.upgrade_to_filebased(anchor.task)
-    for r in moved:
-        repo.upgrade_to_filebased(r.task)
+    for task in moved_tasks:
+        repo.upgrade_to_filebased(task)
 
-    # TODO: test me
-    save_recent_for_refs(repo, anchor, *moved)
-
-    parent = repo.get_parent(anchor.task)
-    if parent is None:
-        # TODO: collect root tasks
-        raise NotImplementedError
-
-    # TODO: validate that all moving tasks are it's siblings too
-    # TODO: move tasks first if they are not siblings
-
+    siblings = _collect_siblings(repo, anchor.task)
     group_at_anchor(
-        parent.subtasks, anchor_id=anchor.task.id, moved_ids=[r.task.id for r in moved]
+        siblings, anchor_id=anchor.task.id, moved_ids=[t.id for t in moved_tasks]
     )
 
+    print_parent_preview(repo, anchor.task, *moved_tasks)
+
+    # TODO: support json_output
+
     repo.flush_to_disk()
+
+
+def _ensure_same_parent(
+    repo: TaskRepo, anchor: Task, moved: list[Task]
+) -> list[TaskRename]:
+    renames = []
+    anchor_parent = repo.get_parent(anchor)
+    if anchor_parent is None:
+        # make sure that all moving tasks are roots
+        for task in moved:
+            if not is_root_task_id(task.id):
+                renames.extend(
+                    repo.move_task(task, new_parent=None),
+                )
+        return renames
+
+    for task in moved:
+        if repo.get_parent(task) is not anchor_parent:
+            renames.extend(
+                repo.move_task(task, new_parent=anchor_parent),
+            )
+
+    return renames
+
+
+def _collect_siblings(repo: TaskRepo, task: Task) -> list[Task]:
+    parent = repo.get_parent(task)
+    if parent is not None:
+        return [p for p in parent.subtasks if not p.deleted]
+
+    r = []
+    for task_path in repo.list_root_tasks():
+        tp = detect_task_type(task_path, require_valid=True)
+        r.append(repo.resolve_ref(tp.task_id))
+    return r
 
 
 class _ResolveIdRefResult(NamedTuple):

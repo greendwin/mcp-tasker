@@ -82,6 +82,7 @@ def test_write_text_unwritable_raises_tasker_error(fs: FakeFilesystem) -> None:
     assert exc_info.value.file_path == target
 
 
+@pytest.mark.real_error_handling
 def test_generic_exception_no_traceback_without_debug(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -95,6 +96,7 @@ def test_generic_exception_no_traceback_without_debug(
     assert "Traceback" not in result.output
 
 
+@pytest.mark.real_error_handling
 def test_generic_exception_json_no_traceback_without_debug(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -108,6 +110,7 @@ def test_generic_exception_json_no_traceback_without_debug(
     assert "traceback" not in data
 
 
+@pytest.mark.real_error_handling
 def test_generic_exception_json_has_traceback_with_debug(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -122,6 +125,7 @@ def test_generic_exception_json_has_traceback_with_debug(
     assert "RuntimeError" in data["traceback"]
 
 
+@pytest.mark.real_error_handling
 def test_generic_exception_debug_propagates(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

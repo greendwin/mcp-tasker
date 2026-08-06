@@ -1,5 +1,5 @@
 import traceback
-from collections.abc import Iterator
+from collections.abc import Generator
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
@@ -63,7 +63,7 @@ class OutputContext:
         arr.append(value)
 
     @contextmanager
-    def catching_errors(self) -> Iterator[None]:
+    def catching_errors(self) -> Generator[None]:
         self._json_output_obj = {}
         try:
             yield
