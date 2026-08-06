@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 
 import pytest
@@ -218,3 +219,84 @@ def test_order_reports_moved_tasks_in_new_order(story: str) -> None:
     # the moved tasks are reported, in argument order (b before c)
     assert b in out and c in out
     assert out.index(b) < out.index(c)
+
+
+def _read_recent(tasks_root: Path) -> str | None:
+    path = tasks_root / ".recent"
+    return path.read_text().strip() if path.exists() else None
+
+
+# --- Slice M: `.recent` reflects the post-relocation common ancestor ---
+
+
+def test_order_recent_uses_relocated_ancestor(tasks_root: Path) -> None:
+    s1 = create_task("Story one").task_id
+    s2 = create_task("Story two").task_id
+    a = add_subtask(s1, "Alpha").task_id  # s01t01
+    b = add_subtask(s2, "Bravo").task_id  # s02t01 → relocates under s1 to s01t02
+
+    assert_invoke(app, ["order", a, b])
+
+    # after relocation both ordered siblings live under s1, so their common
+    # ancestor — what `.recent` records — is s1, not the pre-move root ancestor
+    assert _read_recent(tasks_root) == s1
+
+
+# --- Slice N: the summary line echoes the refs as typed, before any rename ---
+
+
+def test_order_summary_reports_uses_old_id_before_move() -> None:
+    s1 = create_task("Story one").task_id
+    s2 = create_task("Story two").task_id
+    a = add_subtask(s1, "Alpha").task_id  # s01t01
+    b = add_subtask(s2, "Bravo").task_id  # s02t01 → relocates to s01t02
+
+    result = assert_invoke(app, ["order", a, b])
+
+    summary = next(line for line in result.output.splitlines() if line.strip())
+    # the leading summary is an echo of the command as typed: it names the ref
+    # the user gave (its pre-move id), printed before relocation. Final ids are
+    # reported by the rename listing, the preview tree, and the json payload.
+    assert (
+        b in summary
+    ), f"summary should echo the typed ref {b}, before renames:\n{result.output}"
+
+
+# --- Slice O: `order` emits a structured result under --json-output ---
+
+
+def test_order_json_emits_moved_ids(story: str) -> None:
+    a = add_subtask(story, "Alpha").task_id
+    b = add_subtask(story, "Bravo").task_id
+    c = add_subtask(story, "Charlie").task_id
+
+    result = assert_invoke(app, ["--json-output", "order", a, b, c])
+
+    data = json.loads(result.output)
+    # anchor first, then moved in argument order (b before c)
+    assert data["task_refs"] == [a, b, c]
+
+
+def test_order_json_reports_renames() -> None:
+    s1 = create_task("Story one").task_id
+    s2 = create_task("Story two").task_id
+    a = add_subtask(s1, "Alpha").task_id  # s01t01
+    b = add_subtask(s2, "Bravo").task_id  # s02t01 → relocates to s01t02
+
+    result = assert_invoke(app, ["--json-output", "order", a, b])
+
+    data = json.loads(result.output)
+    new_id = f"{s1}t02"
+    assert {"old_id": b, "new_id": new_id} in data["renames"]
+    # moved tasks reported by their final ids (anchor first)
+    assert data["task_refs"] == [a, new_id]
+
+
+def test_order_json_single_arg_noop() -> None:
+    a = create_task("Solo").task_id
+
+    result = assert_invoke(app, ["--json-output", "order", a])
+
+    data = json.loads(result.output)
+    # a no-op moves nothing; the payload stays well-formed with no moved tasks
+    assert data.get("task_refs", []) == []

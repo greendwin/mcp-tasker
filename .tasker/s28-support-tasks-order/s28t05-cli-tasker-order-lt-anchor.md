@@ -1,7 +1,7 @@
 ---
 id: s28t05
 slug: cli-tasker-order-lt-anchor
-status: in-progress
+status: done
 ---
 
 # CLI: tasker order <anchor> <moved...>; (base)

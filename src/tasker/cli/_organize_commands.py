@@ -351,7 +351,6 @@ def cmd_order_tasks(
 
     anchor = resolve_ref(repo, anchor_ref)
     moved = [resolve_ref(repo, p) for p in moved_refs]
-    save_recent_for_refs(repo, anchor, *moved)
 
     # TODO: check wording
     console.print(
@@ -362,9 +361,18 @@ def cmd_order_tasks(
     moved_tasks = [p.task for p in moved]
     renames = _ensure_same_parent(repo, anchor.task, moved_tasks)
 
+    # add summary after renames
+    if console.json_output:
+        console.append_context("task_refs", anchor.task.id)
+        for p in moved:
+            console.append_context("task_refs", p.task.id)
+
     if renames:
         _print_renamed_tasks(renames)
         repo.flush_to_disk()
+
+    # note: update recents after all task renames performed
+    save_recent_for_refs(repo, anchor, *moved)
 
     # all tasks must be upgraded to file-based
     repo.upgrade_to_filebased(anchor.task)
@@ -377,8 +385,6 @@ def cmd_order_tasks(
     )
 
     print_parent_preview(repo, anchor.task, *moved_tasks)
-
-    # TODO: support json_output
 
     repo.flush_to_disk()
 
