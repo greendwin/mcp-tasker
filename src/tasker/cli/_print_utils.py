@@ -4,7 +4,6 @@ from enum import IntEnum
 from typing import TypeAlias
 
 from tasker.base_types import Task, TaskStatus
-from tasker.parse import detect_task_type
 from tasker.repo import TaskRepo
 from tasker.resolve import load_recent_task
 from tasker.todo import assign_todo_letters, load_todo_tasks
@@ -404,13 +403,8 @@ def print_parent_preview(repo: TaskRepo, *tasks: Task) -> None:
             ancestor = repo.get_parent(ancestor)
 
     if not has_open_ancestor and all(t.is_closed for t in tasks):
-        for task_path in repo.list_root_tasks(archived=False):
-            tp = detect_task_type(task_path)
-            if tp is None:
-                # skip broken files
-                continue
-
-            root = repo.resolve_ref(tp.task_ref)
+        for task_id in repo.list_root_tasks():
+            root = repo.resolve_ref(task_id)
             if not root.is_closed:
                 config.show_task(root, ShowChildrenMode.SHOW_OPENED)
 

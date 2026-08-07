@@ -8,7 +8,6 @@ from tasker.parse import ParsedRef, make_child_ref, parse_task_ref
 
 from ._task_loader import TaskLoader
 from ._utils import (
-    find_next_root_task_id,
     get_next_subtask_id,
     update_parents_status,
     upgrade_to_filebased,
@@ -131,7 +130,7 @@ def _convert_to_root(
         assert is_root_task_id(new_id)
         task.id = new_id
     else:
-        task.id = find_next_root_task_id(loader)
+        task.id = loader.find_next_root_task_id()
 
     _reregister_tree(task, prev_id, renames, loader=loader)
 

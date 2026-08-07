@@ -1,3 +1,4 @@
+import re
 import traceback
 from collections.abc import Generator
 from contextlib import contextmanager
@@ -122,3 +123,17 @@ def write_text(path: Path, content: str) -> None:
         path.write_text(content, encoding="utf-8")
     except OSError as ex:
         raise TaskerError(str(ex), file_path=path) from ex
+
+
+_RE_STORY_PREFIX = re.compile(r"^s(\d+)")
+
+
+def get_root_task_num(name: str) -> int:
+    m = _RE_STORY_PREFIX.match(name)
+    if m is None:
+        raise AssertionError(f"Invalid root task id: {name!r}")
+    return int(m.group(1))
+
+
+def scan_root_tasks(root: Path) -> list[Path]:
+    return sorted(p for p in root.iterdir() if _RE_STORY_PREFIX.match(p.name))

@@ -1,5 +1,6 @@
 import re
 from dataclasses import dataclass
+from itertools import chain
 from pathlib import Path
 from typing import NamedTuple
 
@@ -8,15 +9,19 @@ from tasker.exceptions import TaskNotFoundError, TaskValidateError
 from tasker.layout import ARCHIVE_DIR
 from tasker.parse import (
     ParsedSubtask,
+    TaskDetectResult,
     detect_task_type,
     parse_task,
     parse_task_ref,
     warn_broken_task,
 )
 from tasker.render import append_task_filename, render_task
-from tasker.utils import read_text, write_text
+from tasker.utils import get_root_task_num, read_text, scan_root_tasks, write_text
 
-from ._utils import build_task_path_from_root, update_task_status_and_flags
+from ._utils import (
+    build_task_path_from_root,
+    update_task_status_and_flags,
+)
 
 
 @dataclass
@@ -26,6 +31,13 @@ class OriginalState:
     extended: bool
 
 
+@dataclass
+class RootTaskInfo:
+    task_path: Path
+    info: TaskDetectResult
+    archived: bool
+
+
 class TaskLoader:
     def __init__(self, root: Path) -> None:
         self.root = root
@@ -33,11 +45,26 @@ class TaskLoader:
         self._tasks: dict[str, Task] = {}
         self._original_state: dict[str, OriginalState] = {}
 
+        # pre-cache root tasks info so that we don't need to scan the disk every time
+        self._unloaded_root_tasks = _collect_all_root_tasks(root)
+
+    def list_root_tasks(self, *, archived: bool = False) -> list[str]:
+        r = []
+        for task in self._root_tasks.values():
+            if task.archived == archived:
+                r.append(task.id)
+
+        for task_info in self._unloaded_root_tasks.values():
+            if task_info.archived == archived:
+                r.append(task_info.info.task_id)
+
+        return r
+
     def resolve_ref(self, task_ref: str) -> Task:
         ti = parse_task_ref(task_ref)
 
         if ti.root_id not in self._root_tasks:
-            _load_task_tree(ti.root_id, loader=self)
+            _load_task_tree(self, ti.root_id, self._unloaded_root_tasks)
 
         task = self._tasks.get(ti.task_id)
         if task is None:
@@ -70,6 +97,10 @@ class TaskLoader:
 
         if is_root_task_id(task.id):
             self._root_tasks[task.id] = task
+            self._unloaded_root_tasks.pop(
+                task.id, None
+            )  # drop: it's not unloaded anymore
+
         self._tasks[task.id] = task
 
         if original:
@@ -108,11 +139,20 @@ class TaskLoader:
             return self.root / ARCHIVE_DIR
         return self.root
 
+    def find_next_root_task_id(self) -> str:
+        max_idx = None
+        for task_id in chain(self._root_tasks, self._unloaded_root_tasks):
+            idx = get_root_task_num(task_id)
+            if max_idx is None or max_idx < idx:
+                max_idx = idx
+
+        return f"s{(max_idx or 0) + 1:02d}"
+
     def reload_root_tree(self, root_id: str) -> None:
         assert root_id in self._root_tasks
 
         fresh = TaskLoader(self.root)
-        _load_task_tree(root_id, loader=fresh)
+        _load_task_tree(fresh, root_id, fresh._unloaded_root_tasks)
 
         fresh_root = fresh._root_tasks.get(root_id)
         existing_root = self._root_tasks[root_id]
@@ -138,6 +178,32 @@ class TaskLoader:
             )
 
         _cleanup_old_dirs(pending_dir_cleanups)
+
+
+def _collect_all_root_tasks(root: Path) -> dict[str, RootTaskInfo]:
+    paths: list[RootTaskInfo] = []
+    for task_path in scan_root_tasks(root):
+        if tp := detect_task_type(task_path):
+            paths.append(RootTaskInfo(task_path, tp, False))
+
+    for task_path in scan_root_tasks(root / ARCHIVE_DIR):
+        if tp := detect_task_type(task_path):
+            paths.append(RootTaskInfo(task_path, tp, True))
+
+    # check for duplicated paths
+    result: dict[str, RootTaskInfo] = {}
+    for p in paths:
+        if p.info.task_id in result:
+            raise TaskValidateError(
+                f"Ambiguous task `{p.info.task_id}`: multiple files match:\n"
+                f"  - {result[p.info.task_id].task_path.name}\n"
+                f"  - {p.task_path.name}",
+                task_ref=p.info.task_id,
+            )
+
+        result[p.info.task_id] = p
+
+    return result
 
 
 def _normalize_body(text: str | None) -> str:
@@ -257,29 +323,13 @@ def _cleanup_old_dirs(dirs: list[_PendingDirCleanup]) -> None:
 
 
 def _load_task_tree(
-    root_id: str,
-    *,
-    loader: TaskLoader,
-    from_archive: bool = False,
+    loader: TaskLoader, root_id: str, unloaded_root_tasks: dict[str, RootTaskInfo]
 ) -> None:
-    search_dir = loader.get_tasks_root(archived=from_archive)
-
-    candidates = list(search_dir.glob(f"{root_id}-*"))
-    if not candidates:
-        if not from_archive:
-            return _load_task_tree(root_id, loader=loader, from_archive=True)
+    task_info = unloaded_root_tasks.get(root_id)
+    if task_info is None:
         raise TaskValidateError(f"Task {root_id!r} not found", task_ref=root_id)
 
-    if len(candidates) > 1:
-        names = "".join(f"\n  - {p.name}" for p in candidates)
-        raise TaskValidateError(
-            f"Ambiguous task {root_id!r}: multiple files match: {names}",
-            task_ref=root_id,
-        )
-
-    tt = detect_task_type(candidates[0], require_valid=True)
-    assert tt.task_id == root_id
-
+    tt = task_info.info
     content = read_text(tt.content_path)
 
     try:
@@ -295,7 +345,7 @@ def _load_task_tree(
         raise
 
     assert root_id == root.id
-    root.archived = from_archive
+    root.archived = task_info.archived
 
     orig_info = OriginalState(
         filename=tt.content_path,
@@ -304,13 +354,14 @@ def _load_task_tree(
     )
     loader.register_task(root, orig_info)
 
+    search_dir = loader.get_tasks_root(archived=task_info.archived)
     for child_info in subtasks:
         child = _load_subtask(
             # note: use original `tt.task_ref`, `task.ref` can be changed from file
             search_dir / tt.task_ref,
             child_info,
             loader=loader,
-            archived=from_archive,
+            archived=task_info.archived,
         )
         if child is not None:
             root.subtasks.append(child)
@@ -323,7 +374,7 @@ def _load_subtask(
     task_info: ParsedSubtask,
     *,
     loader: TaskLoader,
-    archived: bool = False,
+    archived: bool,
 ) -> Task | None:
     if task_info.slug is None:
         # inline task cannot be extended
@@ -360,6 +411,7 @@ def _load_subtask(
         if ex.file_path is None:
             ex.file_path = original_path.relative_to(loader.root)
         raise
+
     task.archived = archived
 
     orig_info = OriginalState(

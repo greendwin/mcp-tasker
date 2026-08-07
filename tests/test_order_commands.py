@@ -730,3 +730,213 @@ def test_order_clear_rejects_other_flags(story: str) -> None:
         assert (
             "clear" in result.output.lower()
         ), f"expected a --clear conflict error for {extra}, got:\n{result.output}"
+
+
+# --- Slice H: `--rest` without `--front` appends the anchor-onward tail ---
+
+
+def test_order_rest_without_front_appends_tail_after_anchor(story: str) -> None:
+    a = add_subtask(story, "Alpha").task_id
+    b = add_subtask(story, "Bravo").task_id
+    c = add_subtask(story, "Charlie").task_id
+    x = add_subtask(story, "Xray").task_id
+    y = add_subtask(story, "Yankee").task_id
+
+    # order a c --rest: a is the anchor, c joins the block, then the tail after the
+    # last named ref (x, y) is appended; the earlier unnamed sibling (b) is untouched
+    assert_invoke(app, ["order", a, c, "--rest"])
+
+    out = assert_invoke(app, ["view", story]).output
+    pos = _view_positions(out, [a, c, x, y, b])
+    assert pos == sorted(pos), f"expected sequence a,c,x,y,b, got:\n{out}"
+
+
+def test_order_rest_without_front_json_reports_reordered(story: str) -> None:
+    a = add_subtask(story, "Alpha").task_id
+    add_subtask(story, "Bravo")  # b — earlier unnamed sibling, untouched
+    c = add_subtask(story, "Charlie").task_id
+    x = add_subtask(story, "Xray").task_id
+    y = add_subtask(story, "Yankee").task_id
+
+    result = assert_invoke(app, ["--json-output", "order", a, c, "--rest"])
+
+    data = json.loads(result.output)
+    # task_refs = the tasks actually reordered (anchor + named + tail-after), never
+    # the untouched earlier sibling
+    assert sorted(data["task_refs"]) == sorted([a, c, x, y])
+
+
+# --- Slice I: `--front` relocates a cross-parent ref into the front block ---
+
+
+def test_order_front_relocates_cross_parent_into_front_block() -> None:
+    s1 = create_task("Story one").task_id
+    s2 = create_task("Story two").task_id
+    a = add_subtask(s1, "Alpha").task_id
+    b = add_subtask(s2, "Bravo").task_id  # cross-parent → relocated under s1
+
+    assert_invoke(app, ["order", "--front", a, b])
+
+    view1 = assert_invoke(app, ["view", s1]).output
+    view2 = assert_invoke(app, ["view", s2]).output
+    # Bravo is pulled under the front block's parent and leads alongside Alpha
+    assert "Alpha" in view1 and "Bravo" in view1
+    assert view1.index("Alpha") < view1.index("Bravo")
+    # ...and no longer lives under its former parent
+    assert "Bravo" not in view2
+
+
+# --- Reparenting matrix (Batch 3): source/target may each be subtask or root ---
+# Rule 1: the anchor (first ref; first-in-list for --front) fixes the target parent;
+# every other ref becomes its sibling (relocate / demote root->sub / promote sub->root).
+
+
+# Slice J: cell B — a named root task demotes to a subtask under a subtask anchor
+
+
+def test_order_demotes_root_source_under_subtask_anchor() -> None:
+    s1 = create_task("Story one").task_id
+    anchor = add_subtask(s1, "Anchor sub").task_id
+    root = create_task("Lonely root").task_id
+
+    assert_invoke(app, ["order", anchor, root])
+
+    view1 = assert_invoke(app, ["view", s1]).output
+    # the root story is demoted under the anchor's parent, ordered after the anchor
+    assert "Anchor sub" in view1 and "Lonely root" in view1
+    assert view1.index("Anchor sub") < view1.index("Lonely root")
+    # ...and its old root id is gone — it is now a subtask, not a story
+    assert_invoke(app, ["view", root], expect_error=True)
+
+
+def test_order_front_demotes_root_source_into_front_block() -> None:
+    s1 = create_task("Story one").task_id
+    a = add_subtask(s1, "Alpha").task_id
+    root = create_task("Lonely root").task_id
+
+    assert_invoke(app, ["order", "--front", a, root])
+
+    view1 = assert_invoke(app, ["view", s1]).output
+    assert "Alpha" in view1 and "Lonely root" in view1
+    assert view1.index("Alpha") < view1.index("Lonely root")
+    # ...and its old root id is gone — it is now a subtask, not a story
+    assert_invoke(app, ["view", root], expect_error=True)
+
+
+# Slice K: cell C — a named subtask promotes to root under a root anchor (--front)
+
+
+def test_order_front_promotes_subtask_under_root_anchor() -> None:
+    s1 = create_task("Anchor root").task_id
+    s2 = create_task("Story two").task_id
+    sub = add_subtask(s2, "Promote me").task_id
+
+    assert_invoke(app, ["order", "--front", s1, sub])
+
+    listing = assert_invoke(app, ["list"]).output
+    # the subtask is promoted to root and leads with the anchor
+    assert "Anchor root" in listing and "Promote me" in listing
+    assert listing.index("Anchor root") < listing.index("Promote me")
+    assert "Promote me" not in assert_invoke(app, ["view", s2]).output
+
+
+# Slice L: --front --rest reparenting — Rule 2 tail comes from the last ref's origin
+
+
+def test_order_front_rest_relocates_last_ref_and_its_origin_tail() -> None:
+    s1 = create_task("Story one").task_id
+    a = add_subtask(s1, "Alpha").task_id
+    s2 = create_task("Story two").task_id
+    x = add_subtask(s2, "Xray").task_id
+    add_subtask(s2, "Yankee")  # x's original tail — pulled in by --rest
+
+    assert_invoke(app, ["order", "--front", a, x, "--rest"])
+
+    view1 = assert_invoke(app, ["view", s1]).output
+    # x AND its original s2 tail (Yankee) relocate under s1, leading with a
+    for title in ("Alpha", "Xray", "Yankee"):
+        assert title in view1, f"{title} missing under s1:\n{view1}"
+    assert view1.index("Xray") < view1.index("Yankee")
+    view2 = assert_invoke(app, ["view", s2]).output
+    assert "Xray" not in view2 and "Yankee" not in view2
+
+
+def test_order_front_rest_demotes_root_last_ref() -> None:
+    s1 = create_task("Story one").task_id
+    a = add_subtask(s1, "Alpha").task_id
+    root = create_task(
+        "Lonely root"
+    ).task_id  # last ref; no roots after it → empty tail
+
+    assert_invoke(app, ["order", "--front", a, root, "--rest"])
+
+    view1 = assert_invoke(app, ["view", s1]).output
+    assert "Alpha" in view1 and "Lonely root" in view1
+    assert view1.index("Alpha") < view1.index("Lonely root")
+    # ...and its old root id is gone — it is now a subtask, not a story
+    assert_invoke(app, ["view", root], expect_error=True)
+
+
+def test_order_front_rest_promotes_subtask_last_ref_under_root_anchor() -> None:
+    s1 = create_task("Anchor root").task_id
+    s2 = create_task("Story two").task_id
+    sub = add_subtask(s2, "Promote me").task_id
+    add_subtask(s2, "Sibling tail")  # sub's origin tail — pulled in by --rest
+
+    assert_invoke(app, ["order", "--front", s1, sub, "--rest"])
+
+    listing = assert_invoke(app, ["list"]).output
+    # sub and its origin tail both promote to root, leading with the anchor
+    for title in ("Anchor root", "Promote me", "Sibling tail"):
+        assert title in listing, f"{title} missing in listing:\n{listing}"
+    assert listing.index("Anchor root") < listing.index("Promote me")
+    assert listing.index("Promote me") < listing.index("Sibling tail")
+
+
+# --- Reparenting matrix (Batch 4): --rest without --front (needs Slice H) ---
+
+
+def test_order_rest_relocates_last_ref_and_origin_tail() -> None:
+    s1 = create_task("Story one").task_id
+    a = add_subtask(s1, "Alpha").task_id
+    s2 = create_task("Story two").task_id
+    x = add_subtask(s2, "Xray").task_id
+    add_subtask(s2, "Yankee")  # x's original tail — pulled in by --rest
+
+    assert_invoke(app, ["order", a, x, "--rest"])
+
+    view1 = assert_invoke(app, ["view", s1]).output
+    for title in ("Alpha", "Xray", "Yankee"):
+        assert title in view1, f"{title} missing under s1:\n{view1}"
+    assert view1.index("Xray") < view1.index("Yankee")
+    view2 = assert_invoke(app, ["view", s2]).output
+    assert "Xray" not in view2 and "Yankee" not in view2
+
+
+def test_order_rest_demotes_root_last_ref() -> None:
+    s1 = create_task("Story one").task_id
+    a = add_subtask(s1, "Alpha").task_id
+    root = create_task("Lonely root").task_id
+
+    assert_invoke(app, ["order", a, root, "--rest"])
+
+    view1 = assert_invoke(app, ["view", s1]).output
+    assert "Alpha" in view1 and "Lonely root" in view1
+    assert view1.index("Alpha") < view1.index("Lonely root")
+    # ...and its old root id is gone — it is now a subtask, not a story
+    assert_invoke(app, ["view", root], expect_error=True)
+
+
+def test_order_rest_promotes_subtask_last_ref_under_root_anchor() -> None:
+    s1 = create_task("Anchor root").task_id
+    s2 = create_task("Story two").task_id
+    sub = add_subtask(s2, "Promote me").task_id
+    add_subtask(s2, "Sibling tail")  # sub's origin tail — pulled in by --rest
+
+    assert_invoke(app, ["order", s1, sub, "--rest"])
+
+    listing = assert_invoke(app, ["list"]).output
+    for title in ("Anchor root", "Promote me", "Sibling tail"):
+        assert title in listing, f"{title} missing in listing:\n{listing}"
+    assert listing.index("Anchor root") < listing.index("Promote me")
+    assert listing.index("Promote me") < listing.index("Sibling tail")

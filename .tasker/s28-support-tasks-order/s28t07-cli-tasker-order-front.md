@@ -1,7 +1,7 @@
 ---
 id: s28t07
 slug: cli-tasker-order-front
-status: in-review
+status: done
 ---
 
 # CLI: tasker order --front

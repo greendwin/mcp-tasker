@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import re
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -15,31 +14,6 @@ if TYPE_CHECKING:
 def generate_slug(title: str) -> str:
     # return first five parts of the normalized title
     return "-".join(normalize_slug(title).split("-")[:5])
-
-
-def find_next_root_task_id(loader: TaskLoader) -> str:
-    existing = _scan_root_task_nums(loader.root) + _scan_root_task_nums(
-        loader.get_tasks_root(archived=True)
-    )
-    return f"s{max(existing, default=0) + 1:02d}"
-
-
-_RE_STORY_PREFIX = re.compile(r"^s(\d+)")
-
-
-def _scan_root_task_nums(root_dir: Path) -> list[int]:
-    if not root_dir.is_dir():
-        return []
-
-    return [
-        int(m.group(1))
-        for p in root_dir.iterdir()
-        if (m := _RE_STORY_PREFIX.match(p.name))
-    ]
-
-
-def list_root_tasks(root: Path) -> list[Path]:
-    return sorted(p for p in root.iterdir() if _RE_STORY_PREFIX.match(p.name))
 
 
 def get_next_subtask_id(parent: Task) -> str:

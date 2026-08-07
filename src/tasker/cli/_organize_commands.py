@@ -5,7 +5,7 @@ from typer_di import Depends
 
 from tasker.base_types import Task, is_root_task_id, walk_tasks
 from tasker.exceptions import TaskerError, TaskValidateError
-from tasker.parse import detect_task_type, normalize_task_id, parse_task_ref
+from tasker.parse import normalize_task_id, parse_task_ref
 from tasker.repo import TaskRename, TaskRepo, group_at_anchor, group_at_front
 from tasker.resolve import ResolvedRef, resolve_ref, save_recent_for_refs
 from tasker.todo import load_todo_ids, save_todo_ids
@@ -37,27 +37,29 @@ def cmd_archive_task(
     repo: TaskRepo = Depends(get_task_repo),
 ) -> None:
     if not task_refs and not all_closed:
-        raise TaskerError("Specify <task_ref> or --closed.")
+        raise typer.BadParameter(
+            "Provide at least one task reference, or use "
+            "--closed to archive all closed stories."
+        )
 
     if not task_refs:
         task_refs = []
 
+    resolved = [resolve_ref(repo, tr) for tr in task_refs]
+
     if all_closed:
-        for task_path in repo.list_root_tasks():
-            tp = detect_task_type(task_path)
-            if tp is None:
-                # skip broken files
+        used = {p.task.id for p in resolved}
+
+        for task_id in repo.list_root_tasks():
+            if task_id in used:
                 continue
 
-            if tp.task_id in task_refs or tp.task_ref in task_refs:
-                continue
+            r = resolve_ref(repo, task_id)
+            if r.task.is_closed:
+                task_refs.append(task_id)
+                resolved.append(r)
 
-            if repo.resolve_ref(tp.task_ref).is_closed:
-                task_refs.append(tp.task_ref)
-
-    for task_ref in task_refs:
-        ref = resolve_ref(repo, task_ref)
-
+    for ref in resolved:
         if not is_root_task_id(ref.task.id):
             raise TaskValidateError(
                 f"Only root tasks can be archived, {ref.task.id!r} is a subtask.",
@@ -353,25 +355,23 @@ def cmd_order_tasks(
     tasks = [r.task for r in resolved]
 
     if clear and (front or rest):
-        # TODO: check wording
-        raise typer.BadParameter(
-            "Option `--clear` cannot be used with " "neither `--front` nor `--rest`"
-        )
+        raise typer.BadParameter("--clear cannot be combined with --front or --rest.")
 
     if clear:
         _clear_tasks_ordering(repo, tasks)
     elif front:
         _reorder_tasks_to_front(repo, tasks, rest=rest)
     else:
-        # TODO: `order a b --rest` is also viable (i.e. all next to latest task ref)
-        #       e.g.: order([a, b, c, x, y], [a, c], rest) == [a, c, x, y, b]
-        _reorder_tasks(repo, tasks)
+        _reorder_tasks(repo, tasks, rest=rest)
 
     # note: update recents after possibl renames
     save_recent_for_refs(repo, *resolved)
 
 
-def _reorder_tasks(repo: TaskRepo, tasks: list[Task]) -> None:
+def _reorder_tasks(repo: TaskRepo, tasks: list[Task], *, rest: bool) -> None:
+    if rest:
+        tasks = _collect_tasks_with_rest(repo, tasks)
+
     anchor, *moved_tasks = tasks
 
     if not moved_tasks:
@@ -388,18 +388,15 @@ def _reorder_tasks(repo: TaskRepo, tasks: list[Task]) -> None:
         f"{', '.join(p.id for p in moved_tasks)}"
     )
 
-    # TODO: test me
     renames = _ensure_same_parent(repo, anchor, moved_tasks)
+    if renames:
+        _print_renamed_tasks(renames)
 
-    # add summary after renames
+    # add context after renames for actual ids
     if console.json_output:
         console.append_context("task_refs", anchor.id)
         for task in moved_tasks:
             console.append_context("task_refs", task.id)
-
-    if renames:
-        _print_renamed_tasks(renames)
-        repo.flush_to_disk()
 
     # all tasks must be upgraded to file-based
     repo.upgrade_to_filebased(anchor)
@@ -416,20 +413,15 @@ def _reorder_tasks(repo: TaskRepo, tasks: list[Task]) -> None:
     repo.flush_to_disk()
 
 
-def _reorder_tasks_to_front(repo: TaskRepo, tasks: list[Task], rest: bool) -> None:
+def _reorder_tasks_to_front(repo: TaskRepo, tasks: list[Task], *, rest: bool) -> None:
     if rest:
         tasks = _collect_tasks_with_rest(repo, tasks)
 
-    # TODO: check wording
-    console.print("Moving tasks to the front:")
-    for task in tasks:
-        console.print(f"  - {task.id}")
+    console.print(f"Moving tasks to the front: {', '.join(t.id for t in tasks)}")
 
-    # TODO: test me
     renames = _ensure_same_parent(repo, tasks[0], tasks)
     if renames:
         _print_renamed_tasks(renames)
-        repo.flush_to_disk()
 
     # all tasks must be upgraded to file-based
     for task in tasks:
@@ -443,12 +435,10 @@ def _reorder_tasks_to_front(repo: TaskRepo, tasks: list[Task], rest: bool) -> No
         console.set_context("task_refs", [t.id for t in sorted(tasks)])
 
     print_parent_preview(repo, *tasks)
-
     repo.flush_to_disk()
 
 
 def _collect_tasks_with_rest(repo: TaskRepo, tasks: list[Task]) -> list[Task]:
-    # TODO: TESTME: note that rest is take from last test *before* renames
     siblings = _collect_siblings(repo, tasks[-1])
     siblings.sort()
     idx = siblings.index(tasks[-1])
@@ -467,8 +457,8 @@ def _clear_tasks_ordering(repo: TaskRepo, tasks: list[Task]) -> None:
         task.order = None
         repo.try_downgrade_task(task)
 
-    repo.flush_to_disk()
     print_parent_preview(repo, *tasks)
+    repo.flush_to_disk()
 
 
 def _ensure_same_parent(
@@ -499,11 +489,7 @@ def _collect_siblings(repo: TaskRepo, task: Task) -> list[Task]:
     if parent is not None:
         return [p for p in parent.subtasks if not p.deleted]
 
-    r = []
-    for task_path in repo.list_root_tasks():
-        tp = detect_task_type(task_path, require_valid=True)
-        r.append(repo.resolve_ref(tp.task_id))
-    return r
+    return [repo.resolve_ref(task_id) for task_id in repo.list_root_tasks()]
 
 
 class _ResolveIdRefResult(NamedTuple):
