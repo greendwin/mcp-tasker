@@ -465,3 +465,268 @@ def test_order_clear_json_emits_cleared_ids(story: str) -> None:
     data = json.loads(result.output)
     # the cleared tasks are reported by id, in argument order
     assert data["task_refs"] == [a, b]
+
+
+# ==========================================================================
+# `order --front` and `order --front --rest`
+# ==========================================================================
+
+
+def _view_positions(output: str, ids: list[str]) -> list[int]:
+    positions = []
+    for task_id in ids:
+        idx = output.find(task_id)
+        assert idx != -1, f"{task_id!r} not present in output:\n{output}"
+        positions.append(idx)
+    return positions
+
+
+# --- Slice A: `--front` lands the listed block at the front ---
+
+
+def test_order_front_moves_anchor_to_front(story: str) -> None:
+    t01 = add_subtask(story, "One").task_id
+    t02 = add_subtask(story, "Two").task_id
+    t03 = add_subtask(story, "Three").task_id
+    t04 = add_subtask(story, "Four").task_id
+
+    assert_invoke(app, ["order", t01, t02, t03, t04])  # ordered t01<t02<t03<t04
+    assert_invoke(app, ["order", "--front", t03])  # t03 jumps to the front
+
+    out = assert_invoke(app, ["view", story]).output
+    pos = _view_positions(out, [t03, t01, t02, t04])
+    # t03 now leads; the others shift down keeping their relative order
+    assert pos == sorted(pos), f"expected t03 first, got:\n{out}"
+
+
+def test_order_front_places_refs_ahead_in_arg_order(story: str) -> None:
+    t01 = add_subtask(story, "One").task_id
+    t02 = add_subtask(story, "Two").task_id
+    x = add_subtask(story, "Ex").task_id
+    y = add_subtask(story, "Why").task_id
+
+    assert_invoke(app, ["order", t01, t02])  # only t01,t02 ordered
+    assert_invoke(app, ["order", "--front", x, y])  # x then y ahead of them
+
+    out = assert_invoke(app, ["view", story]).output
+    pos = _view_positions(out, [x, y, t01, t02])
+    assert pos == sorted(pos), f"expected x, y ahead in arg order, got:\n{out}"
+
+
+def test_order_front_no_existing_ordered_assigns_block(
+    story: str, tasks_root: Path
+) -> None:
+    a = add_subtask(story, "Alpha", details="Alpha").task_id
+    b = add_subtask(story, "Bravo", details="Bravo").task_id
+    c = add_subtask(story, "Charlie", details="Charlie").task_id  # stays unset
+
+    assert_invoke(app, ["order", "--front", a, b])
+
+    oa = _order_of(tasks_root, a)
+    ob = _order_of(tasks_root, b)
+    assert oa is not None and ob is not None and oa < ob
+    # the untouched sibling stays in the unset tail
+    assert _order_of(tasks_root, c) is None
+
+
+# --- Slice B: `--front` below the current minimum goes negative, still sorts ---
+
+
+def test_order_front_below_minimum_still_sorts(story: str, tasks_root: Path) -> None:
+    t01 = add_subtask(story, "One").task_id
+    t02 = add_subtask(story, "Two").task_id
+    t03 = add_subtask(story, "Three").task_id
+    t04 = add_subtask(story, "Four").task_id
+
+    assert_invoke(app, ["order", t01, t02, t03, t04])  # ordered t01<t02<t03<t04
+    # push two tasks below the current minimum — no re-space, values go negative
+    assert_invoke(app, ["order", "--front", t04, t03])
+
+    lead = _order_of(tasks_root, t04)
+    prev_min = _order_of(tasks_root, t01)
+    assert lead is not None and prev_min is not None
+    # the engine drops below the old minimum rather than re-spacing the set
+    assert lead < 0
+
+    out = assert_invoke(app, ["view", story]).output
+    pos = _view_positions(out, [t04, t03, t01, t02])
+    assert pos == sorted(pos), f"expected t04,t03 leading, got:\n{out}"
+
+
+# --- Slice C: `--front` single ref is valid — not the base no-op warning ---
+
+
+def test_order_front_single_ref_moves_not_warns(story: str) -> None:
+    t01 = add_subtask(story, "One").task_id
+    t02 = add_subtask(story, "Two").task_id
+    t03 = add_subtask(story, "Three").task_id
+
+    assert_invoke(app, ["order", t01, t02, t03])  # ordered t01<t02<t03
+
+    result = assert_invoke(app, ["order", "--front", t03])
+
+    # under --front a lone ref is meaningful, not a no-op: no anchor warning
+    assert "at least one" not in result.output.lower()
+
+    out = assert_invoke(app, ["view", story]).output
+    assert out.index(t03) < out.index(t01), f"expected t03 to lead, got:\n{out}"
+
+
+# --- Slice D: `--front` honors ADR 0004 (recent / json / preview) ---
+
+
+def test_order_front_updates_recent(story: str, tasks_root: Path) -> None:
+    a = add_subtask(story, "Alpha").task_id
+    b = add_subtask(story, "Bravo").task_id
+
+    assert_invoke(app, ["order", "--front", a, b])
+
+    # both touched tasks live under the story → recent records their ancestor
+    assert _read_recent(tasks_root) == story
+
+
+def test_order_front_json_emits_task_refs(story: str) -> None:
+    a = add_subtask(story, "Alpha").task_id
+    b = add_subtask(story, "Bravo").task_id
+    add_subtask(story, "Charlie")
+
+    result = assert_invoke(app, ["--json-output", "order", "--front", a, b])
+
+    data = json.loads(result.output)
+    # the front block is reported by id, in argument order
+    assert data["task_refs"] == [a, b]
+
+
+def test_order_front_previews_moved_in_hierarchy(story: str) -> None:
+    t01 = add_subtask(story, "One").task_id
+    t02 = add_subtask(story, "Two").task_id
+    x = add_subtask(story, "Ex").task_id
+    y = add_subtask(story, "Why").task_id
+
+    assert_invoke(app, ["order", t01, t02])
+    result = assert_invoke(app, ["order", "--front", x, y])
+
+    # the command previews the moved tasks in the updated tree, in new order
+    out = result.output
+    assert x in out and y in out
+    assert out.index(x) < out.index(y), f"expected x before y in preview:\n{out}"
+
+
+# --- Slice E: `--rest` rotates a total order from the anchor + mass-upgrade ---
+
+
+def test_order_front_rest_rotates_from_anchor(story: str) -> None:
+    t01 = add_subtask(story, "One").task_id
+    t02 = add_subtask(story, "Two").task_id
+    t03 = add_subtask(story, "Three").task_id
+    t04 = add_subtask(story, "Four").task_id
+
+    assert_invoke(app, ["order", t01, t02, t03, t04])  # ordered t01<t02<t03<t04
+    assert_invoke(app, ["order", "--front", t03, "--rest"])
+
+    out = assert_invoke(app, ["view", story]).output
+    # anchor-onward block (t03,t04) leads; the earlier siblings follow in order
+    pos = _view_positions(out, [t03, t04, t01, t02])
+    assert pos == sorted(pos), f"expected rotation t03,t04,t01,t02, got:\n{out}"
+
+
+def test_order_front_rest_orders_anchor_onward_leaves_earlier_unset(
+    story: str, tasks_root: Path
+) -> None:
+    a = add_subtask(story, "Alpha").task_id
+    b = add_subtask(story, "Bravo").task_id
+    c = add_subtask(story, "Charlie").task_id
+    d = add_subtask(story, "Delta").task_id
+
+    assert_invoke(app, ["order", "--front", c, "--rest"])
+
+    # --rest orders the anchor and everything sorting after it (c, d) ...
+    order_c = _order_of(tasks_root, c)
+    order_d = _order_of(tasks_root, d)
+    assert order_c is not None, "anchor left unset"
+    assert order_d is not None, "tail-after-anchor left unset"
+    assert order_c < order_d
+
+    # ... while earlier siblings (a, b) stay inline/unset and sort after the block
+    assert not _has_stored_file(tasks_root, a), "a should stay inline/unset"
+    assert not _has_stored_file(tasks_root, b), "b should stay inline/unset"
+
+    out = assert_invoke(app, ["view", story]).output
+    pos = _view_positions(out, [c, d, a, b])
+    assert pos == sorted(pos), f"expected ordered c,d before unset a,b, got:\n{out}"
+
+
+def test_order_front_rest_upgrades_inline_siblings_to_files(
+    story: str, tasks_root: Path
+) -> None:
+    a = add_subtask(story, "Alpha").task_id  # inline (no --details)
+    b = add_subtask(story, "Bravo").task_id  # inline
+    c = add_subtask(story, "Charlie").task_id  # inline
+
+    assert not _has_stored_file(tasks_root, b)  # precondition: inline
+    assert not _has_stored_file(tasks_root, c)
+
+    assert_invoke(app, ["order", "--front", a, "--rest"])
+
+    # each sibling from the anchor onward becomes a file and gains an order
+    for task_id in (a, b, c):
+        assert _has_stored_file(tasks_root, task_id), f"{task_id} not upgraded"
+        assert _order_of(tasks_root, task_id) is not None
+
+
+# --- Slice F: `--rest` honors ADR 0004 (recent / json / preview) ---
+
+
+def test_order_front_rest_updates_recent(story: str, tasks_root: Path) -> None:
+    a = add_subtask(story, "Alpha").task_id
+    add_subtask(story, "Bravo")
+    add_subtask(story, "Charlie")
+
+    assert_invoke(app, ["order", "--front", a, "--rest"])
+
+    # recent records the common ancestor of the *named* refs; a lone ref is itself
+    assert _read_recent(tasks_root) == a
+
+
+def test_order_front_rest_json_emits_task_refs(story: str) -> None:
+    t01 = add_subtask(story, "One").task_id
+    t02 = add_subtask(story, "Two").task_id
+    t03 = add_subtask(story, "Three").task_id
+    t04 = add_subtask(story, "Four").task_id
+
+    assert_invoke(app, ["order", t01, t02, t03, t04])
+
+    result = assert_invoke(app, ["--json-output", "order", "--front", t03, "--rest"])
+
+    data = json.loads(result.output)
+    # task_refs reports the tasks actually reordered (anchor + tail), not the
+    # untouched earlier siblings
+    assert data["task_refs"] == [t03, t04]
+
+
+def test_order_front_rest_previews_in_hierarchy(story: str) -> None:
+    t01 = add_subtask(story, "One").task_id
+    t02 = add_subtask(story, "Two").task_id
+    t03 = add_subtask(story, "Three").task_id
+    t04 = add_subtask(story, "Four").task_id
+
+    assert_invoke(app, ["order", t01, t02, t03, t04])
+    result = assert_invoke(app, ["order", "--front", t03, "--rest"])
+
+    out = result.output
+    pos = _view_positions(out, [t03, t04])
+    assert pos == sorted(pos), f"expected rotated preview t03 before t04:\n{out}"
+
+
+# --- Slice G: `--clear` is mutually exclusive with the placement flags ---
+
+
+def test_order_clear_rejects_other_flags(story: str) -> None:
+    a = add_subtask(story, "Alpha").task_id
+
+    for extra in ("--front", "--rest"):
+        result = assert_invoke(app, ["order", "--clear", extra, a], expect_error=True)
+        # --clear cannot be combined with a placement flag; the error says so
+        assert (
+            "clear" in result.output.lower()
+        ), f"expected a --clear conflict error for {extra}, got:\n{result.output}"
