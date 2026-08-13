@@ -10,10 +10,12 @@ __all__ = [
     "finish_task",
     "cancel_task",
     "create_task",
+    "order_tasks",
 ]
 
 from ._common import MutationResult, mcp
 from ._create_methods import create_task
+from ._order_methods import order_tasks
 from ._status_methods import (
     cancel_task,
     edit_task,

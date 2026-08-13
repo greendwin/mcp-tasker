@@ -1,7 +1,7 @@
 ---
 id: s28t09
 slug: cli-tasker-order-parent-attach
-status: pending
+status: cancelled
 ---
 
 # CLI: tasker order --parent (attach + order)

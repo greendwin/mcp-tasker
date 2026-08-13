@@ -8,11 +8,16 @@ Every public CLI command — and its MCP twin — that reads or manipulates task
 MUST honour four cross-cutting contracts rather than treating them as
 per-command choices:
 
-1. **Update `.recent`** — call `save_recent_for_refs(repo, …)` with the tasks it
-   touched, so the next bare `list`/`view` lands on what the user just worked on.
-   `.recent` stores the *common ancestor* of the referenced tasks, so refs must be
-   passed **after** any relocation/rename — the stored ancestor must reflect the
-   tasks' final ids, not their pre-move ids.
+1. **Update `.recent`** — **CLI only.** A CLI command calls
+   `save_recent_for_refs(repo, …)` with the tasks it touched, so the next bare
+   `list`/`view` lands on what the user just worked on. `.recent` stores the
+   *common ancestor* of the referenced tasks, so refs must be passed **after** any
+   relocation/rename — the stored ancestor must reflect the tasks' final ids, not
+   their pre-move ids. **MCP twins MUST NOT touch `.recent`.** It is a
+   human-interaction affordance — it steers where an interactive user's next bare
+   `list`/`view` lands — and an agent driving the MCP tools must not silently
+   move that pointer out from under the user. An MCP mutator that writes `.recent`
+   is a defect.
 2. **Support `--json-output`** — every user-visible result line carries a
    `context=` payload (`JsonAppend` / `set_context`), so the same command emits a
    structured object under `--json-output` instead of prose. A command whose
@@ -33,8 +38,9 @@ promote, relocate, todo) additionally MUST, on success:
    *in place* without moving it (`edit`, `start`, `review`, status changes) may
    show a lighter task-level preview instead — see the accepted deviations below.
 
-A new command that skips any of these is a defect, not a stylistic variation;
-reviewers check all four.
+A new CLI command that skips any of these is a defect, not a stylistic variation;
+reviewers check all four. An MCP twin returns a structured ack instead of a
+preview and, per contract 1, leaves `.recent` untouched.
 
 ## Scope, exemptions, and accepted deviations
 

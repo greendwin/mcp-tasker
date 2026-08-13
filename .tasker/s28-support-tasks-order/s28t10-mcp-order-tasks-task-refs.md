@@ -1,7 +1,7 @@
 ---
 id: s28t10
 slug: mcp-order-tasks-task-refs
-status: pending
+status: done
 ---
 
 # MCP: order_tasks(task_refs)
