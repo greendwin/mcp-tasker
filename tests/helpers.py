@@ -35,6 +35,10 @@ def assert_invoke(
                 f"Command was expected to fail but exited with code 0:\n{result.output}"
             )
     elif result.exit_code != 0:
+        if raw.exception and not isinstance(raw.exception, SystemExit):
+            print(f"Command exited with code {result.exit_code}:\n{result.output}")
+            raise raw.exception
+
         raise AssertionError(
             f"Command exited with code {result.exit_code}:\n{result.output}"
         )

@@ -6,7 +6,6 @@ from typer_di import Depends
 
 from tasker.base_types import Task, TaskStatus, is_nonleaf_task, walk_tasks
 from tasker.exceptions import TaskHasSubtasksError
-from tasker.parse import detect_task_type
 from tasker.repo import TaskRepo
 from tasker.resolve import (
     ResolvedRef,
@@ -386,13 +385,8 @@ def cmd_done_task(
 
 
 def _iter_open_leaf_tasks(repo: TaskRepo) -> Iterator[Task]:
-    for task_path in repo.list_root_tasks(archived=False):
-        tp = detect_task_type(task_path)
-        if tp is None:
-            # skip broken files
-            continue
-
-        root = repo.resolve_ref(tp.task_ref)
+    for task_id in repo.list_root_tasks():
+        root = repo.resolve_ref(task_id)
         for t in walk_tasks(root):
             if not t.is_closed and not is_nonleaf_task(t):
                 yield t

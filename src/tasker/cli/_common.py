@@ -16,9 +16,9 @@ from tasker.layout import (
     get_user_tasker_dir,
     init_tasker_dir,
 )
-from tasker.parse import detect_task_type, parse_task_file, parse_task_ref
+from tasker.parse import parse_task_file, parse_task_ref
 from tasker.repo import TaskRepo
-from tasker.utils import JsonAppend, console
+from tasker.utils import JsonAppend, console, scan_root_tasks
 
 
 class _TaskerGroup(TyperGroup):
@@ -74,8 +74,7 @@ def complete_task_ref(
         return []
 
     items: list[tuple[str, str]] = []
-    repo = TaskRepo(tasker_dir)
-    for task_path in repo.list_root_tasks():
+    for task_path in scan_root_tasks(tasker_dir):
         try:
             result = parse_task_file(task_path)
         except Exception:
@@ -127,12 +126,8 @@ def cmd_init(
 
 
 def iter_in_review_tasks(repo: TaskRepo) -> Iterator[Task]:
-    for task_path in repo.list_root_tasks(archived=False):
-        tp = detect_task_type(task_path)
-        if tp is None:
-            continue
-
-        root = repo.resolve_ref(tp.task_ref)
+    for task_id in repo.list_root_tasks():
+        root = repo.resolve_ref(task_id)
         for t in walk_tasks(root):
             if t.status == TaskStatus.IN_REVIEW:
                 yield t

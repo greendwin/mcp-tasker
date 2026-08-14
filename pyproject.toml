@@ -54,3 +54,6 @@ line_length = 88
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+markers = [
+    "real_error_handling: run against production catching_errors (skip the bubble-unexpected test harness)",
+]

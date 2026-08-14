@@ -31,3 +31,4 @@ status: pending
 - [ ] s12t24: Order tasks in 'list' by 'depends-on' relations
 - [ ] [s12t25](s12t25-resolve-conflicting-ids-on-tasker.md): Resolve conflicting ids on 'tasker resolve'
 - [ ] [s12t26](s12t26-tasker-ui.md): Tasker UI
+- [ ] s12t27: Move all local files to .local subdir in .tasker to make it future compatible

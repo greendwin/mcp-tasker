@@ -8,7 +8,6 @@ from tasker.parse import ParsedRef, make_child_ref, parse_task_ref
 
 from ._task_loader import TaskLoader
 from ._utils import (
-    find_next_root_task_id,
     get_next_subtask_id,
     update_parents_status,
     upgrade_to_filebased,
@@ -57,7 +56,6 @@ def move_task_impl(
     upgrade_to_filebased(new_parent, loader=loader)
 
     renames: list[TaskRename] = []
-
     prev_id = task.id
 
     if new_id is not None:
@@ -69,7 +67,13 @@ def move_task_impl(
     _reregister_tree(task, prev_id, renames, loader=loader)
 
     _set_archived(task, new_parent.archived)
+
+    if new_parent.id != ref.parent_id:
+        # reset task order id, for new parent it irrelevant
+        task.order = None
+
     new_parent.subtasks.append(task)
+
     update_parents_status(
         task,
         loader=loader,
@@ -109,11 +113,14 @@ def _is_descendant_of(child_id: str, *, ancestor_id: str) -> bool:
 def _convert_to_root(
     task: Task, *, new_id: str | None = None, loader: TaskLoader
 ) -> list[TaskRename]:
-    if new_id is None and is_root_task_id(task.id):
-        # already a root task
-        return []
+    if not is_root_task_id(task.id):
+        # reset outdated order id
+        task.order = None
 
-    _detach_from_parent(task, loader=loader)
+        _detach_from_parent(task, loader=loader)
+    elif new_id is None:
+        # already a root task and no rename
+        return []
 
     # regenerate new ids
     renames: list[TaskRename] = []
@@ -123,7 +130,7 @@ def _convert_to_root(
         assert is_root_task_id(new_id)
         task.id = new_id
     else:
-        task.id = find_next_root_task_id(loader)
+        task.id = loader.find_next_root_task_id()
 
     _reregister_tree(task, prev_id, renames, loader=loader)
 
@@ -137,17 +144,18 @@ def _convert_to_root(
 
 
 def _detach_from_parent(task: Task, *, loader: TaskLoader) -> None:
-    if is_root_task_id(task.id):
+    parent = loader.get_parent(task)
+    if parent is None:
         # already detached
         return
 
     # detach from parent
-    ref = parse_task_ref(task.ref)
-    parent = loader.resolve_ref(ref.parent_id)
-
     assert task in parent.subtasks
     parent.subtasks.remove(task)
 
+    # this handles case when parent become a simple task:
+    # in this case lets treat this parent as a story not a regular task
+    # so if this story does not have childs then it's *finished*
     _mark_parent_done_if_empty(task, loader=loader)
 
     # allow_downgrade=True: extended→basic collapse is only permitted during move
@@ -160,15 +168,9 @@ def _detach_from_parent(task: Task, *, loader: TaskLoader) -> None:
 
 
 def _mark_parent_done_if_empty(task: Task, *, loader: TaskLoader) -> None:
-    # this handles case when parent become a simple task:
-    # in this case lets treat this parent as a story not a regular task
-    # so if this story does not have childs then it's *finished*
-
-    if is_root_task_id(task.id):
+    parent = loader.get_parent(task)
+    if parent is None:
         return
-
-    task_ref = parse_task_ref(task.id)
-    parent = loader.resolve_ref(task_ref.parent_id)
 
     if any(not t.deleted for t in parent.subtasks):
         # task has non-delete children

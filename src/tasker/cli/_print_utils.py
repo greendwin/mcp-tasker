@@ -4,7 +4,6 @@ from enum import IntEnum
 from typing import TypeAlias
 
 from tasker.base_types import Task, TaskStatus
-from tasker.parse import detect_task_type
 from tasker.repo import TaskRepo
 from tasker.resolve import load_recent_task
 from tasker.todo import assign_todo_letters, load_todo_tasks
@@ -154,7 +153,7 @@ def _build_print_entries(repo: TaskRepo, config: ShowTaskConfig) -> list[PrintEn
             has_force_show=has_force_show,
         )
 
-    visible_roots = {}
+    visible_roots: dict[str, Task] = {}
     for task in ctx.visible.values():
         cur = task
         while True:
@@ -166,7 +165,8 @@ def _build_print_entries(repo: TaskRepo, config: ShowTaskConfig) -> list[PrintEn
             cur = parent
 
     ctx.markers = compute_markers(repo, *ctx.visible.values())
-    for root in sorted(visible_roots.values(), key=lambda p: p.id):
+
+    for root in sorted(visible_roots.values()):
         _collect_print_entries(ctx, root, indent=0)
 
     return ctx.entries
@@ -222,7 +222,7 @@ def _collect_print_entries(
     )
     ctx.entries.append(entry)
 
-    for child in task.subtasks:
+    for child in sorted(task.subtasks):
         if child.id in ctx.visible:
             _collect_print_entries(ctx, child, indent=indent + 1)
 
@@ -361,7 +361,7 @@ def print_task(task: Task, *, markers: MarkersDict, preview: bool) -> None:
         return
 
     console.print("\n[bold]Subtasks:[/bold]")
-    for subtask in task.subtasks:
+    for subtask in sorted(task.subtasks):
         item = format_task_list_item(
             subtask,
             indent=1,
@@ -403,13 +403,8 @@ def print_parent_preview(repo: TaskRepo, *tasks: Task) -> None:
             ancestor = repo.get_parent(ancestor)
 
     if not has_open_ancestor and all(t.is_closed for t in tasks):
-        for task_path in repo.list_root_tasks(archived=False):
-            tp = detect_task_type(task_path)
-            if tp is None:
-                # skip broken files
-                continue
-
-            root = repo.resolve_ref(tp.task_ref)
+        for task_id in repo.list_root_tasks():
+            root = repo.resolve_ref(task_id)
             if not root.is_closed:
                 config.show_task(root, ShowChildrenMode.SHOW_OPENED)
 

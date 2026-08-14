@@ -14,7 +14,7 @@ from .parse import (
 )
 from .repo import TaskRepo
 from .todo import assign_todo_letters, load_todo_tasks
-from .utils import write_text
+from .utils import scan_root_tasks, write_text
 
 CLOSED_HISTORY_CAP = 30
 
@@ -182,7 +182,7 @@ def _resolve_by_name(repo: TaskRepo, name: str) -> str:
 
     exact_matches = []
     partial_matches = []
-    root_paths = repo.list_root_tasks()
+    root_paths = scan_root_tasks(repo.loader.get_tasks_root())
     for path in root_paths:
         result = detect_task_type(path)
         if result is None:

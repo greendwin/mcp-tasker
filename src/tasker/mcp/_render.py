@@ -48,7 +48,7 @@ def render_task_markdown(task: Task) -> str:
         sections.append(task.description)
 
     if task.subtasks:
-        child_lines = [render_task_line(child) for child in task.subtasks]
+        child_lines = [render_task_line(child) for child in sorted(task.subtasks)]
         sections.append("## Subtasks\n\n" + "\n".join(child_lines))
 
     return "\n\n".join(sections)

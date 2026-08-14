@@ -17,3 +17,14 @@ def test_known_fields_construct() -> None:
     task = Task(id="s1t1", title="x")
     assert task.id == "s1t1"
     assert task.title == "x"
+
+
+def test_order_defaults_to_none() -> None:
+    task = Task(id="s1t1", title="x")
+    assert task.order is None
+
+
+@pytest.mark.parametrize("value", [2000, 0])
+def test_order_field_accepts_int(value: int) -> None:
+    task = Task(id="s1t1", title="x", order=value)
+    assert task.order == value

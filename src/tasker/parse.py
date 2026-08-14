@@ -254,6 +254,7 @@ class _ParsedContent:
     slug: str | None
     description: str | None
     status: TaskStatus
+    order: int | None
     subtasks: list[ParsedSubtask]
 
 
@@ -278,6 +279,7 @@ def parse_task(
             title=parsed.title,
             description=parsed.description,
             status=parsed.status,
+            order=parsed.order,
         ),
         parsed.subtasks,
     )
@@ -381,6 +383,7 @@ def _parse_content(content: str, *, task_ref: str) -> _ParsedContent:
     id_val = ""
     status = TaskStatus.PENDING
     slug = None
+    order_val = None
     for line in lines[1:fm_end]:
         if line.startswith("id:"):
             id_val = line.split(":", 1)[1].strip()
@@ -389,6 +392,14 @@ def _parse_content(content: str, *, task_ref: str) -> _ParsedContent:
         elif line.startswith("slug:"):
             raw_slug = line.split(":", 1)[1].strip()
             slug = normalize_slug(raw_slug) if raw_slug else None
+        elif line.startswith("order:"):
+            raw_order = line.split(":", 1)[1].strip()
+            try:
+                order_val = int(raw_order)
+            except ValueError:
+                raise TaskValidateError(
+                    f"Invalid order value {raw_order!r}", task_ref=task_ref
+                )
         elif line.strip():
             key = line.split(":", 1)[0].strip()
             raise TaskValidateError(
@@ -459,6 +470,7 @@ def _parse_content(content: str, *, task_ref: str) -> _ParsedContent:
         slug=slug,
         description=description,
         status=status,
+        order=order_val,
         subtasks=subtasks,
     )
 

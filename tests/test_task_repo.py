@@ -3,11 +3,11 @@ from pathlib import Path
 import pytest
 
 from tasker.base_types import Task
+from tasker.cli import app
 from tasker.exceptions import TaskerError, TaskValidateError
 from tasker.render import append_task_filename, render_task
 from tasker.repo import TaskRepo, _task_loader
 from tasker.repo._utils import (
-    find_next_root_task_id,
     generate_slug,
     get_next_subtask_id,
 )
@@ -24,14 +24,14 @@ def make_repo(tasks_root: Path) -> TaskRepo:
 
 def test_next_child_id_none_empty_dir(tasks_root: Path) -> None:
     repo = make_repo(tasks_root)
-    assert find_next_root_task_id(repo.loader) == "s01"
+    assert repo.loader.find_next_root_task_id() == "s01"
 
 
 def test_next_child_id_none_with_existing_stories(tasks_root: Path) -> None:
     create_task("First story")
     create_task("Second story")
     repo = make_repo(tasks_root)
-    assert find_next_root_task_id(repo.loader) == "s03"
+    assert repo.loader.find_next_root_task_id() == "s03"
 
 
 # --- get_next_subtask_id(task_ref) → next subtask ID ---
@@ -95,9 +95,8 @@ def test_load_story_raises_on_duplicate_id(
     original = get_task_file(story_id)
     duplicate = original.parent / f"{story_id}-other-slug.md"
     duplicate.write_text(original.read_text())
-    repo = make_repo(tasks_root)
     with pytest.raises(TaskerError, match="Ambiguous"):
-        repo.resolve_ref(story_id)
+        _ = make_repo(tasks_root)
 
 
 # --- generate_slug ---
@@ -669,7 +668,6 @@ def test_unarchive_flag_moves_file_back(
 
 
 def test_resolve_ref_loads_archived_transparently(tasks_root: Path) -> None:
-    from tasker.cli import app
 
     story_id = create_task("My story").task_id
     assert_invoke(app, ["done", "--force", story_id])
@@ -682,16 +680,15 @@ def test_resolve_ref_loads_archived_transparently(tasks_root: Path) -> None:
 
 
 def test_list_root_tasks_archived_flag(tasks_root: Path) -> None:
-    from tasker.cli import app
 
     story_id = create_task("My story").task_id
     assert_invoke(app, ["done", "--force", story_id])
     assert_invoke(app, ["archive", story_id])
 
     repo = make_repo(tasks_root)
-    paths = repo.list_root_tasks(archived=True)
-    assert len(paths) == 1
-    assert story_id in paths[0].name
+    task_ids = repo.list_root_tasks(archived=True)
+    assert len(task_ids) == 1
+    assert story_id in task_ids
 
     # active list should be empty
     assert repo.list_root_tasks() == []
@@ -932,6 +929,120 @@ def test_move_with_new_id_reparent_rejects_mismatched_parent(
 
     with pytest.raises(AssertionError):
         repo.move_task(child, new_parent=dst_parent, new_id="s99t01")
+
+
+# --- virtual root abstraction (in-memory root registry) ---
+
+
+def test_promote_two_subtasks_to_root_without_flush_get_distinct_ids(
+    tasks_root: Path,
+) -> None:
+    story_id = create_task("Story").task_id
+    repo = make_repo(tasks_root)
+    parent = repo.resolve_ref(story_id)
+    a = repo.add_subtask(parent, title="Alpha")
+    b = repo.add_subtask(parent, title="Beta")
+
+    # promote both, with NO flush in between: id allocation must count the
+    # first (in-memory) promotion, not just what is on disk
+    repo.move_task(a, new_parent=None)
+    repo.move_task(b, new_parent=None)
+
+    assert a.id != b.id
+    assert repo.resolve_ref(a.id) is a
+    assert repo.resolve_ref(b.id) is b
+
+
+def test_create_root_after_unflushed_promote_gets_next_id(tasks_root: Path) -> None:
+    story_id = create_task("Story").task_id
+    repo = make_repo(tasks_root)
+    parent = repo.resolve_ref(story_id)
+    child = repo.add_subtask(parent, title="Child")
+
+    repo.move_task(child, new_parent=None)  # -> s02, not flushed
+    fresh = repo.create_root_task(
+        title="Fresh", description=None, slug=None, extended=False
+    )
+
+    assert fresh.id != child.id
+    assert fresh.id != story_id
+
+
+def test_multi_promote_then_flush_writes_distinct_files(tasks_root: Path) -> None:
+    story_id = create_task("Story").task_id
+    repo = make_repo(tasks_root)
+    parent = repo.resolve_ref(story_id)
+    a = repo.add_subtask(parent, title="Alpha")
+    b = repo.add_subtask(parent, title="Beta")
+
+    repo.move_task(a, new_parent=None)
+    repo.move_task(b, new_parent=None)
+    repo.flush_to_disk()
+
+    assert list(tasks_root.glob(f"{a.id}-*.md"))
+    assert list(tasks_root.glob(f"{b.id}-*.md"))
+    assert a.id != b.id
+
+
+def test_list_root_task_ids_includes_unflushed_promotion(tasks_root: Path) -> None:
+    story_id = create_task("Story").task_id
+    repo = make_repo(tasks_root)
+    parent = repo.resolve_ref(story_id)
+    child = repo.add_subtask(parent, title="Child")
+
+    repo.move_task(child, new_parent=None)  # promote, no flush
+
+    assert child.id in repo.list_root_tasks()
+
+
+def test_list_root_task_ids_drops_unflushed_demotion(tasks_root: Path) -> None:
+    root_a = create_task("Alpha").task_id
+    root_b = create_task("Beta").task_id
+    repo = make_repo(tasks_root)
+    a = repo.resolve_ref(root_a)
+    b = repo.resolve_ref(root_b)
+
+    repo.move_task(b, new_parent=a)  # demote B under A, no flush
+
+    ids = repo.list_root_tasks()
+    assert root_a in ids
+    assert root_b not in ids
+
+
+def test_promote_id_accounts_for_unloaded_disk_roots(tasks_root: Path) -> None:
+    for i in range(5):
+        create_task(f"Story {i}")
+    repo = make_repo(tasks_root)
+    # resolve ONLY s01 -- s02..s05 stay unloaded on disk
+    parent = repo.resolve_ref("s01")
+    child = repo.add_subtask(parent, title="Child")
+
+    repo.move_task(child, new_parent=None)
+
+    assert child.id == "s06"
+
+
+def test_promote_then_reparent_across_lazily_loaded_root(tasks_root: Path) -> None:
+    root_a = create_task("Alpha").task_id
+    root_b = create_task("Beta").task_id
+    b_child = add_subtask(root_b, "Beta child").task_id
+    repo = make_repo(tasks_root)
+
+    # load & promote a subtask of A -> new root, unflushed
+    a = repo.resolve_ref(root_a)
+    a_child = repo.add_subtask(a, title="Alpha child")
+    repo.move_task(a_child, new_parent=None)
+    promoted_id = a_child.id
+
+    # now reach into the not-yet-loaded B tree, forcing a lazy load, and
+    # reparent its child under A
+    b_task = repo.resolve_ref(b_child)
+    repo.move_task(b_task, new_parent=a)
+
+    assert repo.resolve_ref(promoted_id) is a_child
+    assert b_task in a.subtasks
+    # promoted root, A, and B's original id are three distinct roots
+    assert len({promoted_id, a.id, root_b}) == 3
 
 
 def test_reload_root_tree_preserves_task_identity(tasks_root: Path) -> None:

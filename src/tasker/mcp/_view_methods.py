@@ -2,6 +2,7 @@ from tasker.exceptions import TaskValidateError
 from tasker.parse import parse_task_file
 from tasker.resolve import resolve_ref
 from tasker.todo import classify_todo, load_todo_tasks
+from tasker.utils import scan_root_tasks
 
 from ._common import get_repo, mcp
 from ._render import (
@@ -32,7 +33,9 @@ def list_tasks(todo: bool = False) -> str:
             return "All tasks finished!"
         tasks = view.active
     else:
-        tasks = [parse_task_file(p).task for p in repo.list_root_tasks()]
+        tasks = [
+            parse_task_file(task_path).task for task_path in scan_root_tasks(repo.root)
+        ]
 
     lines = [render_task_line(t) for t in tasks]
     return "\n".join(lines) if lines else "No tasks"
@@ -52,10 +55,12 @@ def view_tasks(task_refs: list[str]) -> str:
     """
     repo = get_repo()
     blocks: list[str] = []
+
     for ref in task_refs:
         try:
             task = resolve_ref(repo, ref).task
             blocks.append(render_task_markdown(task))
         except TaskValidateError as exc:
             blocks.append(render_task_error(ref, str(exc)))
+
     return TASK_BLOCK_SEPARATOR.join(blocks)

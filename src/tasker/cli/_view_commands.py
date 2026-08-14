@@ -13,7 +13,7 @@ from tasker.resolve import (
     save_recent_for_refs,
 )
 from tasker.todo import classify_todo, load_todo_tasks
-from tasker.utils import console
+from tasker.utils import console, scan_root_tasks
 
 from ._common import app, complete_task_ref, get_task_repo, iter_in_review_tasks
 from ._print_utils import (
@@ -211,19 +211,20 @@ def _collect_todo_tasks(repo: TaskRepo, *, show_all: bool) -> _TodoTasks:
 
 
 def _load_root_tasks(repo: TaskRepo, *, shallow: bool, archived: bool) -> list[Task]:
+    if not shallow:
+        return [
+            repo.resolve_ref(task_id)
+            for task_id in repo.list_root_tasks(archived=archived)
+        ]
+
     tasks: list[Task] = []
-    for task_path in repo.list_root_tasks(archived=archived):
+    for task_path in scan_root_tasks(repo.loader.get_tasks_root(archived=archived)):
         tp = detect_task_type(task_path)
         if tp is None:
-            # skip broken files
             continue
 
-        if shallow:
-            task, _ = parse_task_file(task_path)
-            tasks.append(task)
-            continue
-
-        tasks.append(repo.resolve_ref(tp.task_ref))
+        task, _ = parse_task_file(task_path)
+        tasks.append(task)
 
     return tasks
 

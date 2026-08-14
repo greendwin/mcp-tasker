@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from tasker.base_types import Task, TaskStatus, is_root_task_id, walk_tasks
+from tasker.base_types import Task, TaskStatus, walk_tasks
 from tasker.exceptions import TaskHasSubtasksError, TaskNotFoundError
 from tasker.parse import ParsedRef, parse_task_ref
 
@@ -14,10 +14,8 @@ from ._move_task import (
 from ._task_loader import TaskLoader
 from ._utils import (
     build_task_path_from_root,
-    find_next_root_task_id,
     generate_slug,
     get_next_subtask_id,
-    list_root_tasks,
     update_parents_status,
     upgrade_to_filebased,
 )
@@ -34,24 +32,17 @@ class TaskRepo:
     def resolve_ref(self, task_ref: str) -> Task:
         return self.loader.resolve_ref(task_ref)
 
+    def get_parent(self, task: Task) -> Task | None:
+        return self.loader.get_parent(task)
+
     def try_resolve_ref(self, task_ref: str) -> Task | None:
         try:
             return self.loader.resolve_ref(task_ref)
         except TaskNotFoundError:
             return None
 
-    def get_parent(self, task: Task) -> Task | None:
-        if is_root_task_id(task.id):
-            return None
-
-        ref = parse_task_ref(task.ref)
-        return self.resolve_ref(ref.parent_id)
-
-    def list_root_tasks(self, *, archived: bool = False) -> list[Path]:
-        root = self.loader.get_tasks_root(archived=archived)
-        if not root.is_dir():
-            return []
-        return list_root_tasks(root)
+    def list_root_tasks(self, *, archived: bool = False) -> list[str]:
+        return self.loader.list_root_tasks(archived=archived)
 
     def create_root_task(
         self,
@@ -64,7 +55,7 @@ class TaskRepo:
         title = _capitalize(title)
         if description is not None:
             description = _capitalize(description)
-        root_id = find_next_root_task_id(self.loader)
+        root_id = self.loader.find_next_root_task_id()
 
         if slug is None:
             slug = generate_slug(title)
@@ -213,6 +204,11 @@ class TaskRepo:
 
     def upgrade_to_filebased(self, task: Task) -> None:
         upgrade_to_filebased(task, loader=self.loader)
+
+    def try_downgrade_task(self, task: Task) -> None:
+        update_parents_status(
+            task, loader=self.loader, update_itself=True, allow_downgrade=True
+        )
 
     def build_task_path(self, task: Task) -> Path:
         return build_task_path_from_root(task, loader=self.loader)
