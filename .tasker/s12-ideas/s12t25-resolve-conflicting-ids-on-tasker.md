@@ -1,7 +1,7 @@
 ---
 id: s12t25
 slug: resolve-conflicting-ids-on-tasker
-status: pending
+status: cancelled
 ---
 
 # Resolve conflicting ids on 'tasker resolve'
