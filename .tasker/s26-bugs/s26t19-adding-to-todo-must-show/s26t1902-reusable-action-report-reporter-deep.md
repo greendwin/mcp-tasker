@@ -1,7 +1,7 @@
 ---
 id: s26t1902
 slug: reusable-action-report-reporter-deep
-status: pending
+status: done
 ---
 
 # Reusable action-report reporter (deep module)

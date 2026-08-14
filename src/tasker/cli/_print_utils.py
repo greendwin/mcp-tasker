@@ -371,6 +371,48 @@ def print_task(task: Task, *, markers: MarkersDict, preview: bool) -> None:
         console.print(item)
 
 
+@dataclass(slots=True)
+class _ActionReportItem:
+    task_id: str
+    title: str
+    outcome: str | None
+
+
+class ActionReportConfig:
+    def __init__(self, *, action: str) -> None:
+        self.action = action
+        self.items: list[_ActionReportItem] = []
+
+    def add_task(self, task: Task, *, outcome: str | None = None) -> None:
+        self.add_item(task.id, task.title, outcome=outcome)
+
+    def add_item(self, task_id: str, title: str, *, outcome: str | None = None) -> None:
+        self.items.append(_ActionReportItem(task_id, title, outcome))
+
+
+def print_action_report(config: ActionReportConfig) -> None:
+    if not config.items:
+        return
+
+    console.print("{}:".format(escape_markup(config.action)))
+    for p in config.items:
+        if not p.outcome:
+            console.print(
+                "  - [cyan]{}[/cyan]: {}".format(
+                    escape_markup(p.task_id), escape_markup(p.title)
+                )
+            )
+            continue
+
+        console.print(
+            "  - [cyan]{}[/cyan]: {}  [dim]({})[/dim]".format(
+                escape_markup(p.task_id),
+                escape_markup(p.title),
+                escape_markup(p.outcome),
+            )
+        )
+
+
 def print_parent_preview(
     repo: TaskRepo, *tasks: Task, dont_highlight_tasks: bool = False
 ) -> None:
