@@ -22,6 +22,7 @@ class TaskMergeResult:
     title: Merged[str] | None
     slug: Merged[str | None] | None
     description: Merged[str | None] | None
+    order: Merged[int | None] | None
 
 
 @dataclass(slots=True)
@@ -136,6 +137,7 @@ def merge_scalar_fields(
             ours.description,
             theirs.description,
         ),
+        order=merge(base.order if base else None, ours.order, theirs.order),
     )
 
 
@@ -243,6 +245,9 @@ def merge_task_file(
     r.append_merged(
         "status: {.value}", fields.status, ours_task.status, theirs_task.status
     )
+
+    r.append_merged("order: {}", fields.order, ours_task.order, theirs_task.order)
+
     r.lines.append("---")
     r.lines.append("")
     r.append_merged("# {}", fields.title, ours_task.title, theirs_task.title)

@@ -1,7 +1,7 @@
 ---
 id: s28t11
 slug: resolve-merge-wiring-for-order
-status: pending
+status: done
 ---
 
 # Resolve / merge wiring for order

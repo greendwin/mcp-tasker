@@ -36,6 +36,7 @@ def _make_file(
     title: str = "My Task",
     status: str = "pending",
     slug: str | None = None,
+    order: int | None = None,
     description: str | None = None,
     subtask_lines: list[str] | None = None,
 ) -> str:
@@ -44,6 +45,8 @@ def _make_file(
     if slug is not None:
         lines.append(f"slug: {slug}")
     lines.append(f"status: {status}")
+    if order is not None:
+        lines.append(f"order: {order}")
     lines.append("---")
     lines.append("")
     lines.append(f"# {title}")
@@ -429,6 +432,92 @@ class TestMergeTaskFileDeleteModifyNoBlankLine:
         assert result.has_conflicts is True
         # The empty side should NOT produce a blank line between <<<<<<< and =======
         assert "<<<<<<< ours\n=======" in result.content
+
+
+class TestMergeTaskFileOrderScalar:
+    """`order` is an ordinary front-matter scalar: take the changed side,
+    conflict only when both diverge, and emit `order:` only when set."""
+
+    # --- Slice A: one-sided change merges cleanly to that side ---
+
+    def test_order_ours_changed_wins(self) -> None:
+        base = _make_file(order=1)
+        ours = _make_file(order=5)
+        theirs = _make_file(order=1)
+        result = _merge(base, ours, theirs)
+        assert result.has_conflicts is False
+        assert "order: 5" in result.content
+
+    def test_order_one_side_sets_from_unset(self) -> None:
+        base = _make_file()  # unset
+        ours = _make_file(order=3)
+        theirs = _make_file()  # unset
+        result = _merge(base, ours, theirs)
+        assert result.has_conflicts is False
+        assert "order: 3" in result.content
+
+    # --- Slice B: divergent order conflicts like other scalars ---
+
+    def test_order_divergent_conflict(self) -> None:
+        base = _make_file(order=1)
+        ours = _make_file(order=2)
+        theirs = _make_file(order=3)
+        result = _merge(base, ours, theirs)
+        assert result.has_conflicts is True
+        assert "<<<<<<< ours" in result.content
+        assert "order: 2" in result.content
+        assert "order: 3" in result.content
+        assert ">>>>>>> theirs" in result.content
+
+    # --- Slice C: emit `order:` only when the merged value is set ---
+
+    def test_order_omitted_when_all_unset(self) -> None:
+        content = _make_file()  # no order anywhere
+        result = _merge(content, content, content)
+        assert result.has_conflicts is False
+        assert "order:" not in result.content
+
+    def test_order_both_cleared_omits_line(self) -> None:
+        base = _make_file(order=1)
+        ours = _make_file()  # cleared
+        theirs = _make_file()  # cleared
+        result = _merge(base, ours, theirs)
+        assert result.has_conflicts is False
+        assert "order:" not in result.content
+
+    def test_order_base_cleared_one_side(self) -> None:
+        base = _make_file(order=2)
+        ours = _make_file()  # cleared
+        theirs = _make_file(order=2)  # unchanged from base
+        result = _merge(base, ours, theirs)
+        assert result.has_conflicts is False
+        assert "order:" not in result.content
+
+
+class TestMergeTaskFileOrderUpgrade:
+    """Adding `order` upgrades an inline task to a file; that shape must merge
+    cleanly against a side that left the task inline/unordered."""
+
+    # --- Slice D ---
+
+    def test_order_added_by_upgrade_side(self) -> None:
+        base = _make_file()  # inline / unordered
+        ours = _make_file()  # left inline / unordered
+        theirs = _make_file(order=4)  # upgraded by adding order
+        result = _merge(base, ours, theirs)
+        assert result.has_conflicts is False
+        assert "order: 4" in result.content
+
+    def test_subtask_line_inline_vs_upgraded_clean(self) -> None:
+        # ordering a subtask upgrades its bullet inline -> file link; the side
+        # that left it inline must not spuriously conflict with the upgrade
+        base = _make_file(subtask_lines=["- [ ] s01t01: Task one"])
+        ours = _make_file(subtask_lines=["- [ ] s01t01: Task one"])
+        theirs = _make_file(subtask_lines=["- [ ] [s01t01](s01t01-x.md): Task one"])
+        result = _merge(base, ours, theirs)
+        assert result.has_conflicts is False
+        assert "<<<<<<< ours" not in result.content
+        assert "[s01t01](s01t01-x.md)" in result.content
 
 
 class TestMergeTaskFileInReviewSubtask:

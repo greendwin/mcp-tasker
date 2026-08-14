@@ -1,7 +1,7 @@
 ---
 id: s28
 slug: support-tasks-order
-status: pending
+status: done
 ---
 
 # Support tasks order
@@ -53,4 +53,4 @@ Tasks currently sort strictly by id: root stories by id, subtasks by physical fi
 - [x] [s28t08](s28t08-cli-tasker-order-front-rest.md): CLI: tasker order --front --rest
 - [x] ~~[s28t09](s28t09-cli-tasker-order-parent-attach.md): CLI: tasker order --parent (attach + order)~~
 - [x] [s28t10](s28t10-mcp-order-tasks-task-refs.md): MCP: order_tasks(task_refs)
-- [ ] [s28t11](s28t11-resolve-merge-wiring-for-order.md): Resolve / merge wiring for order
+- [x] [s28t11](s28t11-resolve-merge-wiring-for-order.md): Resolve / merge wiring for order

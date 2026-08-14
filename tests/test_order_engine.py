@@ -4,6 +4,7 @@ from tasker.repo._order import (
     MIN_STEP,
     group_at_anchor,
     group_at_front,
+    order_key,
 )
 
 
@@ -246,3 +247,23 @@ def test_front_multi_move_unsorted_leads_min_in_argument_order() -> None:
     assert orders["a"] == 1000 and orders["b"] == 3000  # untouched
     m, n = _ordered_values(orders, ["m", "n"])
     assert m < n < 1000  # whole block leads the smallest order, arg order kept
+
+
+# --- post-merge tolerance: order_key sorts gaps/duplicates/unset sensibly ---
+
+
+def test_order_key_tolerates_gaps_duplicates_and_unset() -> None:
+    # a per-file scalar merge can leave gaps, duplicate orders, or an unset
+    # sibling. The sort key must still yield a stable, sensible ordering without
+    # any re-densification: ordered ascend (dupes tie-broken by id), unset last.
+    entries = [
+        _Entry("d", None),
+        _Entry("c", 10),
+        _Entry("a", 10),
+        _Entry("b", 500),
+        _Entry("e", None),
+    ]
+
+    entries.sort(key=order_key)
+
+    assert [e.id for e in entries] == ["a", "c", "b", "d", "e"]
