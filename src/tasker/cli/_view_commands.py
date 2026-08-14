@@ -109,17 +109,20 @@ def cmd_list_tasks(
         )
 
     tasks: list[Task] = []
-    if in_review:
-        review_tasks = _collect_review_tasks(repo, task_refs=task_refs)
-        tasks.extend(review_tasks.tasks)
-
-        if review_tasks.nothing_to_review:
-            console.print("[green]No tasks in review.[/green]\n")
-        if review_tasks.todo_fallback:
-            console.print("[yellow]Showing todo list:[/yellow]")
-    elif closed:
+    if closed:
         tasks.extend(load_closed_tasks(repo, limit=DEFAULT_CLOSED_LIMIT))
+    elif in_review:
+        collected = _collect_review_tasks(repo, task_refs=task_refs)
+        tasks.extend(collected.tasks)
+
+        if collected.nothing_to_review:
+            console.print("[green]No tasks in review.[/green]\n")
+        if collected.todo_fallback:
+            console.print("[cyan]Showing todo list:[/cyan]\n")
+        if collected.opened_fallback:
+            console.print("[cyan]Open tasks:[/cyan]\n")
     elif todo:
+        # TODO: lets do the same behavior as in `--rev`, show opened tasks
         todo_tasks = _collect_todo_tasks(repo, show_all=show_all)
         tasks.extend(todo_tasks.tasks)
 
@@ -165,31 +168,40 @@ def cmd_list_tasks(
         console.append_context("tasks", _task_to_json(task))
 
 
-class _ReviewTasks(NamedTuple):
+class _CollectedTasks(NamedTuple):
     tasks: list[Task]
     nothing_to_review: bool = False
     todo_fallback: bool = False
+    opened_fallback: bool = False
 
 
-def _collect_review_tasks(repo: TaskRepo, *, task_refs: list[str]) -> _ReviewTasks:
+def _collect_review_tasks(repo: TaskRepo, *, task_refs: list[str]) -> _CollectedTasks:
     tasks = list(iter_in_review_tasks(repo))
     if tasks:
-        return _ReviewTasks(tasks)
+        return _CollectedTasks(tasks)
 
     active_todo = classify_todo(load_todo_tasks(repo)).active
     if active_todo:
-        return _ReviewTasks(active_todo, nothing_to_review=True, todo_fallback=True)
+        return _CollectedTasks(
+            active_todo,
+            nothing_to_review=True,
+            todo_fallback=True,
+        )
 
     if task_refs:
         # there are user-provided tasks to show
-        return _ReviewTasks([], nothing_to_review=True)
+        return _CollectedTasks([], nothing_to_review=True)
 
     # otherwise show active root tasks
     for t in _load_root_tasks(repo, archived=False, shallow=False):
         if not t.is_closed:
             tasks.append(t)
 
-    return _ReviewTasks(tasks, nothing_to_review=True)
+    return _CollectedTasks(
+        tasks,
+        nothing_to_review=True,
+        opened_fallback=True,
+    )
 
 
 class _TodoTasks(NamedTuple):

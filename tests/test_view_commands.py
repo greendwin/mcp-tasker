@@ -903,6 +903,28 @@ def test_list_rev_empty_fallback_excludes_closed_roots() -> None:
     assert closed_story not in result.output
 
 
+def test_list_rev_empty_fallback_shows_open_tasks_header() -> None:
+    story = create_task("Active story").task_id
+    add_subtask(story, "Open subtask")
+
+    result = assert_invoke(app, ["list", "--rev"])
+    assert "No tasks in review" in result.output
+    assert "Open tasks:" in result.output
+    assert "Active story" in result.output
+
+
+def test_list_rev_todo_fallback_omits_open_tasks_header() -> None:
+    story = create_task("Active story").task_id
+    pinned = add_subtask(story, "Pinned subtask").task_id
+    add_subtask(story, "Other open")
+    assert_invoke(app, ["todo", pinned])
+
+    result = assert_invoke(app, ["list", "--rev"])
+    # the todo-list fallback must not be mislabelled as the open-tasks listing
+    assert "Showing todo list:" in result.output
+    assert "Open tasks:" not in result.output
+
+
 def test_list_rev_with_refs_is_additive_and_show_no_review() -> None:
     story = create_task("Story").task_id
     open_sub = add_subtask(story, "Open subtask").task_id

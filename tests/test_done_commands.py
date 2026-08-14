@@ -672,11 +672,68 @@ def test_done_empty_skips_closed_tasks(story_id: str) -> None:
     assert t02 in result.output
 
 
-def test_done_empty_skips_nonleaf_tasks(story_id: str) -> None:
-    sub = add_subtask(story_id, "Leaf task").task_id
+def test_done_empty_groups_open_leaf_under_story_header(story_id: str) -> None:
+    leaf = add_subtask(story_id, "Leaf task").task_id
     result = assert_invoke(app, ["done"])
-    assert sub in result.output
-    assert "My story" not in result.output
+
+    lines = result.output.splitlines()
+    story_idx = next(i for i, ln in enumerate(lines) if "My story" in ln)
+    leaf_idx = next(i for i, ln in enumerate(lines) if leaf in ln)
+
+    # story renders as a header; its open leaf is nested (indented) beneath it
+    assert story_idx < leaf_idx
+    assert not lines[story_idx].startswith("  - ")
+    assert lines[leaf_idx].startswith("  - ")
+
+
+def test_done_empty_groups_multiple_stories() -> None:
+    s1 = create_task("Story one").task_id
+    leaf1 = add_subtask(s1, "Task one").task_id
+    s2 = create_task("Story two").task_id
+    leaf2 = add_subtask(s2, "Task two").task_id
+
+    result = assert_invoke(app, ["done"])
+    lines = result.output.splitlines()
+
+    h1 = next(i for i, ln in enumerate(lines) if "Story one" in ln)
+    l1 = next(i for i, ln in enumerate(lines) if leaf1 in ln)
+    h2 = next(i for i, ln in enumerate(lines) if "Story two" in ln)
+    l2 = next(i for i, ln in enumerate(lines) if leaf2 in ln)
+
+    # each story's leaf sits between its own header and the next story's header
+    assert h1 < l1 < h2 < l2
+    assert lines[l1].startswith("  - ")
+    assert lines[l2].startswith("  - ")
+
+
+def test_done_empty_omits_closed_root() -> None:
+    closed = create_task("Closed story").task_id
+    add_subtask(closed, "Old task")
+    assert_invoke(app, ["done", "--force", closed])
+
+    open_story = create_task("Open story").task_id
+    add_subtask(open_story, "Live task")
+
+    result = assert_invoke(app, ["done"])
+    assert "Open story" in result.output
+    assert "Closed story" not in result.output
+
+
+def test_done_empty_shows_intermediate_open_nonleaf(story_id: str) -> None:
+    sub = add_subtask(story_id, "Sub-story").task_id
+    add_subtask(sub, "Deep leaf")
+
+    result = assert_invoke(app, ["done"])
+    # the intermediate open non-leaf task is rendered, not just the deep leaf
+    assert "Sub-story" in result.output
+    assert "Deep leaf" in result.output
+
+
+def test_done_empty_open_tasks_not_highlighted(story_id: str) -> None:
+    add_subtask(story_id, "Leaf task")
+    result = assert_invoke(app, ["done"])
+    # the fallback listing is informational, not a preview of edited tasks
+    assert "<<<" not in result.output
 
 
 def test_done_reviewed_with_ref_when_queue_empty_closes_ref(

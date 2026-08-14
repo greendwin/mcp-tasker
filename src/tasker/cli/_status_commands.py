@@ -340,12 +340,7 @@ def cmd_done_task(
                 resolved_tasks.append(ResolvedRef("--review", t))
 
     if not resolved_tasks:
-        console.print("[yellow]No tasks to close.[/yellow]")
-        open_leaves = list(_iter_open_leaf_tasks(repo))
-        if open_leaves:
-            console.print("\nOpen tasks:")
-            for t in open_leaves:
-                console.print(format_task_list_item(t, indent=1))
+        _report_no_tasks_to_close(repo)
         return
 
     need_preview: list[Task] = []
@@ -382,6 +377,17 @@ def cmd_done_task(
     save_recent_for_refs(repo, *resolved_tasks)
     save_closed_refs(repo, closed_ids)
     print_parent_preview(repo, *need_preview)
+
+
+def _report_no_tasks_to_close(repo: TaskRepo) -> None:
+    console.print("[yellow]No tasks to close.[/yellow]")
+
+    open_leaves = list(_iter_open_leaf_tasks(repo))
+    if not open_leaves:
+        return
+
+    console.print("\n[cyan]Open tasks:[/cyan]")
+    print_parent_preview(repo, *open_leaves, dont_highlight_tasks=True)
 
 
 def _iter_open_leaf_tasks(repo: TaskRepo) -> Iterator[Task]:

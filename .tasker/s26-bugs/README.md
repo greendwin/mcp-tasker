@@ -1,7 +1,7 @@
 ---
 id: s26
 slug: bugs
-status: pending
+status: in-progress
 ---
 
 # Bugs
@@ -25,4 +25,5 @@ status: pending
 - [x] [s26t15](s26t15-edittask-mcp-prepend-description-instead/): Edit_task mcp prepend description instead of replaacing it
 - [x] [s26t16](s26t16-description-are-wiped-on-flush/): Description are wiped on flush
 - [x] [s26t17](s26t17-parent-task-keep-in-progress.md): Parent task keep in-progress after moving away all subtasks by --id
-- [ ] [s26t18](s26t18-open-tasks-list-should-be.md): Open tasks list should be grouped
+- [~] [s26t18](s26t18-open-tasks-list-should-be.md): Open tasks list should be grouped
+- [ ] [s26t19](s26t19-adding-to-todo-must-show.md): Adding to todo must show only updated todo list, not all opened
