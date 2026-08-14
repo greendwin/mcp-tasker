@@ -3,12 +3,19 @@ from __future__ import annotations
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from tasker.base_types import Task, TaskStatus, is_root_task_id
+from tasker.base_types import (
+    Task,
+    TaskStatus,
+    is_nonleaf_task,
+    is_root_task_id,
+    walk_tasks,
+)
 from tasker.parse import make_child_ref, normalize_slug
 from tasker.render import append_task_filename
 
 if TYPE_CHECKING:
     from ._task_loader import TaskLoader
+    from ._task_repo import TaskRepo
 
 
 def generate_slug(title: str) -> str:
@@ -123,3 +130,13 @@ def build_task_path_from_root(task: Task, *, loader: TaskLoader) -> Path:
         parent_dir = parent_dir / stack.pop().ref
 
     return append_task_filename(parent_dir, task.ref, task.extended)
+
+
+def list_open_leaf_tasks(repo: TaskRepo) -> list[Task]:
+    r = []
+    for root_id in repo.list_root_tasks():
+        root = repo.resolve_ref(root_id)
+        for t in walk_tasks(root):
+            if not t.is_closed and not is_nonleaf_task(t):
+                r.append(t)
+    return r

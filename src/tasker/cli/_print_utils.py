@@ -371,7 +371,9 @@ def print_task(task: Task, *, markers: MarkersDict, preview: bool) -> None:
         console.print(item)
 
 
-def print_parent_preview(repo: TaskRepo, *tasks: Task) -> None:
+def print_parent_preview(
+    repo: TaskRepo, *tasks: Task, dont_highlight_tasks: bool = False
+) -> None:
     if not tasks:
         return
 
@@ -388,7 +390,7 @@ def print_parent_preview(repo: TaskRepo, *tasks: Task) -> None:
         config.show_task(
             task,
             ShowChildrenMode.SHOW_OPENED,
-            highlight=True,
+            highlight=not dont_highlight_tasks,
         )
 
         ancestor = repo.get_parent(task)

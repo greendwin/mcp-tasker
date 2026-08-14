@@ -1,12 +1,11 @@
-from collections.abc import Iterator
 from typing import Annotated, NoReturn
 
 import typer
 from typer_di import Depends
 
-from tasker.base_types import Task, TaskStatus, is_nonleaf_task, walk_tasks
+from tasker.base_types import Task, TaskStatus, is_nonleaf_task
 from tasker.exceptions import TaskHasSubtasksError
-from tasker.repo import TaskRepo
+from tasker.repo import TaskRepo, list_open_leaf_tasks
 from tasker.resolve import (
     ResolvedRef,
     resolve_ref,
@@ -340,12 +339,7 @@ def cmd_done_task(
                 resolved_tasks.append(ResolvedRef("--review", t))
 
     if not resolved_tasks:
-        console.print("[yellow]No tasks to close.[/yellow]")
-        open_leaves = list(_iter_open_leaf_tasks(repo))
-        if open_leaves:
-            console.print("\nOpen tasks:")
-            for t in open_leaves:
-                console.print(format_task_list_item(t, indent=1))
+        _report_no_tasks_to_close(repo)
         return
 
     need_preview: list[Task] = []
@@ -384,12 +378,13 @@ def cmd_done_task(
     print_parent_preview(repo, *need_preview)
 
 
-def _iter_open_leaf_tasks(repo: TaskRepo) -> Iterator[Task]:
-    for task_id in repo.list_root_tasks():
-        root = repo.resolve_ref(task_id)
-        for t in walk_tasks(root):
-            if not t.is_closed and not is_nonleaf_task(t):
-                yield t
+def _report_no_tasks_to_close(repo: TaskRepo) -> None:
+    console.print("[yellow]No tasks to close.[/yellow]")
+
+    open_tasks = list_open_leaf_tasks(repo)
+    if open_tasks:
+        console.print("\n[cyan]Open tasks:[/cyan]")
+        print_parent_preview(repo, *open_tasks, dont_highlight_tasks=True)
 
 
 def _fail_finishing_nonleaf_task(task: Task) -> NoReturn:

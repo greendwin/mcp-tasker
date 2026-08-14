@@ -850,10 +850,63 @@ def test_list_todo_with_explicit_ref_does_not_filter_ref() -> None:
     assert finished_sub not in result.output
 
 
-def test_list_todo_empty_shows_no_tasks_message() -> None:
-    create_task("My story")
+def test_list_todo_empty_falls_back_to_open_tasks() -> None:
+    story = create_task("Active story").task_id
+    add_subtask(story, "Open subtask")
+
     result = assert_invoke(app, ["list", "--todo"])
+    assert "Open tasks:" in result.output
+    assert "Active story" in result.output
+    assert "Open subtask" in result.output
+
+
+def test_list_todo_all_finished_keeps_finished_message() -> None:
+    story = create_task("My story").task_id
+    finished_sub = add_subtask(story, "Finished todo").task_id
+    assert_invoke(app, ["todo", finished_sub])
+    assert_invoke(app, ["done", finished_sub])
+
+    result = assert_invoke(app, ["list", "--todo"])
+    assert "All tasks finished" in result.output
+    assert "Open tasks:" not in result.output
+
+
+def test_list_todo_empty_fallback_excludes_closed_roots() -> None:
+    closed_story = create_task("Closed story").task_id
+    assert_invoke(app, ["done", "--force", closed_story])
+
+    result = assert_invoke(app, ["list", "--todo"])
+    assert closed_story not in result.output
     assert "No tasks to show" in result.output
+
+
+def test_list_todo_empty_announces_empty_todo_list() -> None:
+    story = create_task("Active story").task_id
+    add_subtask(story, "Open subtask")
+
+    result = assert_invoke(app, ["list", "--todo"])
+    assert "Todo list is empty." in result.output
+    assert "Open tasks:" in result.output
+
+
+def test_list_todo_all_empty_fallback_ignores_all_flag() -> None:
+    story = create_task("Active story").task_id
+    add_subtask(story, "Open subtask")
+
+    result = assert_invoke(app, ["list", "--todo", "--all"])
+    assert "Open tasks:" in result.output
+    # the --all flag must not leak pending markers onto the fallback listing
+    assert "[ ]" not in result.output
+
+
+def test_list_todo_all_shows_finished_message_when_all_done() -> None:
+    story = create_task("My story").task_id
+    finished_sub = add_subtask(story, "Finished todo").task_id
+    assert_invoke(app, ["todo", finished_sub])
+    assert_invoke(app, ["done", finished_sub])
+
+    result = assert_invoke(app, ["list", "--todo", "--all"])
+    assert "All tasks finished" in result.output
 
 
 def test_list_rev_shows_in_review_tasks_across_roots() -> None:
@@ -901,6 +954,49 @@ def test_list_rev_empty_fallback_excludes_closed_roots() -> None:
     assert "No tasks in review" in result.output
     assert open_story in result.output
     assert closed_story not in result.output
+
+
+def test_list_rev_empty_fallback_shows_open_tasks_header() -> None:
+    story = create_task("Active story").task_id
+    add_subtask(story, "Open subtask")
+
+    result = assert_invoke(app, ["list", "--rev"])
+    assert "No tasks in review" in result.output
+    assert "Open tasks:" in result.output
+    assert "Active story" in result.output
+
+
+def test_list_rev_todo_fallback_omits_open_tasks_header() -> None:
+    story = create_task("Active story").task_id
+    pinned = add_subtask(story, "Pinned subtask").task_id
+    add_subtask(story, "Other open")
+    assert_invoke(app, ["todo", pinned])
+
+    result = assert_invoke(app, ["list", "--rev"])
+    # the todo-list fallback must not be mislabelled as the open-tasks listing
+    assert "Showing todo list:" in result.output
+    assert "Open tasks:" not in result.output
+
+
+def test_list_rev_all_empty_fallback_ignores_all_flag() -> None:
+    story = create_task("Active story").task_id
+    add_subtask(story, "Open subtask")
+
+    result = assert_invoke(app, ["list", "--rev", "--all"])
+    assert "Open tasks:" in result.output
+    # the --all flag must not leak pending markers onto the fallback listing
+    assert "[ ]" not in result.output
+
+
+def test_list_rev_all_todo_fallback_ignores_all_flag() -> None:
+    story = create_task("Active story").task_id
+    pinned = add_subtask(story, "Pinned subtask").task_id
+    assert_invoke(app, ["todo", pinned])
+
+    result = assert_invoke(app, ["list", "--rev", "--all"])
+    assert "Showing todo list:" in result.output
+    # the --all flag must not leak pending markers onto the todo-list fallback
+    assert "[ ]" not in result.output
 
 
 def test_list_rev_with_refs_is_additive_and_show_no_review() -> None:
