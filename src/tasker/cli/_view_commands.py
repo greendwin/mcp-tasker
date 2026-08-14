@@ -5,7 +5,7 @@ from typer_di import Depends
 
 from tasker.base_types import Task
 from tasker.parse import detect_task_type, parse_task_file
-from tasker.repo import TaskRepo
+from tasker.repo import TaskRepo, list_open_leaf_tasks
 from tasker.resolve import (
     ResolvedRef,
     load_closed_tasks,
@@ -109,6 +109,7 @@ def cmd_list_tasks(
         )
 
     tasks: list[Task] = []
+    showing_fallback = False
     if closed:
         tasks.extend(load_closed_tasks(repo, limit=DEFAULT_CLOSED_LIMIT))
     elif in_review:
@@ -119,15 +120,21 @@ def cmd_list_tasks(
             console.print("[green]No tasks in review.[/green]\n")
         if collected.todo_fallback:
             console.print("[cyan]Showing todo list:[/cyan]\n")
+            showing_fallback = True
         if collected.opened_fallback:
             console.print("[cyan]Open tasks:[/cyan]\n")
+            showing_fallback = True
     elif todo:
-        # TODO: lets do the same behavior as in `--rev`, show opened tasks
         todo_tasks = _collect_todo_tasks(repo, show_all=show_all)
         tasks.extend(todo_tasks.tasks)
 
+        if todo_tasks.todo_empty:
+            console.print("[yellow]Todo list is empty.[/yellow]\n")
         if todo_tasks.all_finished:
             console.print("[green]All tasks finished![/green]\n")
+        if todo_tasks.opened_fallback:
+            console.print("[cyan]Open tasks:[/cyan]\n")
+            showing_fallback = True
 
     if archived:
         tasks.extend(_load_root_tasks(repo, archived=True, shallow=not show_all))
@@ -147,12 +154,14 @@ def cmd_list_tasks(
         return
 
     show_children_mode = ShowChildrenMode.SHOW_OPENED
-    if show_all:
+    if show_all and not showing_fallback:
+        # note that `--all` flag should not be applied for tasks that are showed
+        # as a fallback due to empty list
         show_children_mode = ShowChildrenMode.SHOW_ALL
 
     config = ShowTaskConfig(
         show_task_id=True,
-        show_pending_marker=show_all,
+        show_pending_marker=show_all and not showing_fallback,
     )
 
     for task in tasks:
@@ -168,21 +177,21 @@ def cmd_list_tasks(
         console.append_context("tasks", _task_to_json(task))
 
 
-class _CollectedTasks(NamedTuple):
+class _ReviewTasks(NamedTuple):
     tasks: list[Task]
     nothing_to_review: bool = False
     todo_fallback: bool = False
     opened_fallback: bool = False
 
 
-def _collect_review_tasks(repo: TaskRepo, *, task_refs: list[str]) -> _CollectedTasks:
+def _collect_review_tasks(repo: TaskRepo, *, task_refs: list[str]) -> _ReviewTasks:
     tasks = list(iter_in_review_tasks(repo))
     if tasks:
-        return _CollectedTasks(tasks)
+        return _ReviewTasks(tasks)
 
     active_todo = classify_todo(load_todo_tasks(repo)).active
     if active_todo:
-        return _CollectedTasks(
+        return _ReviewTasks(
             active_todo,
             nothing_to_review=True,
             todo_fallback=True,
@@ -190,14 +199,14 @@ def _collect_review_tasks(repo: TaskRepo, *, task_refs: list[str]) -> _Collected
 
     if task_refs:
         # there are user-provided tasks to show
-        return _CollectedTasks([], nothing_to_review=True)
+        return _ReviewTasks([], nothing_to_review=True)
 
     # otherwise show active root tasks
     for t in _load_root_tasks(repo, archived=False, shallow=False):
         if not t.is_closed:
             tasks.append(t)
 
-    return _CollectedTasks(
+    return _ReviewTasks(
         tasks,
         nothing_to_review=True,
         opened_fallback=True,
@@ -206,20 +215,29 @@ def _collect_review_tasks(repo: TaskRepo, *, task_refs: list[str]) -> _Collected
 
 class _TodoTasks(NamedTuple):
     tasks: list[Task]
+    todo_empty: bool = False
     all_finished: bool = False
+    opened_fallback: bool = False
 
 
 def _collect_todo_tasks(repo: TaskRepo, *, show_all: bool) -> _TodoTasks:
     todo_tasks = load_todo_tasks(repo)
-
-    if show_all or not todo_tasks:
-        return _TodoTasks(todo_tasks)
+    if not todo_tasks:
+        open_tasks = list_open_leaf_tasks(repo)
+        return _TodoTasks(
+            open_tasks,
+            todo_empty=True,
+            opened_fallback=bool(open_tasks),
+        )
 
     view = classify_todo(todo_tasks)
-    if view.active:
+    if not show_all and view.active:
         return _TodoTasks(view.active)
 
-    return _TodoTasks(todo_tasks, all_finished=True)
+    return _TodoTasks(
+        todo_tasks,
+        all_finished=not view.active,
+    )
 
 
 def _load_root_tasks(repo: TaskRepo, *, shallow: bool, archived: bool) -> list[Task]:

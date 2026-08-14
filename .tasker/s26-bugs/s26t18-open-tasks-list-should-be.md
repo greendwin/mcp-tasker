@@ -1,7 +1,7 @@
 ---
 id: s26t18
 slug: open-tasks-list-should-be
-status: in-progress
+status: done
 ---
 
 # Open tasks list should be grouped
