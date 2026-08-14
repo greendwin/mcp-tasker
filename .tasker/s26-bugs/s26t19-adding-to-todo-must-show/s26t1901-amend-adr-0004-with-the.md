@@ -1,7 +1,7 @@
 ---
 id: s26t1901
 slug: amend-adr-0004-with-the
-status: pending
+status: done
 ---
 
 # Amend ADR 0004 with the action-report format

@@ -34,13 +34,50 @@ promote, relocate, todo) additionally MUST, on success:
    the `--json-output` payload — must reference tasks by their **final** ids. A
    command may *additionally* echo the command as typed (a leading "doing X with
    these refs" line naming the user's original, pre-move ids); that echo is not a
-   result report and is exempt from the final-id rule. Commands that mutate a task
+   result report and is exempt from the final-id rule. **This optional freeform
+   echo is superseded by the action-report format** — see
+   [The action-report format](#the-action-report-format) below, which
+   standardises that leading block. Commands that mutate a task
    *in place* without moving it (`edit`, `start`, `review`, status changes) may
    show a lighter task-level preview instead — see the accepted deviations below.
 
 A new CLI command that skips any of these is a defect, not a stylistic variation;
 reviewers check all four. An MCP twin returns a structured ack instead of a
 preview and, per contract 1, leaves `.recent` untouched.
+
+## The action-report format
+
+Report-and-preview commands MUST precede their preview with a uniform **action
+report** — a print-only block that names, per requested ref, what the command
+did. This is the standardised replacement for contract 3's optional freeform
+echo (the leading "doing X with these refs" line), which it **supersedes**:
+commands report through the action report, not through ad-hoc echo or per-ref
+confirmation sentences.
+
+**Format.** An `<Action>:` header line naming the operation (e.g.
+`Adding to TODO:`, `Removing from TODO:`), then one bullet per requested ref:
+
+    <Action>:
+    - <id>: <title>[  (<outcome>)]
+
+The trailing `(<outcome>)` is shown **only when the outcome deviates** from the
+header's implied action. The successful common path carries no annotation — a
+bullet with no `(outcome)` means "the header's action happened as stated". Only
+deviations are annotated, e.g. `(already in todo)`, `(was not in todo)`, a
+via-pinned-parent warning, or a last-one-removed / list-now-empty note.
+
+**Print-only; callers own JSON.** Like `print_tree`, the reporter is pure text:
+it is silent under `--json-output` and emits nothing structured. The command
+still owns its `--json-output` contract (contract 2) and emits its own
+`task_refs` payload itself (via `console.append_context`). The action report
+changes the *human* rendering only; the JSON payload stays exactly as the
+per-command contract defines.
+
+**Reusable reporter.** The format is produced by a shared config-object reporter
+— `ActionReportConfig(action=…)` with `add_item(ref, title, *, outcome=None)`,
+rendered by `print_action_report(config)` — mirroring the `ShowTaskConfig` /
+`print_tree` split. A caller populates the config across its batch of refs, then
+renders one block.
 
 ## Scope, exemptions, and accepted deviations
 
@@ -51,7 +88,7 @@ One in-scope command is actively being brought into compliance:
 
 - **`order`** — no `--json-output` payload on its main result line (only its
   "Renamed tasks" sub-output carries `context`); `.recent` was written from
-  *pre-relocation* ids. Closed by the `s28t05` batch: `.recent` and the json
+  *pre-relocation* ids. Since brought into compliance: `.recent` and the json
   `task_refs`/`renames` now carry final ids, while the leading summary line stays
   a deliberate echo of the refs as typed (see contract 3).
 
