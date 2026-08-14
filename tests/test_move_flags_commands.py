@@ -311,6 +311,15 @@ def _fm_file(stored: Path) -> Path:
     return stored / "README.md" if stored.is_dir() else stored
 
 
+def _has_stored_file(tasks_root: Path, task_id: str) -> bool:
+    # inline subtasks live as bullets in the parent's file — no file of their own
+    try:
+        _stored_path(tasks_root, task_id)
+        return True
+    except AssertionError:
+        return False
+
+
 def _inject_order(tasks_root: Path, task_id: str, order: int) -> None:
     # emulate persisted `order:` storage (the `order` CLI lands in a later slice)
     path = _fm_file(_stored_path(tasks_root, task_id))
@@ -405,3 +414,20 @@ def test_move_ordered_root_under_parent_clears_order(
 
     moved = _stored_path(tasks_root, f"{s2}t01")
     assert parse_task_file(moved).task.order is None
+
+
+def test_move_order_only_file_downgrades_to_inline(
+    s1: str, s2: str, tasks_root: Path
+) -> None:
+    # a task that became a file *solely* to hold its order (no body, no children)
+    # must downgrade back to an inline bullet once a plain move clears that order
+    anchor = add_subtask(s1, "Anchor").task_id  # inline
+    t02 = add_subtask(s1, "Alpha").task_id  # inline
+    assert_invoke(app, ["order", anchor, t02])  # upgrades both to order-only files
+    assert _has_stored_file(tasks_root, t02)  # precondition: now file-backed
+
+    assert_invoke(app, ["move", t02, "--parent", s2])
+
+    moved_id = f"{s2}t01"
+    assert not _has_stored_file(tasks_root, moved_id)  # nothing left to keep it a file
+    assert "Alpha" in assert_invoke(app, ["view", s2]).output  # shows as inline bullet

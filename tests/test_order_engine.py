@@ -267,3 +267,22 @@ def test_order_key_tolerates_gaps_duplicates_and_unset() -> None:
     entries.sort(key=order_key)
 
     assert [e.id for e in entries] == ["a", "c", "b", "d", "e"]
+
+
+# --- whole-set re-space when no local gap can fit the inserted block ---
+
+
+def test_full_set_respace_when_no_gap_fits() -> None:
+    # anchor and every ordered follower are packed one integer apart, so there is
+    # no room to slot the moved block anywhere local. This forces a re-space of
+    # the *entire* ordered tail (not the partial widening the other respace tests
+    # exercise): every follower is reassigned fresh STEP-spaced, all distinct.
+    orders = _move_after(
+        [("a", 1000), ("x", 1001), ("y", 1002), ("z", 1003), ("m", None), ("n", None)],
+        "a",
+        ["m", "n"],
+    )
+
+    seq = _ordered_values(orders, ["a", "m", "n", "x", "y", "z"])
+    assert seq == sorted(seq)  # block lands after anchor; packed followers shifted out
+    assert len(set(seq)) == len(seq)  # the whole tail re-spaced into distinct values

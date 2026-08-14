@@ -137,6 +137,24 @@ def test_order_relocates_cross_parent_moved_under_anchor() -> None:
     assert "Bravo" not in view2
 
 
+def test_order_source_parent_downgrades_when_last_file_child_reparented(
+    tasks_root: Path,
+) -> None:
+    # a parent that is extended *only* because it holds a file-backed child must
+    # collapse back to inline once `order` reparents that last child elsewhere
+    s1 = create_task("Story one").task_id
+    anchor = add_subtask(s1, "Anchor").task_id
+    src = add_subtask(s1, "Source").task_id  # inline parent-to-be
+    child = add_subtask(src, "Child", details="body").task_id  # makes src an ext. dir
+
+    assert _stored_path(tasks_root, src).is_dir()  # precondition: extended
+
+    assert_invoke(app, ["order", anchor, child])  # reparents child under s1
+
+    # src lost its only file-backed child and has no body of its own -> inline
+    assert not _has_stored_file(tasks_root, src)
+
+
 # --- Slice E: single-arg is a true no-op with a warning ---
 
 

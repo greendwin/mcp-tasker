@@ -186,3 +186,63 @@ def test_list_tree_subtasks_all_unset_sort_by_id() -> None:
     assert positions == sorted(
         positions
     ), f"expected id order, got output:\n{result.output}"
+
+
+# --- Slice F: internal order values never surface on any display surface ---
+
+
+def test_order_values_never_surface_in_output(tasks_root: Path) -> None:
+    # order is an internal sparse sort key — users express only relative
+    # placement, so the raw integer must never appear in list/view/view_tasks
+    parent = create_task("Parent").task_id
+    subtasks = _make_subtasks(parent, 3)  # three siblings to sort among
+    marker = 424242  # distinctive value that cannot collide with any id or title
+    _set_order(tasks_root, subtasks[0], marker)
+
+    list_out = assert_invoke(app, ["list"]).output
+    view_out = assert_invoke(app, ["view", parent]).output
+    view_tasks_out = view_tasks([parent])
+
+    for surface in (list_out, view_out, view_tasks_out):
+        assert str(marker) not in surface, f"raw order leaked into:\n{surface}"
+
+
+# --- Slice G: sort applies at every level, incl. grandchildren ---
+
+
+def test_view_orders_grandchild_subtasks_by_order(tasks_root: Path) -> None:
+    # the (order, id) sort is per-sibling-set at *every* depth, not just roots and
+    # first-level children -- a grandchild sibling set orders the same way
+    parent = create_task("Parent").task_id
+    child = add_subtask(parent, "Child", details="body").task_id
+    g01 = add_subtask(child, "G one", details="body").task_id
+    g02 = add_subtask(child, "G two", details="body").task_id
+    g03 = add_subtask(child, "G three", details="body").task_id
+    g04 = add_subtask(child, "G four", details="body").task_id
+    _set_order(tasks_root, g03, 1000)
+    _set_order(tasks_root, g04, 2000)
+
+    result = assert_invoke(app, ["view", child])
+
+    positions = _positions(result.output, [g03, g04, g01, g02])
+    assert positions == sorted(
+        positions
+    ), f"expected order {[g03, g04, g01, g02]}, got output:\n{result.output}"
+
+
+# --- Slice H: MCP `view_tasks` renders top-level refs in argument order ---
+
+
+def test_view_tasks_renders_top_level_refs_in_argument_order(tasks_root: Path) -> None:
+    # view_tasks is ref-driven, not a lister: the top-level blocks appear in the
+    # caller's argument order and are NOT re-sorted by `order` (order only sorts
+    # *within* a block's subtasks)
+    a = create_task("Alpha").task_id
+    b = create_task("Bravo").task_id
+    _set_order(tasks_root, a, 2000)  # a would sort *after* b if order applied here
+    _set_order(tasks_root, b, 1000)
+
+    result = view_tasks([a, b])  # ask for a before b
+
+    positions = _positions(result, [a, b])
+    assert positions == sorted(positions), f"argument order not preserved:\n{result}"
