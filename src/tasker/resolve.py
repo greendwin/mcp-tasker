@@ -1,5 +1,5 @@
 import re
-from typing import NamedTuple
+from typing import Iterable, NamedTuple
 
 from .base_types import Task
 from .exceptions import TaskValidateError
@@ -36,6 +36,10 @@ def resolve_ref(
     resolved_task = repo.resolve_ref(resolved_ref)
 
     return ResolvedRef(task_ref, resolved_task)
+
+
+def to_tasks(seq: Iterable[ResolvedRef]) -> list[Task]:
+    return [p.task for p in seq]
 
 
 def _write_recent_id(repo: TaskRepo, task_id: str) -> None:

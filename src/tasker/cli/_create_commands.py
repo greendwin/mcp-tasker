@@ -10,7 +10,7 @@ from tasker.utils import console
 
 from ._common import app, complete_task_ref, get_task_repo, unarchive_task
 from ._helpers import edit_task_in_editor
-from ._print_utils import print_parent_preview
+from ._print_utils import print_parents_with_opened
 
 
 @app.command("new", help="Create a new top-level task.")
@@ -53,7 +53,7 @@ def cmd_new_task(
     )
 
     save_recent_for_refs(repo, task)
-    print_parent_preview(repo, task)
+    print_parents_with_opened(repo, task)
 
 
 @app.command("add", help="Add a subtask to an existing task.")
@@ -97,7 +97,7 @@ def cmd_add_task(
     )
 
     save_recent_for_refs(repo, parent)
-    print_parent_preview(repo, child)
+    print_parents_with_opened(repo, child)
 
 
 @app.command("add-many", help="Interactively add multiple subtasks.")

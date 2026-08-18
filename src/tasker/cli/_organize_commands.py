@@ -7,13 +7,13 @@ from tasker.base_types import Task, is_root_task_id, walk_tasks
 from tasker.exceptions import TaskerError, TaskValidateError
 from tasker.parse import normalize_task_id, parse_task_ref
 from tasker.repo import TaskRename, TaskRepo, group_at_anchor, group_at_front
-from tasker.resolve import ResolvedRef, resolve_ref, save_recent_for_refs
+from tasker.resolve import ResolvedRef, resolve_ref, save_recent_for_refs, to_tasks
 from tasker.todo import load_todo_ids, save_todo_ids
 from tasker.utils import JsonAppend, console
 
 from ._common import app, complete_task_ref, get_task_repo, unarchive_task
 from ._helpers import edit_task_in_editor
-from ._print_utils import format_task_list_item, print_parent_preview
+from ._print_utils import format_task_list_item, print_parents_with_opened
 
 
 @app.command("arch", hidden=True)
@@ -151,7 +151,7 @@ def cmd_unarchive_task(
         unarchived.append(task)
 
     save_recent_for_refs(repo, *unarchived)
-    print_parent_preview(repo, *unarchived)
+    print_parents_with_opened(repo, *unarchived)
 
 
 @app.command("move", help="Move a task under a new parent or to root level.")
@@ -303,7 +303,7 @@ def cmd_move_task(
             resolved_tasks.append(new_parent)
         save_recent_for_refs(repo, *resolved_tasks)
 
-    print_parent_preview(repo, *need_preview)
+    print_parents_with_opened(repo, *need_preview)
 
     if editor:
         for task_id in edit_ids:
@@ -352,17 +352,16 @@ def cmd_order_tasks(
 ) -> None:
     assert task_refs, "at least one element is expected"
     resolved = [resolve_ref(repo, p) for p in task_refs]
-    tasks = [r.task for r in resolved]
 
     if clear and (front or rest):
         raise typer.BadParameter("--clear cannot be combined with --front or --rest.")
 
     if clear:
-        _clear_tasks_ordering(repo, tasks)
+        _clear_tasks_ordering(repo, to_tasks(resolved))
     elif front:
-        _reorder_tasks_to_front(repo, tasks, rest=rest)
+        _reorder_tasks_to_front(repo, to_tasks(resolved), rest=rest)
     else:
-        _reorder_tasks(repo, tasks, rest=rest)
+        _reorder_tasks(repo, to_tasks(resolved), rest=rest)
 
     # note: update recents after possibl renames
     save_recent_for_refs(repo, *resolved)
@@ -408,7 +407,7 @@ def _reorder_tasks(repo: TaskRepo, tasks: list[Task], *, rest: bool) -> None:
         siblings, anchor_id=anchor.id, moved_ids=[t.id for t in moved_tasks]
     )
 
-    print_parent_preview(repo, anchor, *moved_tasks)
+    print_parents_with_opened(repo, anchor, *moved_tasks)
 
     repo.flush_to_disk()
 
@@ -434,7 +433,7 @@ def _reorder_tasks_to_front(repo: TaskRepo, tasks: list[Task], *, rest: bool) ->
     if console.json_output:
         console.set_context("task_refs", [t.id for t in sorted(tasks)])
 
-    print_parent_preview(repo, *tasks)
+    print_parents_with_opened(repo, *tasks)
     repo.flush_to_disk()
 
 
@@ -457,7 +456,7 @@ def _clear_tasks_ordering(repo: TaskRepo, tasks: list[Task]) -> None:
         task.order = None
         repo.try_downgrade_task(task)
 
-    print_parent_preview(repo, *tasks)
+    print_parents_with_opened(repo, *tasks)
     repo.flush_to_disk()
 
 

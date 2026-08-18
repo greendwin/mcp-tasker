@@ -1,7 +1,7 @@
 ---
 id: s26t1903
 slug: fix-todo-output
-status: pending
+status: done
 ---
 
 # Fix `todo` output

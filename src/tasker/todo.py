@@ -33,16 +33,6 @@ def save_todo_ids(repo: TaskRepo, todo_ids: list[str]) -> None:
     write_text(path, "\n".join(todo_ids) + "\n")
 
 
-def add_todo(repo: TaskRepo, task_id: str) -> bool:
-    todo_ids = load_todo_ids(repo)
-    if task_id in todo_ids:
-        return False
-
-    todo_ids.append(task_id)
-    save_todo_ids(repo, todo_ids)
-    return True
-
-
 class TodoClassification(NamedTuple):
     active: list[Task]
     all_finished: bool

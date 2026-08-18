@@ -18,10 +18,9 @@ from tasker.utils import console, scan_root_tasks
 from ._common import app, complete_task_ref, get_task_repo, iter_in_review_tasks
 from ._print_utils import (
     ShowChildrenMode,
-    ShowTaskConfig,
     compute_markers,
+    print_parents_only,
     print_task,
-    print_tree,
 )
 
 DEFAULT_CLOSED_LIMIT = 5
@@ -159,19 +158,13 @@ def cmd_list_tasks(
         # as a fallback due to empty list
         show_children_mode = ShowChildrenMode.SHOW_ALL
 
-    config = ShowTaskConfig(
-        show_task_id=True,
+    print_parents_only(
+        repo,
+        *tasks,
         show_pending_marker=show_all and not showing_fallback,
+        show_children_mode=show_children_mode,
+        highlight=False,
     )
-
-    for task in tasks:
-        config.show_task(task, show_children_mode=show_children_mode)
-
-        if parent := repo.get_parent(task):
-            # note: no children mode for parent, just show the parent node
-            config.show_task(parent)
-
-    print_tree(repo, config)
 
     for task in tasks:
         console.append_context("tasks", _task_to_json(task))

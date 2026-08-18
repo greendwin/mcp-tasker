@@ -30,7 +30,76 @@ def test_todo_adds_task(story_id: str, repo: TaskRepo) -> None:
 
 def test_todo_prints_confirmation(story_id: str) -> None:
     result = assert_invoke(app, ["todo", story_id])
-    assert "added to todo" in result.output
+    out = result.output
+    assert "Adding to TODO:" in out
+    assert any(
+        ln.lstrip().startswith("- ") and "My story" in ln for ln in out.splitlines()
+    )
+
+
+def test_todo_header_has_single_colon(story_id: str) -> None:
+    result = assert_invoke(app, ["todo", story_id])
+    assert "Adding to TODO:" in result.output
+    assert "Adding to TODO::" not in result.output
+
+
+def test_todo_drops_old_added_sentence(story_id: str) -> None:
+    result = assert_invoke(app, ["todo", story_id])
+    assert "added to todo" not in result.output
+
+
+def test_todo_re_add_annotates_already_in_todo(story_id: str) -> None:
+    assert_invoke(app, ["todo", story_id])
+    result = assert_invoke(app, ["todo", story_id])
+    out = result.output
+    assert "(already in todo)" in out
+    assert any(
+        ln.lstrip().startswith("- ") and "My story" in ln and "(already in todo)" in ln
+        for ln in out.splitlines()
+    )
+
+
+def test_todo_closed_task_does_not_dump_open_tree(story_id: str) -> None:
+    create_task("Unrelated open story")
+    assert_invoke(app, ["finish", story_id])
+    result = assert_invoke(app, ["todo", story_id])
+    assert "Unrelated open story" not in result.output
+
+
+def test_todo_closed_pin_shows_task_without_list_report(story_id: str) -> None:
+    assert_invoke(app, ["finish", story_id])
+    result = assert_invoke(app, ["todo", story_id])
+    out = result.output
+    assert "My story" in out
+    assert "<<<" in out
+    # the "all finished" summary is a `list` concern, not an action command
+    assert "All tasks finished!" not in out
+
+
+def test_todo_multiple_refs_one_report_block(story_id: str) -> None:
+    t01 = add_subtask(story_id, "Task one").task_id
+    t02 = add_subtask(story_id, "Task two").task_id
+    result = assert_invoke(app, ["todo", t01, t02])
+    out = result.output
+    assert out.count("Adding to TODO:") == 1
+    assert "Task one" in out
+    assert "Task two" in out
+
+
+def test_todo_preview_shows_full_todo_list(story_id: str) -> None:
+    t01 = add_subtask(story_id, "Task one").task_id
+    t02 = add_subtask(story_id, "Task two").task_id
+    assert_invoke(app, ["todo", t01])
+    result = assert_invoke(app, ["todo", t02])
+    out = result.output
+    # the preview renders the whole TODO list, not just the touched ref
+    assert t01 in out
+    assert t02 in out
+    # only the just-added task carries the highlight
+    for line in out.splitlines():
+        if "<<<" in line:
+            assert t02 in line
+            assert t01 not in line
 
 
 def test_todo_idempotent(story_id: str) -> None:
@@ -62,7 +131,7 @@ def test_todo_nonexistent_task_fails() -> None:
 def test_todo_json_output(story_id: str) -> None:
     result = assert_invoke(app, ["--json-output", "todo", story_id])
     data = json.loads(result.output)
-    assert data["task_refs"] == [f"{story_id}-my-story"]
+    assert data["task_refs"] == [story_id]
 
 
 def test_todo_creates_gitignore_entry(story_id: str, tasks_root: Path) -> None:
@@ -309,11 +378,18 @@ def test_full_list_shows_letter_marker_on_deep_subtask(story_id: str) -> None:
 
 def test_todo_parent_preview_shows_letter_marker(story_id: str) -> None:
     result = assert_invoke(app, ["todo", story_id])
+
+    found = False
     for line in result.output.splitlines():
-        if story_id in line and "My story" in line:
-            assert "(ta)" in line
-            return
-    raise AssertionError("no preview line found")
+        if story_id not in line:
+            continue
+
+        if "My story" in line and "(ta)" in line:
+            found = True
+            break
+
+    if not found:
+        raise AssertionError(f"no preview line found in:\n{result.output}")
 
 
 # --- t<letter> shortcut resolution ---

@@ -379,8 +379,7 @@ class _ActionReportItem:
 
 
 class ActionReportConfig:
-    def __init__(self, *, action: str) -> None:
-        self.action = action
+    def __init__(self) -> None:
         self.items: list[_ActionReportItem] = []
 
     def add_task(self, task: Task, *, outcome: str | None = None) -> None:
@@ -390,11 +389,11 @@ class ActionReportConfig:
         self.items.append(_ActionReportItem(task_id, title, outcome))
 
 
-def print_action_report(config: ActionReportConfig) -> None:
+def print_action_report(title: str, config: ActionReportConfig) -> None:
     if not config.items:
         return
 
-    console.print("{}:".format(escape_markup(config.action)))
+    console.print("{}:".format(escape_markup(title)))
     for p in config.items:
         if not p.outcome:
             console.print(
@@ -413,7 +412,7 @@ def print_action_report(config: ActionReportConfig) -> None:
         )
 
 
-def print_parent_preview(
+def print_parents_with_opened(
     repo: TaskRepo, *tasks: Task, dont_highlight_tasks: bool = False
 ) -> None:
     if not tasks:
@@ -451,5 +450,43 @@ def print_parent_preview(
             root = repo.resolve_ref(task_id)
             if not root.is_closed:
                 config.show_task(root, ShowChildrenMode.SHOW_OPENED)
+
+    print_tree(repo, config)
+
+
+def print_parents_only(
+    repo: TaskRepo,
+    *tasks: Task,
+    highlight: bool | set[str],
+    show_pending_marker: bool = False,
+    show_children_mode: ShowChildrenMode = ShowChildrenMode.SHOW_OPENED,
+) -> None:
+    if not tasks:
+        return
+
+    console.print("")
+
+    config = ShowTaskConfig(
+        show_task_id=True,
+        # TODO: test me!
+        show_pending_marker=show_pending_marker,
+    )
+
+    for task in tasks:
+        if isinstance(highlight, set):
+            task_highlight = task.id in highlight
+        else:
+            task_highlight = highlight
+
+        config.show_task(
+            task,
+            show_children_mode,
+            highlight=task_highlight,
+        )
+
+        ancestor = repo.get_parent(task)
+        while ancestor:
+            config.show_task(ancestor)
+            ancestor = repo.get_parent(ancestor)
 
     print_tree(repo, config)
