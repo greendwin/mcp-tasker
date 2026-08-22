@@ -54,30 +54,32 @@ echo (the leading "doing X with these refs" line), which it **supersedes**:
 commands report through the action report, not through ad-hoc echo or per-ref
 confirmation sentences.
 
-**Format.** An `<Action>:` header line naming the operation (e.g.
-`Adding to TODO:`, `Removing from TODO:`), then one bullet per requested ref:
+**Format.** An `<Action>:` header line naming the operation, then one bullet
+per requested ref:
 
     <Action>:
-    - <id>: <title>[  (<outcome>)]
+    - <id>[  (<outcome>)]
 
-The trailing `(<outcome>)` is shown **only when the outcome deviates** from the
+Bullets carry the ref's id only — no title; the preview that follows renders
+titles. The trailing `(<outcome>)` is shown **only when the outcome deviates** from the
 header's implied action. The successful common path carries no annotation — a
-bullet with no `(outcome)` means "the header's action happened as stated". Only
-deviations are annotated, e.g. `(already in todo)`, `(was not in todo)`, a
-via-pinned-parent warning, or a last-one-removed / list-now-empty note.
+bullet with no `(outcome)` means "the header's action happened as stated"; only
+deviations (a no-op, a warning) are annotated. Notes about the overall
+*resulting state* are not per-ref outcomes — they are reported outside the
+bullet list.
 
-**Print-only; callers own JSON.** Like `print_tree`, the reporter is pure text:
-it is silent under `--json-output` and emits nothing structured. The command
-still owns its `--json-output` contract (contract 2) and emits its own
-`task_refs` payload itself (via `console.append_context`). The action report
-changes the *human* rendering only; the JSON payload stays exactly as the
-per-command contract defines.
+**Duplicates are ignored.** Requested refs are deduplicated by *resolved task
+id* before processing, keeping first-occurrence order: a repeated ref yields
+one bullet, one `task_refs` JSON entry, and one application of the action — a
+duplicate is not a deviation (never annotated as `(already …)` / `(was not …)`).
+This rule applies to every command adopting the action report —
+`todo`/`untodo` are the first adopters; the remaining report-and-preview
+commands pick it up as they migrate to the format.
 
-**Reusable reporter.** The format is produced by a shared config-object reporter
-— `ActionReportConfig(action=…)` with `add_item(ref, title, *, outcome=None)`,
-rendered by `print_action_report(config)` — mirroring the `ShowTaskConfig` /
-`print_tree` split. A caller populates the config across its batch of refs, then
-renders one block.
+**Print-only; callers own JSON.** The reporter renders human text only: it is
+silent under `--json-output` and emits nothing structured. Each command keeps
+owning its `--json-output` contract (contract 2) unchanged — the action report
+affects the human rendering only.
 
 ## Scope, exemptions, and accepted deviations
 

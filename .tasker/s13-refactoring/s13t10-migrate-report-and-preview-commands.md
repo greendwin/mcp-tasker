@@ -9,7 +9,7 @@ status: pending
 ## Context
 
 Follow-up to s26t19, which piloted the uniform action-report format
-(`<Action>:` header + `- <id>: <title>[  (<outcome>)]` bullets, deviation-only
+(`<Action>:` header + `- <id>[  (<outcome>)]` id-only bullets, deviation-only
 annotation) on `todo`/`untodo`, added the reusable `ActionReportConfig` /
 `print_action_report` reporter in `_print_utils.py`, and documented the format in
 ADR 0004. This task migrates the remaining report-and-preview commands to that
@@ -29,6 +29,12 @@ and freeform echo lines (ADR 0004 contract 3):
 
 - Reuse the `s26t19` reporter (`_print_utils.ActionReportConfig` /
   `print_action_report`) — no new rendering mode.
+- **Apply ADR 0004's "Duplicates are ignored" rule to every migrated command**:
+  requested refs are deduplicated by resolved task id before processing
+  (first-occurrence order); a repeated ref yields one bullet, one `task_refs`
+  JSON entry, and one application of the action — never a deviation annotation.
+  Cover this with tests per command, mirroring the `todo`/`untodo`
+  duplicate-ref tests.
 - Preserve each command's existing JSON contract (`task_refs`/`renames`/etc.);
   the reporter is print-only, callers keep emitting their own JSON context.
 - Honour ADR 0004's accepted deviations (e.g. `add-many` stays a bulk primitive
@@ -46,6 +52,8 @@ and freeform echo lines (ADR 0004 contract 3):
 ## Acceptance criteria
 
 - Each listed command emits the uniform action report before its preview.
+- Each migrated command ignores duplicate refs per ADR 0004 (one bullet, one
+  JSON entry, action applied once), with covering tests.
 - Existing JSON-output tests for those commands pass unchanged.
-- ADR 0004's first-adopter note is updated to reflect full adoption.
+- ADR 0004's adopter note is updated to reflect full adoption.
 - `uv run tox` passes (all environments).

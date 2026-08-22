@@ -6,7 +6,7 @@ from typing import TypeAlias
 from tasker.base_types import Task, TaskStatus
 from tasker.repo import TaskRepo
 from tasker.resolve import load_recent_task
-from tasker.todo import assign_todo_letters, load_todo_tasks
+from tasker.todo import assign_todo_letters, load_todo_list, resolve_todo_tasks
 from tasker.utils import console, escape_markup
 
 _STATUS_COLOR = {
@@ -84,7 +84,8 @@ class _CollectContext:
 def compute_markers(repo: TaskRepo, *visible: Task) -> MarkersDict:
     markers: MarkersDict = defaultdict(list)
 
-    todo_tasks = load_todo_tasks(repo)
+    todo = load_todo_list(repo)
+    todo_tasks = resolve_todo_tasks(repo, todo)
     todo_ids = {t.id for t in todo_tasks}
     letters = assign_todo_letters(todo_tasks)
     for t in visible:
@@ -372,7 +373,7 @@ def print_task(task: Task, *, markers: MarkersDict, preview: bool) -> None:
 
 
 @dataclass(slots=True)
-class _ActionReportItem:
+class ActionReportItem:
     task_id: str
     title: str
     outcome: str | None
@@ -380,13 +381,17 @@ class _ActionReportItem:
 
 class ActionReportConfig:
     def __init__(self) -> None:
-        self.items: list[_ActionReportItem] = []
+        self.items: list[ActionReportItem] = []
 
-    def add_task(self, task: Task, *, outcome: str | None = None) -> None:
-        self.add_item(task.id, task.title, outcome=outcome)
+    def add_task(self, task: Task, *, outcome: str | None = None) -> ActionReportItem:
+        return self.add_item(task.id, task.title, outcome=outcome)
 
-    def add_item(self, task_id: str, title: str, *, outcome: str | None = None) -> None:
-        self.items.append(_ActionReportItem(task_id, title, outcome))
+    def add_item(
+        self, task_id: str, title: str, *, outcome: str | None = None
+    ) -> ActionReportItem:
+        item = ActionReportItem(task_id, title, outcome)
+        self.items.append(item)
+        return item
 
 
 def print_action_report(title: str, config: ActionReportConfig) -> None:
@@ -396,24 +401,18 @@ def print_action_report(title: str, config: ActionReportConfig) -> None:
     console.print("{}:".format(escape_markup(title)))
     for p in config.items:
         if not p.outcome:
-            console.print(
-                "  - [cyan]{}[/cyan]: {}".format(
-                    escape_markup(p.task_id), escape_markup(p.title)
-                )
-            )
+            console.print("  - [cyan]{:8}[/cyan]".format(escape_markup(p.task_id)))
             continue
 
         console.print(
-            "  - [cyan]{}[/cyan]: {}  [dim]({})[/dim]".format(
-                escape_markup(p.task_id),
-                escape_markup(p.title),
-                escape_markup(p.outcome),
+            "  - [cyan]{:8}[/cyan] [dim]({})[/dim]".format(
+                escape_markup(p.task_id), escape_markup(p.outcome)
             )
         )
 
 
 def print_parents_with_opened(
-    repo: TaskRepo, *tasks: Task, dont_highlight_tasks: bool = False
+    repo: TaskRepo, *tasks: Task, highlight: bool | set[str]
 ) -> None:
     if not tasks:
         return
@@ -431,7 +430,7 @@ def print_parents_with_opened(
         config.show_task(
             task,
             ShowChildrenMode.SHOW_OPENED,
-            highlight=not dont_highlight_tasks,
+            highlight=is_highlighted(task, highlight),
         )
 
         ancestor = repo.get_parent(task)
@@ -473,15 +472,10 @@ def print_parents_only(
     )
 
     for task in tasks:
-        if isinstance(highlight, set):
-            task_highlight = task.id in highlight
-        else:
-            task_highlight = highlight
-
         config.show_task(
             task,
             show_children_mode,
-            highlight=task_highlight,
+            highlight=is_highlighted(task, highlight),
         )
 
         ancestor = repo.get_parent(task)
@@ -490,3 +484,10 @@ def print_parents_only(
             ancestor = repo.get_parent(ancestor)
 
     print_tree(repo, config)
+
+
+def is_highlighted(task: Task, highlight: bool | set[str]) -> bool:
+    if not isinstance(highlight, set):
+        return highlight
+
+    return task.id in highlight

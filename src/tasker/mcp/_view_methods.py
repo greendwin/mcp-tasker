@@ -1,7 +1,7 @@
 from tasker.exceptions import TaskValidateError
 from tasker.parse import parse_task_file
 from tasker.resolve import resolve_ref
-from tasker.todo import classify_todo, load_todo_tasks
+from tasker.todo import classify_todo, load_todo_list, resolve_todo_tasks
 from tasker.utils import scan_root_tasks
 
 from ._common import get_repo, mcp
@@ -28,7 +28,9 @@ def list_tasks(todo: bool = False) -> str:
     repo = get_repo()
 
     if todo:
-        view = classify_todo(load_todo_tasks(repo))
+        lst = load_todo_list(repo)
+        todo_tasks = resolve_todo_tasks(repo, lst)
+        view = classify_todo(todo_tasks)
         if view.all_finished:
             return "All tasks finished!"
         tasks = view.active

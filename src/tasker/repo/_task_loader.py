@@ -327,7 +327,7 @@ def _load_task_tree(
 ) -> None:
     task_info = unloaded_root_tasks.get(root_id)
     if task_info is None:
-        raise TaskValidateError(f"Task {root_id!r} not found", task_ref=root_id)
+        raise TaskNotFoundError(f"Task {root_id!r} not found", task_ref=root_id)
 
     tt = task_info.info
     content = read_text(tt.content_path)

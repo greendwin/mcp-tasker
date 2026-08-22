@@ -53,7 +53,7 @@ def cmd_new_task(
     )
 
     save_recent_for_refs(repo, task)
-    print_parents_with_opened(repo, task)
+    print_parents_with_opened(repo, task, highlight=True)
 
 
 @app.command("add", help="Add a subtask to an existing task.")
@@ -97,7 +97,7 @@ def cmd_add_task(
     )
 
     save_recent_for_refs(repo, parent)
-    print_parents_with_opened(repo, child)
+    print_parents_with_opened(repo, child, highlight=True)
 
 
 @app.command("add-many", help="Interactively add multiple subtasks.")

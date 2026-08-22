@@ -1,7 +1,7 @@
 ---
 id: s26t19
 slug: adding-to-todo-must-show
-status: pending
+status: done
 ---
 
 # Adding to todo must show only updated todo list, not all opened
@@ -111,4 +111,4 @@ rest migrate under a follow-up task.
 - [x] [s26t1901](s26t1901-amend-adr-0004-with-the.md): Amend ADR 0004 with the action-report format
 - [x] [s26t1902](s26t1902-reusable-action-report-reporter-deep.md): Reusable action-report reporter (deep module)
 - [x] [s26t1903](s26t1903-fix-todo-output.md): Fix `todo` output
-- [ ] [s26t1904](s26t1904-fix-untodo-output.md): Fix `untodo` output
+- [x] [s26t1904](s26t1904-fix-untodo-output.md): Fix `untodo` output

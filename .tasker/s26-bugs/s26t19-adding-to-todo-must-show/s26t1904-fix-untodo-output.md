@@ -1,7 +1,7 @@
 ---
 id: s26t1904
 slug: fix-untodo-output
-status: pending
+status: done
 ---
 
 # Fix `untodo` output

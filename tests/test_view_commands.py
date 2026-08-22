@@ -2,7 +2,7 @@ import json
 from pathlib import Path
 
 from tasker.cli import app, get_task_repo
-from tasker.todo import load_todo_ids, save_todo_ids
+from tasker.todo import load_todo_list, save_todo_list
 
 from .helpers import GetTaskFile, add_subtask, assert_invoke, create_task
 
@@ -441,7 +441,7 @@ def test_list_todo_silently_skips_stale_ids() -> None:
     todo_sub = add_subtask(story_id, "Live todo").task_id
 
     repo = get_task_repo()
-    save_todo_ids(repo, [todo_sub, "s99t99"])
+    save_todo_list(repo, [todo_sub, "s99t99"])
 
     result = assert_invoke(app, ["list", "--todo"])
     assert todo_sub in result.output
@@ -453,11 +453,11 @@ def test_list_todo_prunes_stale_ids_on_disk() -> None:
     todo_sub = add_subtask(story_id, "Live todo").task_id
 
     repo = get_task_repo()
-    save_todo_ids(repo, [todo_sub, "s99t99"])
+    save_todo_list(repo, [todo_sub, "s99t99"])
 
     assert_invoke(app, ["list", "--todo"])
 
-    remaining = load_todo_ids(repo)
+    remaining = load_todo_list(repo)
     assert remaining == [todo_sub]
 
 

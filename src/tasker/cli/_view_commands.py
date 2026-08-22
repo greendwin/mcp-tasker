@@ -12,7 +12,7 @@ from tasker.resolve import (
     resolve_ref,
     save_recent_for_refs,
 )
-from tasker.todo import classify_todo, load_todo_tasks
+from tasker.todo import classify_todo, load_todo_list, resolve_todo_tasks
 from tasker.utils import console, scan_root_tasks
 
 from ._common import app, complete_task_ref, get_task_repo, iter_in_review_tasks
@@ -182,7 +182,9 @@ def _collect_review_tasks(repo: TaskRepo, *, task_refs: list[str]) -> _ReviewTas
     if tasks:
         return _ReviewTasks(tasks)
 
-    active_todo = classify_todo(load_todo_tasks(repo)).active
+    todo = load_todo_list(repo)
+    todo_tasks = resolve_todo_tasks(repo, todo)
+    active_todo = classify_todo(todo_tasks).active
     if active_todo:
         return _ReviewTasks(
             active_todo,
@@ -214,7 +216,8 @@ class _TodoTasks(NamedTuple):
 
 
 def _collect_todo_tasks(repo: TaskRepo, *, show_all: bool) -> _TodoTasks:
-    todo_tasks = load_todo_tasks(repo)
+    todo = load_todo_list(repo)
+    todo_tasks = resolve_todo_tasks(repo, todo)
     if not todo_tasks:
         open_tasks = list_open_leaf_tasks(repo)
         return _TodoTasks(
