@@ -34,13 +34,52 @@ promote, relocate, todo) additionally MUST, on success:
    the `--json-output` payload — must reference tasks by their **final** ids. A
    command may *additionally* echo the command as typed (a leading "doing X with
    these refs" line naming the user's original, pre-move ids); that echo is not a
-   result report and is exempt from the final-id rule. Commands that mutate a task
+   result report and is exempt from the final-id rule. **This optional freeform
+   echo is superseded by the action-report format** — see
+   [The action-report format](#the-action-report-format) below, which
+   standardises that leading block. Commands that mutate a task
    *in place* without moving it (`edit`, `start`, `review`, status changes) may
    show a lighter task-level preview instead — see the accepted deviations below.
 
 A new CLI command that skips any of these is a defect, not a stylistic variation;
 reviewers check all four. An MCP twin returns a structured ack instead of a
 preview and, per contract 1, leaves `.recent` untouched.
+
+## The action-report format
+
+Report-and-preview commands MUST precede their preview with a uniform **action
+report** — a print-only block that names, per requested ref, what the command
+did. This is the standardised replacement for contract 3's optional freeform
+echo (the leading "doing X with these refs" line), which it **supersedes**:
+commands report through the action report, not through ad-hoc echo or per-ref
+confirmation sentences.
+
+**Format.** An `<Action>:` header line naming the operation, then one bullet
+per requested ref:
+
+    <Action>:
+    - <id>[  (<outcome>)]
+
+Bullets carry the ref's id only — no title; the preview that follows renders
+titles. The trailing `(<outcome>)` is shown **only when the outcome deviates** from the
+header's implied action. The successful common path carries no annotation — a
+bullet with no `(outcome)` means "the header's action happened as stated"; only
+deviations (a no-op, a warning) are annotated. Notes about the overall
+*resulting state* are not per-ref outcomes — they are reported outside the
+bullet list.
+
+**Duplicates are ignored.** Requested refs are deduplicated by *resolved task
+id* before processing, keeping first-occurrence order: a repeated ref yields
+one bullet, one `task_refs` JSON entry, and one application of the action — a
+duplicate is not a deviation (never annotated as `(already …)` / `(was not …)`).
+This rule applies to every command adopting the action report —
+`todo`/`untodo` are the first adopters; the remaining report-and-preview
+commands pick it up as they migrate to the format.
+
+**Print-only; callers own JSON.** The reporter renders human text only: it is
+silent under `--json-output` and emits nothing structured. Each command keeps
+owning its `--json-output` contract (contract 2) unchanged — the action report
+affects the human rendering only.
 
 ## Scope, exemptions, and accepted deviations
 
@@ -51,7 +90,7 @@ One in-scope command is actively being brought into compliance:
 
 - **`order`** — no `--json-output` payload on its main result line (only its
   "Renamed tasks" sub-output carries `context`); `.recent` was written from
-  *pre-relocation* ids. Closed by the `s28t05` batch: `.recent` and the json
+  *pre-relocation* ids. Since brought into compliance: `.recent` and the json
   `task_refs`/`renames` now carry final ids, while the leading summary line stays
   a deliberate echo of the refs as typed (see contract 3).
 

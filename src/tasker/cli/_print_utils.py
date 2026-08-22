@@ -6,7 +6,7 @@ from typing import TypeAlias
 from tasker.base_types import Task, TaskStatus
 from tasker.repo import TaskRepo
 from tasker.resolve import load_recent_task
-from tasker.todo import assign_todo_letters, load_todo_tasks
+from tasker.todo import assign_todo_letters, load_todo_list, resolve_todo_tasks
 from tasker.utils import console, escape_markup
 
 _STATUS_COLOR = {
@@ -84,7 +84,8 @@ class _CollectContext:
 def compute_markers(repo: TaskRepo, *visible: Task) -> MarkersDict:
     markers: MarkersDict = defaultdict(list)
 
-    todo_tasks = load_todo_tasks(repo)
+    todo = load_todo_list(repo)
+    todo_tasks = resolve_todo_tasks(repo, todo)
     todo_ids = {t.id for t in todo_tasks}
     letters = assign_todo_letters(todo_tasks)
     for t in visible:
@@ -371,8 +372,47 @@ def print_task(task: Task, *, markers: MarkersDict, preview: bool) -> None:
         console.print(item)
 
 
-def print_parent_preview(
-    repo: TaskRepo, *tasks: Task, dont_highlight_tasks: bool = False
+@dataclass(slots=True)
+class ActionReportItem:
+    task_id: str
+    title: str
+    outcome: str | None
+
+
+class ActionReportConfig:
+    def __init__(self) -> None:
+        self.items: list[ActionReportItem] = []
+
+    def add_task(self, task: Task, *, outcome: str | None = None) -> ActionReportItem:
+        return self.add_item(task.id, task.title, outcome=outcome)
+
+    def add_item(
+        self, task_id: str, title: str, *, outcome: str | None = None
+    ) -> ActionReportItem:
+        item = ActionReportItem(task_id, title, outcome)
+        self.items.append(item)
+        return item
+
+
+def print_action_report(title: str, config: ActionReportConfig) -> None:
+    if not config.items:
+        return
+
+    console.print("{}:".format(escape_markup(title)))
+    for p in config.items:
+        if not p.outcome:
+            console.print("  - [cyan]{:8}[/cyan]".format(escape_markup(p.task_id)))
+            continue
+
+        console.print(
+            "  - [cyan]{:8}[/cyan] [dim]({})[/dim]".format(
+                escape_markup(p.task_id), escape_markup(p.outcome)
+            )
+        )
+
+
+def print_parents_with_opened(
+    repo: TaskRepo, *tasks: Task, highlight: bool | set[str]
 ) -> None:
     if not tasks:
         return
@@ -390,7 +430,7 @@ def print_parent_preview(
         config.show_task(
             task,
             ShowChildrenMode.SHOW_OPENED,
-            highlight=not dont_highlight_tasks,
+            highlight=is_highlighted(task, highlight),
         )
 
         ancestor = repo.get_parent(task)
@@ -411,3 +451,43 @@ def print_parent_preview(
                 config.show_task(root, ShowChildrenMode.SHOW_OPENED)
 
     print_tree(repo, config)
+
+
+def print_parents_only(
+    repo: TaskRepo,
+    *tasks: Task,
+    highlight: bool | set[str],
+    show_pending_marker: bool = False,
+    show_children_mode: ShowChildrenMode = ShowChildrenMode.SHOW_OPENED,
+) -> None:
+    if not tasks:
+        return
+
+    console.print("")
+
+    config = ShowTaskConfig(
+        show_task_id=True,
+        # TODO: test me!
+        show_pending_marker=show_pending_marker,
+    )
+
+    for task in tasks:
+        config.show_task(
+            task,
+            show_children_mode,
+            highlight=is_highlighted(task, highlight),
+        )
+
+        ancestor = repo.get_parent(task)
+        while ancestor:
+            config.show_task(ancestor)
+            ancestor = repo.get_parent(ancestor)
+
+    print_tree(repo, config)
+
+
+def is_highlighted(task: Task, highlight: bool | set[str]) -> bool:
+    if not isinstance(highlight, set):
+        return highlight
+
+    return task.id in highlight

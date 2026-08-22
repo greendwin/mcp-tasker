@@ -7,7 +7,7 @@ from tasker.mcp import (
     view_tasks,
 )
 from tasker.mcp._render import TASK_BLOCK_SEPARATOR
-from tasker.todo import load_todo_ids, save_todo_ids
+from tasker.todo import load_todo_list, save_todo_list
 
 from .helpers import GetTaskFile, add_subtask, assert_invoke, create_task
 
@@ -176,13 +176,13 @@ def test_list_tasks_todo_empty() -> None:
 def test_list_tasks_todo_silently_skips_and_prunes_stale_ids() -> None:
     s1 = create_task("Story one").task_id
     repo = get_task_repo()
-    save_todo_ids(repo, [s1, "s99t99"])
+    save_todo_list(repo, [s1, "s99t99"])
 
     result = list_tasks(todo=True)
     assert isinstance(result, str)
     assert s1 in result
 
-    remaining = load_todo_ids(repo)
+    remaining = load_todo_list(repo)
     assert remaining == [s1]
 
 

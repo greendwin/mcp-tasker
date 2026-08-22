@@ -1,5 +1,5 @@
 import re
-from typing import NamedTuple
+from typing import Iterable, NamedTuple, Sequence
 
 from .base_types import Task
 from .exceptions import TaskValidateError
@@ -13,7 +13,7 @@ from .parse import (
     parse_task_ref,
 )
 from .repo import TaskRepo
-from .todo import assign_todo_letters, load_todo_tasks
+from .todo import assign_todo_letters, load_todo_list, resolve_todo_tasks
 from .utils import scan_root_tasks, write_text
 
 CLOSED_HISTORY_CAP = 30
@@ -24,10 +24,7 @@ class ResolvedRef(NamedTuple):
     task: Task  # resolved task
 
 
-def resolve_ref(
-    repo: TaskRepo,
-    task_ref: str,
-) -> ResolvedRef:
+def resolve_ref(repo: TaskRepo, task_ref: str) -> ResolvedRef:
     if _is_direct_ref(task_ref):
         resolved_ref = normalize_task_id(task_ref)
     else:
@@ -36,6 +33,25 @@ def resolve_ref(
     resolved_task = repo.resolve_ref(resolved_ref)
 
     return ResolvedRef(task_ref, resolved_task)
+
+
+def resolve_user_refs(repo: TaskRepo, refs: Sequence[str]) -> list[ResolvedRef]:
+    ids = set()
+    result = []
+    for task_ref in refs:
+        resolved = resolve_ref(repo, task_ref)
+        if resolved.task.id in ids:
+            # skip duplicates
+            continue
+
+        ids.add(resolved.task.id)
+        result.append(resolved)
+
+    return result
+
+
+def to_tasks(seq: Iterable[ResolvedRef]) -> list[Task]:
+    return [p.task for p in seq]
 
 
 def _write_recent_id(repo: TaskRepo, task_id: str) -> None:
@@ -230,7 +246,8 @@ def _is_partial_slug_match(slug: str, name: str) -> bool:
 def _resolve_todo_letter(
     repo: TaskRepo, task_ref: str, letter: str, digits: str | None
 ) -> str:
-    todo_tasks = load_todo_tasks(repo)
+    todo = load_todo_list(repo)
+    todo_tasks = resolve_todo_tasks(repo, todo)
     letters = assign_todo_letters(todo_tasks)
     target = f"t{letter}"
     for task_id, assigned in letters.items():

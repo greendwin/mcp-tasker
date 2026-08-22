@@ -257,7 +257,7 @@ def test_move_id_missing_parent_errors(s1: str) -> None:
     result = assert_invoke(app, ["move", t01, "--id", "s99t01"], expect_error=True)
     assert result.exit_code != 0
     assert "s99" in result.output
-    assert "not found" in result.output
+    assert "does not exist" in result.output
 
 
 def test_move_id_idempotent_target(s1: str) -> None:

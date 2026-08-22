@@ -18,7 +18,7 @@ from ._common import app, complete_task_ref, get_task_repo, iter_in_review_tasks
 from ._print_utils import (
     compute_markers,
     format_task_list_item,
-    print_parent_preview,
+    print_parents_with_opened,
     print_task,
 )
 
@@ -210,7 +210,7 @@ def cmd_reset_task(
             console.append_context("forced_task_ids", t.id)
 
     save_recent_for_refs(repo, *resolved_tasks)
-    print_parent_preview(repo, *need_preview)
+    print_parents_with_opened(repo, *need_preview, highlight=True)
 
 
 def _fail_resetting_nonleaf_task(task: Task) -> NoReturn:
@@ -281,7 +281,7 @@ def cmd_cancel_task(
 
     save_recent_for_refs(repo, *resolved_tasks)
     save_closed_refs(repo, closed_ids)
-    print_parent_preview(repo, *need_preview)
+    print_parents_with_opened(repo, *need_preview, highlight=True)
 
 
 def _fail_cancelling_nonleaf_task(task: Task) -> NoReturn:
@@ -375,7 +375,7 @@ def cmd_done_task(
 
     save_recent_for_refs(repo, *resolved_tasks)
     save_closed_refs(repo, closed_ids)
-    print_parent_preview(repo, *need_preview)
+    print_parents_with_opened(repo, *need_preview, highlight=True)
 
 
 def _report_no_tasks_to_close(repo: TaskRepo) -> None:
@@ -384,7 +384,7 @@ def _report_no_tasks_to_close(repo: TaskRepo) -> None:
     open_tasks = list_open_leaf_tasks(repo)
     if open_tasks:
         console.print("\n[cyan]Open tasks:[/cyan]")
-        print_parent_preview(repo, *open_tasks, dont_highlight_tasks=True)
+        print_parents_with_opened(repo, *open_tasks, highlight=False)
 
 
 def _fail_finishing_nonleaf_task(task: Task) -> NoReturn:

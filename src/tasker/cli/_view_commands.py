@@ -12,16 +12,15 @@ from tasker.resolve import (
     resolve_ref,
     save_recent_for_refs,
 )
-from tasker.todo import classify_todo, load_todo_tasks
+from tasker.todo import classify_todo, load_todo_list, resolve_todo_tasks
 from tasker.utils import console, scan_root_tasks
 
 from ._common import app, complete_task_ref, get_task_repo, iter_in_review_tasks
 from ._print_utils import (
     ShowChildrenMode,
-    ShowTaskConfig,
     compute_markers,
+    print_parents_only,
     print_task,
-    print_tree,
 )
 
 DEFAULT_CLOSED_LIMIT = 5
@@ -159,19 +158,13 @@ def cmd_list_tasks(
         # as a fallback due to empty list
         show_children_mode = ShowChildrenMode.SHOW_ALL
 
-    config = ShowTaskConfig(
-        show_task_id=True,
+    print_parents_only(
+        repo,
+        *tasks,
         show_pending_marker=show_all and not showing_fallback,
+        show_children_mode=show_children_mode,
+        highlight=False,
     )
-
-    for task in tasks:
-        config.show_task(task, show_children_mode=show_children_mode)
-
-        if parent := repo.get_parent(task):
-            # note: no children mode for parent, just show the parent node
-            config.show_task(parent)
-
-    print_tree(repo, config)
 
     for task in tasks:
         console.append_context("tasks", _task_to_json(task))
@@ -189,7 +182,9 @@ def _collect_review_tasks(repo: TaskRepo, *, task_refs: list[str]) -> _ReviewTas
     if tasks:
         return _ReviewTasks(tasks)
 
-    active_todo = classify_todo(load_todo_tasks(repo)).active
+    todo = load_todo_list(repo)
+    todo_tasks = resolve_todo_tasks(repo, todo)
+    active_todo = classify_todo(todo_tasks).active
     if active_todo:
         return _ReviewTasks(
             active_todo,
@@ -221,7 +216,8 @@ class _TodoTasks(NamedTuple):
 
 
 def _collect_todo_tasks(repo: TaskRepo, *, show_all: bool) -> _TodoTasks:
-    todo_tasks = load_todo_tasks(repo)
+    todo = load_todo_list(repo)
+    todo_tasks = resolve_todo_tasks(repo, todo)
     if not todo_tasks:
         open_tasks = list_open_leaf_tasks(repo)
         return _TodoTasks(

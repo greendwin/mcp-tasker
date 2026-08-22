@@ -5,7 +5,7 @@ import pytest
 
 from tasker.cli import app
 from tasker.repo import TaskRepo
-from tasker.todo import load_todo_ids
+from tasker.todo import load_todo_list, save_todo_list
 
 from .helpers import add_subtask, assert_invoke, create_task
 
@@ -25,12 +25,93 @@ def repo(tasks_root: Path) -> TaskRepo:
 
 def test_todo_adds_task(story_id: str, repo: TaskRepo) -> None:
     assert_invoke(app, ["todo", story_id])
-    assert story_id in load_todo_ids(repo)
+    assert story_id in load_todo_list(repo)
 
 
 def test_todo_prints_confirmation(story_id: str) -> None:
     result = assert_invoke(app, ["todo", story_id])
-    assert "added to todo" in result.output
+    out = result.output
+    assert "Adding to TODO:" in out
+    # the bullet carries the id only; the title shows up in the render below
+    assert any(ln.strip() == f"- {story_id}" for ln in out.splitlines())
+
+
+def test_todo_header_has_single_colon(story_id: str) -> None:
+    result = assert_invoke(app, ["todo", story_id])
+    assert "Adding to TODO:" in result.output
+    assert "Adding to TODO::" not in result.output
+
+
+def test_todo_drops_old_added_sentence(story_id: str) -> None:
+    result = assert_invoke(app, ["todo", story_id])
+    assert "added to todo" not in result.output
+
+
+def test_todo_re_add_annotates_already_in_todo(story_id: str) -> None:
+    assert_invoke(app, ["todo", story_id])
+    result = assert_invoke(app, ["todo", story_id])
+    out = result.output
+    bullets = [ln for ln in out.splitlines() if "(already in todo)" in ln]
+    assert len(bullets) == 1
+    assert bullets[0].strip().startswith(f"- {story_id}")
+    assert "My story" not in bullets[0]
+
+
+def test_todo_closed_task_does_not_dump_open_tree(story_id: str) -> None:
+    create_task("Unrelated open story")
+    assert_invoke(app, ["finish", story_id])
+    result = assert_invoke(app, ["todo", story_id])
+    assert "Unrelated open story" not in result.output
+
+
+def test_todo_closed_pin_shows_task_without_list_report(story_id: str) -> None:
+    assert_invoke(app, ["finish", story_id])
+    result = assert_invoke(app, ["todo", story_id])
+    out = result.output
+    assert "My story" in out
+    assert "<<<" in out
+    # the "all finished" summary is a `list` concern, not an action command
+    assert "All tasks finished!" not in out
+
+
+def test_todo_multiple_refs_one_report_block(story_id: str) -> None:
+    t01 = add_subtask(story_id, "Task one").task_id
+    t02 = add_subtask(story_id, "Task two").task_id
+    result = assert_invoke(app, ["todo", t01, t02])
+    out = result.output
+    assert out.count("Adding to TODO:") == 1
+    assert "Task one" in out
+    assert "Task two" in out
+
+
+def test_todo_preview_shows_full_todo_list(story_id: str) -> None:
+    t01 = add_subtask(story_id, "Task one").task_id
+    t02 = add_subtask(story_id, "Task two").task_id
+    assert_invoke(app, ["todo", t01])
+    result = assert_invoke(app, ["todo", t02])
+    out = result.output
+    # the preview renders the whole TODO list, not just the touched ref
+    assert t01 in out
+    assert t02 in out
+    # only the just-added task carries the highlight
+    for line in out.splitlines():
+        if "<<<" in line:
+            assert t02 in line
+            assert t01 not in line
+
+
+def test_todo_with_stale_pin_skips_it_and_prunes(story_id: str, repo: TaskRepo) -> None:
+    t01 = add_subtask(story_id, "Task one").task_id
+    t02 = add_subtask(story_id, "Task two").task_id
+    save_todo_list(repo, [t01, "s99t99"])
+
+    result = assert_invoke(app, ["todo", t02])
+    out = result.output
+    assert t01 in out
+    assert t02 in out
+    assert "s99t99" not in out
+    # the stale pin is pruned from disk, matching `list --todo`
+    assert load_todo_list(repo) == [t01, t02]
 
 
 def test_todo_idempotent(story_id: str) -> None:
@@ -43,7 +124,7 @@ def test_todo_multiple_tasks(story_id: str, repo: TaskRepo) -> None:
     t01 = add_subtask(story_id, "Task one").task_id
     t02 = add_subtask(story_id, "Task two").task_id
     assert_invoke(app, ["todo", t01, t02])
-    ids = load_todo_ids(repo)
+    ids = load_todo_list(repo)
     assert t01 in ids
     assert t02 in ids
 
@@ -51,7 +132,7 @@ def test_todo_multiple_tasks(story_id: str, repo: TaskRepo) -> None:
 def test_todo_subtask_stores_task_id(story_id: str, repo: TaskRepo) -> None:
     t01 = add_subtask(story_id, "Subtask one").task_id
     assert_invoke(app, ["todo", t01])
-    ids = load_todo_ids(repo)
+    ids = load_todo_list(repo)
     assert t01 in ids
 
 
@@ -62,7 +143,7 @@ def test_todo_nonexistent_task_fails() -> None:
 def test_todo_json_output(story_id: str) -> None:
     result = assert_invoke(app, ["--json-output", "todo", story_id])
     data = json.loads(result.output)
-    assert data["task_refs"] == [f"{story_id}-my-story"]
+    assert data["task_refs"] == [story_id]
 
 
 def test_todo_creates_gitignore_entry(story_id: str, tasks_root: Path) -> None:
@@ -78,7 +159,7 @@ def test_todo_creates_gitignore_entry(story_id: str, tasks_root: Path) -> None:
 def test_todo_with_recent_shortcut(story_id: str, repo: TaskRepo) -> None:
     assert_invoke(app, ["view", story_id])
     assert_invoke(app, ["todo", "q"])
-    assert story_id in load_todo_ids(repo)
+    assert story_id in load_todo_list(repo)
 
 
 def test_todo_shows_parent_preview(story_id: str) -> None:
@@ -92,18 +173,31 @@ def test_todo_shows_parent_preview(story_id: str) -> None:
 def test_untodo_removes_task(story_id: str, repo: TaskRepo) -> None:
     assert_invoke(app, ["todo", story_id])
     assert_invoke(app, ["untodo", story_id])
-    assert story_id not in load_todo_ids(repo)
+    assert story_id not in load_todo_list(repo)
 
 
 def test_untodo_prints_confirmation(story_id: str) -> None:
     assert_invoke(app, ["todo", story_id])
     result = assert_invoke(app, ["untodo", story_id])
-    assert "removed from todo" in result.output
+    out = result.output
+    assert "Removing from TODO:" in out
+    # the bullet carries the id only; the title shows up in the render below
+    assert any(ln.strip() == f"- {story_id}" for ln in out.splitlines())
+
+
+def test_untodo_drops_old_removed_sentence(story_id: str) -> None:
+    assert_invoke(app, ["todo", story_id])
+    result = assert_invoke(app, ["untodo", story_id])
+    assert "removed from todo" not in result.output
 
 
 def test_untodo_idempotent(story_id: str) -> None:
     result = assert_invoke(app, ["untodo", story_id])
-    assert "was not in todo" in result.output
+    out = result.output
+    bullets = [ln for ln in out.splitlines() if "(was not in todo)" in ln]
+    assert len(bullets) == 1
+    assert bullets[0].strip().startswith(f"- {story_id}")
+    assert "My story" not in bullets[0]
 
 
 def test_untodo_nonexistent_task_fails() -> None:
@@ -114,7 +208,7 @@ def test_untodo_json_output(story_id: str) -> None:
     assert_invoke(app, ["todo", story_id])
     result = assert_invoke(app, ["--json-output", "untodo", story_id])
     data = json.loads(result.output)
-    assert data["task_refs"] == [f"{story_id}-my-story"]
+    assert data["task_refs"] == [story_id]
 
 
 def test_untodo_removes_file_when_empty(story_id: str, tasks_root: Path) -> None:
@@ -122,6 +216,218 @@ def test_untodo_removes_file_when_empty(story_id: str, tasks_root: Path) -> None
     assert (tasks_root / ".todo").exists()
     assert_invoke(app, ["untodo", story_id])
     assert not (tasks_root / ".todo").exists()
+
+
+def test_untodo_shows_detached_task_highlighted_without_marker(story_id: str) -> None:
+    t01 = add_subtask(story_id, "Task one").task_id
+    t02 = add_subtask(story_id, "Task two").task_id
+    assert_invoke(app, ["todo", t01, t02])
+    result = assert_invoke(app, ["untodo", t02])
+    lines = result.output.splitlines()
+    highlighted = [ln for ln in lines if "<<<" in ln]
+    assert len(highlighted) == 1
+    assert t02 in highlighted[0]
+    # the detached task carries no todo marker any more
+    assert "(t" not in highlighted[0]
+    assert "(todo)" not in highlighted[0]
+    # the remaining pin keeps its letter marker
+    assert any(t01 in ln and "(ta)" in ln for ln in lines)
+
+
+def test_untodo_last_pin_prints_empty_message(story_id: str) -> None:
+    assert_invoke(app, ["todo", story_id])
+    result = assert_invoke(app, ["untodo", story_id])
+    assert "Todo list is empty." in result.output
+
+
+def test_untodo_last_pin_shows_open_tasks_fallback(story_id: str) -> None:
+    create_task("Next thing")
+    assert_invoke(app, ["todo", story_id])
+    result = assert_invoke(app, ["untodo", story_id])
+    out = result.output
+    assert "Next thing" in out
+    assert any(story_id in ln and "<<<" in ln for ln in out.splitlines())
+
+
+def test_untodo_last_pin_prints_no_list_banners(story_id: str) -> None:
+    create_task("Next thing")
+    assert_invoke(app, ["todo", story_id])
+    result = assert_invoke(app, ["untodo", story_id])
+    assert "All tasks finished!" not in result.output
+
+
+def test_untodo_nonlast_pin_no_fallback(story_id: str) -> None:
+    create_task("Unrelated open story")
+    t01 = add_subtask(story_id, "Task one").task_id
+    t02 = add_subtask(story_id, "Task two").task_id
+    assert_invoke(app, ["todo", t01, t02])
+    result = assert_invoke(app, ["untodo", t02])
+    assert "Unrelated open story" not in result.output
+
+
+def test_untodo_child_of_pinned_parent_warns(story_id: str) -> None:
+    t01 = add_subtask(story_id, "Task one").task_id
+    assert_invoke(app, ["todo", story_id])
+    result = assert_invoke(app, ["untodo", t01])
+    bullets = [
+        ln for ln in result.output.splitlines() if "(still in todo via parent)" in ln
+    ]
+    assert len(bullets) == 1
+    assert t01 in bullets[0]
+    assert "Task one" not in bullets[0]
+
+
+def test_untodo_pinned_child_under_pinned_parent_unpins_and_warns(
+    story_id: str, repo: TaskRepo
+) -> None:
+    t01 = add_subtask(story_id, "Task one").task_id
+    assert_invoke(app, ["todo", story_id, t01])
+    result = assert_invoke(app, ["untodo", t01])
+    # the child itself is unpinned, only the parent pin remains
+    assert load_todo_list(repo) == [story_id]
+    assert "(still in todo via parent)" in result.output
+
+
+def test_untodo_child_of_pinned_parent_keeps_todo_ids(
+    story_id: str, repo: TaskRepo
+) -> None:
+    t01 = add_subtask(story_id, "Task one").task_id
+    assert_invoke(app, ["todo", story_id])
+    assert_invoke(app, ["untodo", t01])
+    assert load_todo_list(repo) == [story_id]
+
+
+def test_todo_duplicate_ref_reported_once(story_id: str, repo: TaskRepo) -> None:
+    t01 = add_subtask(story_id, "Task one").task_id
+    result = assert_invoke(app, ["todo", t01, t01])
+    out = result.output
+    bullets = [
+        ln.strip()
+        for ln in out.splitlines()
+        if ln.strip().startswith(f"- {t01}") and not ln.strip().startswith(f"- {t01}:")
+    ]
+    assert bullets == [f"- {t01}"]
+    assert "(already in todo)" not in out
+    assert load_todo_list(repo) == [t01]
+
+
+def test_untodo_duplicate_ref_reported_once(story_id: str, repo: TaskRepo) -> None:
+    t01 = add_subtask(story_id, "Task one").task_id
+    assert_invoke(app, ["todo", t01])
+    result = assert_invoke(app, ["untodo", t01, t01])
+    out = result.output
+    bullets = [
+        ln.strip()
+        for ln in out.splitlines()
+        if ln.strip().startswith(f"- {t01}") and not ln.strip().startswith(f"- {t01}:")
+    ]
+    assert bullets == [f"- {t01}"]
+    assert "(was not in todo)" not in out
+    assert load_todo_list(repo) == []
+
+
+def test_todo_duplicate_ref_json_task_refs_once(story_id: str) -> None:
+    t01 = add_subtask(story_id, "Task one").task_id
+    result = assert_invoke(app, ["--json-output", "todo", t01, t01])
+    data = json.loads(result.output)
+    assert data["task_refs"] == [t01]
+
+
+def test_untodo_duplicate_ref_json_task_refs_once(story_id: str) -> None:
+    t01 = add_subtask(story_id, "Task one").task_id
+    assert_invoke(app, ["todo", t01])
+    result = assert_invoke(app, ["--json-output", "untodo", t01, t01])
+    data = json.loads(result.output)
+    assert data["task_refs"] == [t01]
+
+
+def test_untodo_child_with_parent_in_same_batch_does_not_warn(
+    story_id: str, repo: TaskRepo
+) -> None:
+    t01 = add_subtask(story_id, "Task one").task_id
+    assert_invoke(app, ["todo", story_id])
+    result = assert_invoke(app, ["untodo", t01, story_id])
+    out = result.output
+    # the pinned parent leaves in the same batch — the warning would be stale
+    assert "(still in todo via parent)" not in out
+    bullets = [ln for ln in out.splitlines() if "(was not in todo)" in ln]
+    assert len(bullets) == 1
+    assert t01 in bullets[0]
+    assert load_todo_list(repo) == []
+
+
+def test_untodo_batch_outcome_is_order_independent(story_id: str) -> None:
+    t01 = add_subtask(story_id, "Task one").task_id
+
+    assert_invoke(app, ["todo", story_id])
+    child_first = assert_invoke(app, ["untodo", t01, story_id]).output
+
+    assert_invoke(app, ["todo", story_id])
+    parent_first = assert_invoke(app, ["untodo", story_id, t01]).output
+
+    def child_bullets(out: str) -> list[str]:
+        return [ln.strip() for ln in out.splitlines() if "(was not in todo)" in ln]
+
+    assert child_bullets(child_first) == child_bullets(parent_first)
+    assert len(child_bullets(child_first)) == 1
+    assert t01 in child_bullets(child_first)[0]
+
+
+def test_untodo_dedups_across_ref_spellings(story_id: str, repo: TaskRepo) -> None:
+    assert_invoke(app, ["todo", story_id])
+    # "ta" and the plain id are different spellings of the same task
+    result = assert_invoke(app, ["untodo", "ta", story_id])
+    out = result.output
+    bullets = [
+        ln.strip()
+        for ln in out.splitlines()
+        if ln.strip().startswith(f"- {story_id}")
+        and not ln.strip().startswith(f"- {story_id}:")
+    ]
+    assert bullets == [f"- {story_id}"]
+    assert "(was not in todo)" not in out
+    assert load_todo_list(repo) == []
+
+
+def test_untodo_child_with_parent_in_same_batch_keeps_other_pins(
+    story_id: str, repo: TaskRepo
+) -> None:
+    t01 = add_subtask(story_id, "Task one").task_id
+    other = create_task("Other story").task_id
+    assert_invoke(app, ["todo", story_id, other])
+    result = assert_invoke(app, ["untodo", t01, story_id])
+    out = result.output
+    assert "(still in todo via parent)" not in out
+    bullets = [ln for ln in out.splitlines() if "(was not in todo)" in ln]
+    assert len(bullets) == 1
+    assert t01 in bullets[0]
+    # the unrelated pin survives — the list stays active, no empty fallback
+    assert "Todo list is empty." not in out
+    assert load_todo_list(repo) == [other]
+
+
+def test_untodo_child_of_pinned_parent_highlights_child_only(story_id: str) -> None:
+    t01 = add_subtask(story_id, "Task one").task_id
+    assert_invoke(app, ["todo", story_id])
+    result = assert_invoke(app, ["untodo", t01])
+    lines = result.output.splitlines()
+    # the touched child is highlighted...
+    assert any(t01 in ln and "<<<" in ln for ln in lines)
+    # ...while the pinned parent keeps its marker but carries no highlight
+    parent_lines = [ln for ln in lines if "My story" in ln]
+    assert any("(ta)" in ln for ln in parent_lines)
+    assert all("<<<" not in ln for ln in parent_lines)
+
+
+def test_untodo_multiple_refs_one_report_block(story_id: str) -> None:
+    t01 = add_subtask(story_id, "Task one").task_id
+    t02 = add_subtask(story_id, "Task two").task_id
+    assert_invoke(app, ["todo", t01, t02])
+    result = assert_invoke(app, ["untodo", t01, t02])
+    out = result.output
+    assert out.count("Removing from TODO:") == 1
+    assert "Task one" in out
+    assert "Task two" in out
 
 
 # --- (todo) marker in list ---
@@ -185,7 +491,7 @@ def test_load_todo_ids_returns_insertion_order(story_id: str, repo: TaskRepo) ->
     t02 = add_subtask(story_id, "Task two").task_id
     assert_invoke(app, ["todo", t02])
     assert_invoke(app, ["todo", t01])
-    assert load_todo_ids(repo) == [t02, t01]
+    assert load_todo_list(repo) == [t02, t01]
 
 
 def test_untodo_preserves_remaining_order(story_id: str, repo: TaskRepo) -> None:
@@ -194,7 +500,7 @@ def test_untodo_preserves_remaining_order(story_id: str, repo: TaskRepo) -> None
     t03 = add_subtask(story_id, "Task three").task_id
     assert_invoke(app, ["todo", t01, t02, t03])
     assert_invoke(app, ["untodo", t02])
-    assert load_todo_ids(repo) == [t01, t03]
+    assert load_todo_list(repo) == [t01, t03]
 
 
 def test_re_add_existing_todo_does_not_reorder(story_id: str, repo: TaskRepo) -> None:
@@ -203,7 +509,7 @@ def test_re_add_existing_todo_does_not_reorder(story_id: str, repo: TaskRepo) ->
     t03 = add_subtask(story_id, "Task three").task_id
     assert_invoke(app, ["todo", t01, t02, t03])
     assert_invoke(app, ["todo", t01])
-    assert load_todo_ids(repo) == [t01, t02, t03]
+    assert load_todo_list(repo) == [t01, t02, t03]
 
 
 # --- list --todo ---
@@ -309,11 +615,18 @@ def test_full_list_shows_letter_marker_on_deep_subtask(story_id: str) -> None:
 
 def test_todo_parent_preview_shows_letter_marker(story_id: str) -> None:
     result = assert_invoke(app, ["todo", story_id])
+
+    found = False
     for line in result.output.splitlines():
-        if story_id in line and "My story" in line:
-            assert "(ta)" in line
-            return
-    raise AssertionError("no preview line found")
+        if story_id not in line:
+            continue
+
+        if "My story" in line and "(ta)" in line:
+            found = True
+            break
+
+    if not found:
+        raise AssertionError(f"no preview line found in:\n{result.output}")
 
 
 # --- t<letter> shortcut resolution ---
