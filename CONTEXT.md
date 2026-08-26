@@ -46,6 +46,15 @@ filesystem concern — it is never accepted as user input and never the identity
 task.
 _Avoid_: ref, task ref, full ref
 
+**Frontmatter extras**:
+Frontmatter keys that `tasker` does not own (the owned keys are `id`, `slug`,
+`status`, `order`). Held as data, not text: preserved across edits and merged
+per-key on three-way merge; comments around them are not preserved. A task
+carrying extras cannot become an inline subtask. Purpose: let newer `tasker`
+versions and other tools annotate tasks without older versions rejecting or
+destroying the annotations.
+_Avoid_: unknown fields, custom fields, extra annotations
+
 **Order**:
 A per-sibling-set manual sort key expressing implementation order. Among siblings,
 tasks with an order sort ahead of those without, ascending; ties and unordered
