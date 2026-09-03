@@ -68,9 +68,15 @@ deviations (a no-op, a warning) are annotated. Notes about the overall
 *resulting state* are not per-ref outcomes — they are reported outside the
 bullet list.
 
+**One bullet per resolved id.** A ref may resolve to more than one task — a
+batch expression such as `s19t10-15` names a span of siblings — so the report
+has one bullet per *resolved task id*, not per requested ref. Expansion is
+invisible in the report: `done s19t10-15` reads exactly as if the six ids had
+been typed out. See ADR 0005.
+
 **Duplicates are ignored.** Requested refs are deduplicated by *resolved task
 id* before processing, keeping first-occurrence order: a repeated ref yields
-one bullet, one `task_refs` JSON entry, and one application of the action — a
+one bullet, one `task_ids` JSON entry, and one application of the action — a
 duplicate is not a deviation (never annotated as `(already …)` / `(was not …)`).
 This rule applies to every command adopting the action report —
 `todo`/`untodo` are the first adopters; the remaining report-and-preview

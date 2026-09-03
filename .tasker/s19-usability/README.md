@@ -39,3 +39,6 @@ Improve user experience
 - [ ] [s19t32](s19t32-interactive-mode-for-tasker-list.md): Interactive mode for 'tasker list'
 - [ ] s19t33: Add mpc installation helper 'tasker mcp --install'
 - [ ] [s19t34](s19t34-get-rid-of-subtasks-section.md): Get rid of 'subtasks' section
+- [ ] [s19t35](s19t35-range-expressions-for-task-refs/): Range expressions for task refs, and the ref/id/filename split
+- [ ] [s19t36](s19t36-accept-multiple-task-ids-in.md): Accept multiple task ids in MCP mutator tools
+- [ ] [s19t37](s19t37-range-aware-shell-completion.md): Range-aware shell completion
