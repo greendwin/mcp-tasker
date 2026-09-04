@@ -3,6 +3,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal, NamedTuple, overload
 
+import yaml
+
 from tasker.layout import discover_tasker_dir
 from tasker.utils import console, escape_markup, read_text
 
@@ -380,31 +382,7 @@ def _parse_content(content: str, *, task_ref: str) -> _ParsedContent:
             "Unclosed front-matter: missing closing '---'", task_ref=task_ref
         )
 
-    id_val = ""
-    status = TaskStatus.PENDING
-    slug = None
-    order_val = None
-    for line in lines[1:fm_end]:
-        if line.startswith("id:"):
-            id_val = line.split(":", 1)[1].strip()
-        elif line.startswith("status:"):
-            status = TaskStatus(line.split(":", 1)[1].strip())
-        elif line.startswith("slug:"):
-            raw_slug = line.split(":", 1)[1].strip()
-            slug = normalize_slug(raw_slug) if raw_slug else None
-        elif line.startswith("order:"):
-            raw_order = line.split(":", 1)[1].strip()
-            try:
-                order_val = int(raw_order)
-            except ValueError:
-                raise TaskValidateError(
-                    f"Invalid order value {raw_order!r}", task_ref=task_ref
-                )
-        elif line.strip():
-            key = line.split(":", 1)[0].strip()
-            raise TaskValidateError(
-                f"Unknown front-matter field {key!r}", task_ref=task_ref
-            )
+    fm = _parse_front_matter("\n".join(lines[1:fm_end]), task_ref=task_ref)
 
     # Body: everything after the closing ---
     body = lines[fm_end + 1 :]
@@ -465,14 +443,118 @@ def _parse_content(content: str, *, task_ref: str) -> _ParsedContent:
     description = "\n\n".join(body_parts) or None
 
     return _ParsedContent(
-        id=id_val,
+        id=fm.id,
         title=title,
-        slug=slug,
+        slug=fm.slug,
         description=description,
-        status=status,
-        order=order_val,
+        status=fm.status,
+        order=fm.order,
         subtasks=subtasks,
     )
+
+
+@dataclass
+class _FrontMatter:
+    id: str
+    status: TaskStatus
+    slug: str | None
+    order: int | None
+
+
+class _FrontMatterLoader(yaml.SafeLoader):
+    """SafeLoader with implicit bool and numeric coercions disabled.
+
+    YAML 1.1 treats ``true``/``false``/``yes``/``no``/``on``/``off`` as
+    booleans and coerces scalars like ``007``, ``0x1f``, ``12:34``, or
+    ``1.5`` to numbers, which would silently rewrite such slugs on
+    round-trip; all those tokens must stay plain strings. Only ``null``
+    keeps its YAML meaning; digit-string values reach field parsers as
+    strings (``_parse_order`` accepts them).
+    """
+
+
+_REMOVED_IMPLICIT_TAGS = frozenset(
+    {
+        "tag:yaml.org,2002:bool",
+        "tag:yaml.org,2002:int",
+        "tag:yaml.org,2002:float",
+        "tag:yaml.org,2002:timestamp",
+        "tag:yaml.org,2002:merge",
+        "tag:yaml.org,2002:value",
+    }
+)
+
+_FrontMatterLoader.yaml_implicit_resolvers = {
+    first_char: [
+        (tag, regexp) for tag, regexp in resolvers if tag not in _REMOVED_IMPLICIT_TAGS
+    ]
+    for first_char, resolvers in yaml.SafeLoader.yaml_implicit_resolvers.items()
+}
+
+
+def _parse_front_matter(block: str, *, task_ref: str) -> _FrontMatter:
+    try:
+        data = yaml.load(block, Loader=_FrontMatterLoader)
+    except yaml.YAMLError as exc:
+        raise TaskValidateError(f"Invalid front-matter YAML: {exc}", task_ref=task_ref)
+
+    if data is None:
+        data = {}
+
+    if not isinstance(data, dict):
+        raise TaskValidateError(
+            "Invalid front-matter: expected a mapping of 'key: value' fields",
+            task_ref=task_ref,
+        )
+
+    fm = _FrontMatter(id="", status=TaskStatus.PENDING, slug=None, order=None)
+    for key, value in data.items():
+        if key == "id":
+            fm.id = "" if value is None else str(value)
+        elif key == "status":
+            fm.status = _parse_status(value, task_ref=task_ref)
+        elif key == "slug":
+            fm.slug = _parse_slug(value, task_ref=task_ref)
+        elif key == "order":
+            fm.order = _parse_order(value, task_ref=task_ref)
+        else:
+            raise TaskValidateError(
+                f"Unknown front-matter field {key!r}", task_ref=task_ref
+            )
+
+    return fm
+
+
+def _parse_status(value: object, *, task_ref: str) -> TaskStatus:
+    raw = "" if value is None else str(value)
+    try:
+        return TaskStatus(raw)
+    except ValueError:
+        raise TaskValidateError(f"Unknown status value {raw!r}", task_ref=task_ref)
+
+
+def _parse_slug(value: object, *, task_ref: str) -> str | None:
+    # empty `slug:` (None) keeps the filename-derived slug as fallback
+    if value is None:
+        return None
+
+    if not isinstance(value, str):
+        raise TaskValidateError(f"Invalid slug value {value!r}", task_ref=task_ref)
+
+    return normalize_slug(value) if value else None
+
+
+def _parse_order(value: object, *, task_ref: str) -> int:
+    if isinstance(value, int) and not isinstance(value, bool):
+        return value
+
+    if isinstance(value, str):
+        try:
+            return int(value)
+        except ValueError:
+            pass
+
+    raise TaskValidateError(f"Invalid order value {value!r}", task_ref=task_ref)
 
 
 def _strip_blank_lines(lines: list[str]) -> list[str]:

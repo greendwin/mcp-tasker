@@ -260,6 +260,40 @@ def test_parse_raises_on_unknown_front_matter_field() -> None:
         parse_task_file(bad)
 
 
+def test_parse_quoted_front_matter_values() -> None:
+    content = (
+        '---\nid: "s01"\nslug:   "my-task"\n'
+        "status: 'pending'\norder:  5\n---\n\n# My task\n"
+    )
+    task, _ = parse_task(content, task_id="s01", slug="other", extended=False)
+    assert task.slug == "my-task"
+    assert task.status == TaskStatus.PENDING
+    assert task.order == 5
+
+
+def test_parse_raises_on_invalid_yaml_front_matter() -> None:
+    content = "---\nid: s01\nstatus: [unclosed\n---\n\n# My task\n"
+    with pytest.raises(TaskValidateError, match="Invalid front-matter YAML") as exc:
+        parse_task(content, task_id="s01", slug="my-task", extended=False)
+    assert exc.value.task_ref is not None
+
+
+def test_parse_raises_on_non_mapping_front_matter() -> None:
+    # `key:value` without a space is a plain YAML scalar, not a mapping
+    content = "---\nstatus:pending\n---\n\n# My task\n"
+    with pytest.raises(TaskValidateError, match="expected a mapping") as exc:
+        parse_task(content, task_id="s01", slug="my-task", extended=False)
+    assert exc.value.task_ref is not None
+
+
+def test_parse_empty_front_matter_uses_defaults() -> None:
+    content = "---\n---\n\n# My task\n"
+    task, _ = parse_task(content, task_id="s01", slug="my-task", extended=False)
+    assert task.status == TaskStatus.PENDING
+    assert task.slug == "my-task"
+    assert task.order is None
+
+
 def _fm(*, order: str | None = None) -> str:
     order_line = f"order: {order}\n" if order is not None else ""
     return f"---\nid: s01\nstatus: pending\n{order_line}---\n\n# My task\n"
@@ -283,6 +317,99 @@ def test_parse_raises_on_malformed_order() -> None:
         parse_task(_fm(order="abc"), task_id="s01", slug="my-task", extended=False)
 
 
+def test_parse_order_accepts_digit_string() -> None:
+    task, _ = parse_task(
+        _fm(order='"5"'), task_id="s01", slug="my-task", extended=False
+    )
+    assert task.order == 5
+
+
+@pytest.mark.parametrize("order", ["12.5", "[1, 2]", "true", "null"])
+def test_parse_raises_on_non_integer_order(order: str) -> None:
+    with pytest.raises(TaskValidateError, match="Invalid order value"):
+        parse_task(_fm(order=order), task_id="s01", slug="my-task", extended=False)
+
+
+def test_parse_null_slug_falls_back_to_filename() -> None:
+    content = "---\nid: s01\nslug:\nstatus: pending\n---\n\n# My task\n"
+    task, _ = parse_task(content, task_id="s01", slug="my-task", extended=False)
+    assert task.slug == "my-task"
+
+
+@pytest.mark.parametrize("status_line", ["status: bogus", "status:", "status: true"])
+def test_parse_raises_on_unknown_status(status_line: str) -> None:
+    content = f"---\nid: s01\n{status_line}\n---\n\n# My task\n"
+    with pytest.raises(TaskValidateError, match="Unknown status value") as exc:
+        parse_task(content, task_id="s01", slug="my-task", extended=False)
+    assert exc.value.task_ref is not None
+
+
+def test_parse_raises_on_yaml_merge_key_in_front_matter() -> None:
+    content = "---\nid: s01\n<<: {status: done}\n---\n\n# My task\n"
+    with pytest.raises(
+        TaskValidateError, match="Unknown front-matter field '<<'"
+    ) as exc:
+        parse_task(content, task_id="s01", slug="my-task", extended=False)
+    assert exc.value.task_ref is not None
+
+
+@pytest.mark.parametrize("raw", ["[my, task]", "{a: 1}"])
+def test_parse_raises_on_non_string_slug(raw: str) -> None:
+    content = f"---\nid: s01\nslug: {raw}\nstatus: pending\n---\n\n# My task\n"
+    with pytest.raises(TaskValidateError, match="Invalid slug value") as exc:
+        parse_task(content, task_id="s01", slug="my-task", extended=False)
+    assert exc.value.task_ref is not None
+
+
+def test_parse_slug_yaml_value_token_stays_literal() -> None:
+    # `=` is the YAML 1.1 value special token; it must parse as a plain
+    # string (which normalizes to empty -> filename fallback), not error out
+    content = "---\nid: s01\nslug: =\nstatus: pending\n---\n\n# My task\n"
+    task, _ = parse_task(content, task_id="s01", slug="my-task", extended=False)
+    assert task.slug == "my-task"
+
+
+@pytest.mark.parametrize("raw", ["off", "no", "yes", "on", "true", "false"])
+def test_parse_slug_yaml_bool_tokens_stay_literal(raw: str) -> None:
+    content = f"---\nid: s01\nslug: {raw}\nstatus: pending\n---\n\n# My task\n"
+    task, _ = parse_task(content, task_id="s01", slug="fallback", extended=False)
+    assert task.slug == raw
+
+
+@pytest.mark.parametrize("raw", ["off", "no", "yes", "on", "true", "false"])
+def test_slug_yaml_bool_tokens_round_trip_byte_identical(raw: str) -> None:
+    content = f"---\nid: s01\nslug: {raw}\nstatus: pending\n---\n\n# My task\n"
+    task, _ = parse_task(content, task_id="s01", slug="fallback", extended=False)
+    assert render_task(task) == content
+
+
+@pytest.mark.parametrize("raw", ["007", "0x1f"])
+def test_parse_slug_numeric_like_tokens_stay_literal(raw: str) -> None:
+    content = f"---\nid: s01\nslug: {raw}\nstatus: pending\n---\n\n# My task\n"
+    task, _ = parse_task(content, task_id="s01", slug="fallback", extended=False)
+    assert task.slug == raw
+
+
+@pytest.mark.parametrize(
+    ("raw", "expected"),
+    [
+        ("1.50", "1-50"),  # would be float 1.5 -> "1-5" without the float strip
+        ("12:34", "12-34"),  # would be sexagesimal int without the int strip
+    ],
+)
+def test_parse_slug_numeric_like_tokens_keep_digits(raw: str, expected: str) -> None:
+    content = f"---\nid: s01\nslug: {raw}\nstatus: pending\n---\n\n# My task\n"
+    task, _ = parse_task(content, task_id="s01", slug="fallback", extended=False)
+    assert task.slug == expected
+
+
+@pytest.mark.parametrize("raw", ["007", "0x1f"])
+def test_slug_numeric_like_tokens_round_trip_byte_identical(raw: str) -> None:
+    content = f"---\nid: s01\nslug: {raw}\nstatus: pending\n---\n\n# My task\n"
+    task, _ = parse_task(content, task_id="s01", slug="fallback", extended=False)
+    assert render_task(task) == content
+
+
 @pytest.mark.parametrize("value", [2000, 0, -5])
 def test_render_emits_order_when_set(value: int) -> None:
     task = Task(id="s01", slug="my-task", title="My task", order=value)
@@ -303,6 +430,38 @@ def test_order_round_trips(value: int) -> None:
         render_task(task), task_id="s01", slug="my-task", extended=False
     )
     assert reparsed.order == value
+
+
+@pytest.mark.parametrize(
+    "content",
+    [
+        "---\nid: s01\nslug: my-task\nstatus: pending\n---\n\n# My task\n",
+        (
+            "---\nid: s01\nslug: my-task\nstatus: in-progress\norder: 2000\n"
+            "---\n\n# My task\n"
+        ),
+        (
+            "---\nid: s01\nslug: my-task\nstatus: done\norder: -5\n---\n\n"
+            "# My task\n\nLead paragraph.\n"
+        ),
+        (
+            "---\nid: s01\nslug: my-task\nstatus: pending\n---\n\n"
+            "# My task\n\n"
+            "Description.\n\n"
+            "## Notes\n\nSome notes.\n\n"
+            "## Subtasks\n\n"
+            "- [ ] s01t01: First\n"
+            "- [x] s01t02: Second\n"
+        ),
+    ],
+    ids=["minimal", "with-order", "order-and-body", "with-subtasks"],
+)
+def test_realistic_task_round_trips_byte_identical(content: str) -> None:
+    task, subtasks = parse_task(content, task_id="s01", slug="my-task", extended=False)
+    task.subtasks = [
+        Task(id=s.id, slug=s.slug, title=s.title, status=s.status) for s in subtasks
+    ]
+    assert render_task(task) == content
 
 
 def test_plain_task_byte_identical_without_order() -> None:

@@ -1,7 +1,7 @@
 ---
 id: s13t0901
 slug: switch-frontmatter-parsing-to-yaml
-status: pending
+status: in-progress
 ---
 
 # Switch frontmatter parsing to YAML

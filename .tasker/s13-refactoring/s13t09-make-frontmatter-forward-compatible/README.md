@@ -1,7 +1,7 @@
 ---
 id: s13t09
 slug: make-frontmatter-forward-compatible
-status: pending
+status: in-progress
 ---
 
 # Make frontmatter forward-compatible
@@ -60,7 +60,7 @@ and merge cleanly. Decisions recorded in ADR 0005 and CONTEXT.md
 
 ## Subtasks
 
-- [ ] [s13t0901](s13t0901-switch-frontmatter-parsing-to-yaml.md): Switch frontmatter parsing to YAML
+- [~] [s13t0901](s13t0901-switch-frontmatter-parsing-to-yaml.md): Switch frontmatter parsing to YAML
 - [ ] [s13t0902](s13t0902-preserve-unknown-frontmatter-keys-via.md): Preserve unknown frontmatter keys via extra on Task
 - [ ] [s13t0903](s13t0903-per-key-three-way-merge.md): Per-key three-way merge of frontmatter extras
 - [ ] [s13t0904](s13t0904-extras-keep-a-task-file.md): Extras keep a task file-based (block downgrade to inline)
